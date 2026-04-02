@@ -140,45 +140,58 @@ function SessionCard({ session, onResume, onRemove }: SessionCardProps) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96 }}
-      className="flex items-center gap-4 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors group"
+      className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors group"
     >
-      {/* Role badge */}
-      <div
-        className={cn(
-          'flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-white text-xs font-bold',
-          isHost
-            ? 'bg-gradient-to-br from-indigo-500 to-violet-600'
-            : 'bg-gradient-to-br from-emerald-500 to-teal-600',
-        )}
-      >
-        {isHost ? 'H' : 'P'}
-      </div>
-
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
-          {session.name}
-        </p>
-        <div className="flex items-center gap-3 mt-0.5">
-          <span className="text-xs text-zinc-500 font-mono">{session.joinCode}</span>
-          <span className="text-xs text-zinc-400 flex items-center gap-1">
-            <Ticket className="h-3 w-3" />
-            {session.urlCount}
-          </span>
-          <span className="text-xs text-zinc-400 flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            {daysLeft}d left
-          </span>
+      {/* Top row: badge + info + delete */}
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        {/* Role badge */}
+        <div
+          className={cn(
+            'flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-white text-xs font-bold',
+            isHost
+              ? 'bg-gradient-to-br from-indigo-500 to-violet-600'
+              : 'bg-gradient-to-br from-emerald-500 to-teal-600',
+          )}
+        >
+          {isHost ? 'H' : 'P'}
         </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+            {session.name}
+          </p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
+            <span className="text-xs text-zinc-500 font-mono">{session.joinCode}</span>
+            <span className="text-xs text-zinc-400 flex items-center gap-1">
+              <Ticket className="h-3 w-3" />
+              {session.urlCount}
+            </span>
+            <span className="text-xs text-zinc-400 flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {daysLeft}d left
+            </span>
+          </div>
+        </div>
+
+        {/* Delete — always visible on mobile, hover-only on desktop */}
+        <button
+          type="button"
+          onClick={onRemove}
+          className="flex-shrink-0 p-1.5 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-red-400/10 transition-colors sm:opacity-0 sm:group-hover:opacity-100"
+          aria-label="Remove session"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-2 flex-shrink-0">
+      {/* Action button — full-width on mobile */}
+      <div className="flex-shrink-0">
         <Button
           type="button"
           size="sm"
           variant={isHost ? 'glow' : 'outline'}
-          className="text-xs h-8"
+          className="text-xs h-8 w-full sm:w-auto"
           onClick={onResume}
         >
           {isHost ? (
@@ -193,14 +206,6 @@ function SessionCard({ session, onResume, onRemove }: SessionCardProps) {
             </>
           )}
         </Button>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="p-1.5 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-red-400/10 transition-colors opacity-0 group-hover:opacity-100"
-          aria-label="Remove session"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
       </div>
     </motion.div>
   );
@@ -582,13 +587,13 @@ export function Home() {
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="max-w-3xl mx-auto text-center glass-card rounded-3xl p-12"
+          className="max-w-3xl mx-auto text-center glass-card rounded-3xl p-6 sm:p-12"
         >
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">Ready to groom better?</h2>
           <p className="text-zinc-500 dark:text-zinc-400 text-lg mb-8 max-w-xl mx-auto">
             Start a session in 30 seconds. Your team joins instantly.
           </p>
-          <Button asChild variant="glow" size="lg" className="text-base px-10 h-14">
+          <Button asChild variant="glow" size="lg" className="text-base px-10 h-14 w-full sm:w-auto">
             <Link to="/create">
               Create your first session
               <ArrowRight className="h-5 w-5 ml-2" />

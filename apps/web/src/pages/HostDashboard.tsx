@@ -37,6 +37,7 @@ export function HostDashboard() {
   const navigate = useNavigate();
   const [showShareModal, setShowShareModal] = useState(false);
   const [newUrl, setNewUrl] = useState('');
+  const [showMobileParticipants, setShowMobileParticipants] = useState(false);
 
   const {
     session,
@@ -202,10 +203,10 @@ export function HostDashboard() {
 
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden">
-      {/* Top bar */}
-      <header className="h-16 flex-shrink-0 flex items-center gap-4 px-4 border-b border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-sm z-10">
-        {/* Session name + status */}
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+      {/* Top bar — single row on desktop, two rows on mobile */}
+      <header className="flex-shrink-0 flex flex-wrap sm:flex-nowrap items-center gap-2 px-4 py-2 sm:py-0 sm:h-16 border-b border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-sm z-10">
+        {/* Row 1: logo + session name + status (full width on mobile) */}
+        <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto sm:flex-1">
           <a href="/" aria-label="Tab Pilot home">
             <img
               src="/logo.svg"
@@ -221,7 +222,8 @@ export function HostDashboard() {
           <StatusBadge state={session.state} size="sm" />
         </div>
 
-        {/* Code */}
+        {/* Row 2 on mobile / same row on desktop: action controls */}
+        {/* Code — desktop only */}
         <button
           type="button"
           className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors text-sm font-mono"
@@ -235,12 +237,16 @@ export function HostDashboard() {
           <Copy className="h-3.5 w-3.5 text-zinc-500" />
         </button>
 
-        {/* Participant count */}
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm">
+        {/* Participant count — tappable to open participants overlay */}
+        <button
+          type="button"
+          onClick={() => setShowMobileParticipants(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
+        >
           <Users className="h-4 w-4 text-zinc-400" />
           <span className="text-zinc-700 dark:text-zinc-300 font-medium">{onlineCount}</span>
           <span className="text-zinc-600">/{participants.length}</span>
-        </div>
+        </button>
 
         {/* Connection status */}
         <div
@@ -253,7 +259,7 @@ export function HostDashboard() {
           <span className="hidden sm:block">{isConnected ? 'Connected' : 'Disconnected'}</span>
         </div>
 
-        {/* Reveal votes button — voting enabled + someone has voted + not yet revealed */}
+        {/* Reveal votes */}
         {session.votingEnabled && votedParticipantIds.length > 0 && !revealedVotes && (
           <Button
             variant="outline"
@@ -308,8 +314,8 @@ export function HostDashboard() {
 
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left sidebar — participant list */}
-        <aside className="w-64 xl:w-72 flex-shrink-0 border-r border-zinc-200 dark:border-zinc-800 overflow-hidden flex flex-col bg-white dark:bg-zinc-950">
+        {/* Left sidebar — hidden on mobile, always visible on desktop */}
+        <aside className="hidden md:flex w-64 xl:w-72 flex-shrink-0 border-r border-zinc-200 dark:border-zinc-800 overflow-hidden flex-col bg-white dark:bg-zinc-950">
           <ParticipantList
             participants={participants}
             onKick={handleKickParticipant}
@@ -319,7 +325,7 @@ export function HostDashboard() {
           />
         </aside>
 
-        {/* Center content */}
+        {/* Center content — full width on mobile */}
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* Current URL display */}
           {currentUrl && session.state === 'active' && (
@@ -545,6 +551,47 @@ export function HostDashboard() {
               <Button variant="glow" size="lg" className="w-full" onClick={() => navigate('/')}>
                 Back to Home
               </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Mobile participants overlay */}
+      <AnimatePresence>
+        {showMobileParticipants && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="md:hidden fixed inset-0 z-40 bg-zinc-950/60 backdrop-blur-sm"
+            onClick={() => setShowMobileParticipants(false)}
+          >
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className="absolute inset-y-0 left-0 w-4/5 max-w-xs bg-white dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-4 h-14 border-b border-zinc-200 dark:border-zinc-800 flex-shrink-0">
+                <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Participants</span>
+                <button
+                  type="button"
+                  onClick={() => setShowMobileParticipants(false)}
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                  aria-label="Close participants"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <ParticipantList
+                participants={participants}
+                onKick={handleKickParticipant}
+                className="flex-1"
+                votedParticipantIds={session.votingEnabled ? votedParticipantIds : undefined}
+                revealedVotes={session.votingEnabled ? revealedVotes : undefined}
+              />
             </motion.div>
           </motion.div>
         )}
