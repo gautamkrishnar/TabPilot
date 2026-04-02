@@ -106,6 +106,107 @@ const steps = [
   },
 ];
 
+const testimonials = [
+  {
+    quote:
+      "Tab Pilot is a very useful tool for collaboration within agile teams. It's an excellent way to queue up items for the team to review together and estimate size and complexity.",
+    name: 'Kevin Greenwood',
+    title: 'Principal Product Manager, Red Hat',
+    avatar: '/kevin-greenwood.jpg',
+  },
+  {
+    quote:
+      'As a project manager, keeping everyone focused during grooming is half the battle. Tab Pilot solves that instantly: one host, one ticket, zero confusion. It\'s become a staple in our sprint rituals.',
+    name: 'Radhika Nargotra',
+    title: 'Project Manager, Red Hat',
+    avatar: '/radhika-nargotra.png',
+  },
+  {
+    quote:
+      'Tab Pilot has completely changed how we run our grooming sessions. No more screen sharing lag or people losing track of which ticket we\'re on. Everyone is always in sync.',
+    name: 'Ayushi Midha',
+    title: 'Software Engineer, Red Hat',
+    avatar: '/ayushi-midha.jpg',
+  },
+  {
+    quote:
+      'The tab sync feature is genuinely clever. Watching everyone\'s browser follow along in real time without any plugins or setup makes remote grooming feel as natural as being in the same room.',
+    name: 'Atharva Upadhye',
+    title: 'Software Engineer, Red Hat',
+    avatar: '/atharva-upadhye.jpg',
+  },
+];
+
+function TestimonialCarousel() {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setIndex((i) => (i + 1) % testimonials.length);
+    }, 6000);
+    return () => clearInterval(id);
+  }, []);
+
+  const t = testimonials[index];
+
+  return (
+    <div className="relative">
+      <div className="relative h-[280px] sm:h-[240px] overflow-hidden">
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={t.name}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -16 }}
+          transition={{ duration: 0.4 }}
+          className="absolute inset-0 glass-card rounded-3xl p-8 sm:p-12"
+        >
+          <div className="absolute -top-4 left-10 text-6xl leading-none text-indigo-400/40 font-serif select-none">
+            &ldquo;
+          </div>
+          <blockquote className="relative">
+            <p className="text-lg sm:text-xl text-zinc-700 dark:text-zinc-300 leading-relaxed italic mb-8">
+              {t.quote}
+            </p>
+            <footer className="flex items-center gap-4">
+              <img
+                src={t.avatar}
+                alt={t.name}
+                className="w-11 h-11 rounded-full object-cover flex-shrink-0"
+              />
+              <div>
+                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{t.name}</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">{t.title}</p>
+              </div>
+            </footer>
+          </blockquote>
+        </motion.div>
+      </AnimatePresence>
+      </div>
+
+      {/* Dot indicators */}
+      <div className="flex justify-center gap-1 mt-6">
+        {testimonials.map((_, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => setIndex(i)}
+            className="flex items-center justify-center p-2"
+            aria-label={`Go to testimonial ${i + 1}`}
+          >
+            <span
+              className={cn(
+                'block h-1.5 rounded-full transition-all duration-300',
+                i === index ? 'w-6 bg-indigo-500' : 'w-1.5 bg-zinc-300 dark:bg-zinc-700',
+              )}
+            />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const faqs = [
   {
     q: 'Why do I need to enable tab sync?',
@@ -542,6 +643,13 @@ export function Home() {
               </motion.div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="py-24 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-3xl mx-auto">
+          <TestimonialCarousel />
         </div>
       </section>
 
