@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react';
+import { Github, Plus } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -42,6 +42,15 @@ export function Layout({ children, showNav = true }: LayoutProps) {
 
               {/* Right side */}
               <div className="flex items-center gap-3">
+                <a
+                  href="https://github.com/gautamkrishnar/TabPilot"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="GitHub repository"
+                  className="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                >
+                  <Github className="h-5 w-5" />
+                </a>
                 <ThemeToggle />
                 {!isHome && (
                   <Button asChild variant="glow" size="sm">
