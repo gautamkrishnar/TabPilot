@@ -67,15 +67,15 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
   /**
    * Compute the average of numeric votes. Non-numeric values (?, ☕) are ignored.
-   * Returns the mean rounded to one decimal, or the mode of non-numeric values
-   * if there are no numeric votes at all.
+   * Returns the mean rounded to the nearest integer, or the mode of non-numeric
+   * values if there are no numeric votes at all.
    */
   private computeAverage(votes: Map<string, string>): string {
     const values = Array.from(votes.values());
     const numeric = values.map(Number).filter((n) => !Number.isNaN(n));
     if (numeric.length > 0) {
       const mean = numeric.reduce((a, b) => a + b, 0) / numeric.length;
-      return mean % 1 === 0 ? String(mean) : mean.toFixed(1);
+      return String(Math.round(mean));
     }
     // All non-numeric — return the most common value
     const freq = new Map<string, number>();
