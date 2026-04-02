@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+**/dist
+**/.cache
+.git
+.github
+*.log
+.env
+.env.local
+.yarn/cache
+.yarn/install-state.gz
+compose*.yml
+README.md
+coverage
+**/*.test.ts
+**/*.spec.ts
+docs

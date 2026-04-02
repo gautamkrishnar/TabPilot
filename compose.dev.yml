@@ -1,0 +1,22 @@
+name: tabpilot-dev
+
+# Run MongoDB locally for development.
+# Start with: podman compose -f compose.dev.yml up -d
+# Then run API + web with: yarn dev
+
+services:
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo_data_dev:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.runCommand({ ping: 1 })"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mongo_data_dev:

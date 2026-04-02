@@ -1,0 +1,975 @@
+import 'reflect-metadata';
+import { Test, type TestingModule } from '@nestjs/testing';
+import type { Participant, Session } from '@tabpilot/shared';
+import { WS_EVENTS } from '@tabpilot/shared';
+import type { Socket } from 'socket.io';
+import type { ParticipantDoc, ParticipantDocument } from '../participants/participant.schema';
+import { ParticipantsService } from '../participants/participants.service';
+import type { SessionDoc, SessionDocument } from '../sessions/session.schema';
+import { SessionsService } from '../sessions/sessions.service';
+import { SessionGateway } from './session.gateway';
+
+// ---------------------------------------------------------------------------
+// Factories for mocked documents / DTOs
+// ---------------------------------------------------------------------------
+function makeSessionDoc(
+  overrides: Partial<SessionDoc & { state: string; currentIndex: number }> = {},
+): SessionDocument {
+  const base: Partial<SessionDoc> = {
+    sessionId: 'session-1',
+    name: 'Test',
+    joinCode: 'ABC123',
+    hostName: 'Host',
+    hostKeyHash: 'hash',
+    urls: ['https://example.com', 'https://other.com'],
+    currentIndex: 0,
+    state: 'waiting' as const,
+    votingEnabled: false,
+    isLocked: false,
+    expiresAt: new Date(Date.now() + 86_400_000),
+    ...overrides,
+  };
+  return {
+    ...base,
+    toObject: () => ({ ...base, createdAt: new Date(), updatedAt: new Date() }),
+  } as unknown as SessionDocument;
+}
+
+function makeParticipantDoc(overrides: Partial<ParticipantDoc> = {}): ParticipantDocument {
+  const base: Partial<ParticipantDoc> = {
+    participantId: 'p-1',
+    sessionId: 'session-1',
+    name: 'Alice',
+    avatarUrl: 'https://api.dicebear.com/...',
+    isOnline: false,
+    ...overrides,
+  };
+  return {
+    ...base,
+    toObject: () => ({ ...base, createdAt: new Date() }),
+  } as unknown as ParticipantDocument;
+}
+
+function makeParticipantDto(overrides: Partial<Participant> = {}): Participant {
+  return {
+    id: 'p-1',
+    sessionId: 'session-1',
+    name: 'Alice',
+    avatarUrl: 'https://api.dicebear.com/...',
+    isOnline: false,
+    joinedAt: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+function makeSessionDto(overrides: Partial<Session> = {}): Session {
+  return {
+    id: 'session-1',
+    name: 'Test',
+    joinCode: 'ABC123',
+    hostName: 'Host',
+    urls: ['https://example.com', 'https://other.com'],
+    currentIndex: 0,
+    state: 'waiting',
+    votingEnabled: false,
+    isLocked: false,
+    createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+    ...overrides,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Mock socket helper
+// ---------------------------------------------------------------------------
+function makeMockSocket(id = 'socket-1'): jest.Mocked<Socket> {
+  return {
+    id,
+    emit: jest.fn(),
+    join: jest.fn().mockResolvedValue(undefined),
+    to: jest.fn().mockReturnThis(),
+  } as unknown as jest.Mocked<Socket>;
+}
+
+// ---------------------------------------------------------------------------
+// Mock services
+// ---------------------------------------------------------------------------
+function makeMockSessionsService(): jest.Mocked<SessionsService> {
+  return {
+    findById: jest.fn(),
+    findByJoinCode: jest.fn(),
+    validateHostKey: jest.fn(),
+    updateState: jest.fn(),
+    updateCurrentIndex: jest.fn(),
+    toSessionDto: jest.fn(),
+    create: jest.fn(),
+    setLocked: jest.fn(),
+    addUrl: jest.fn(),
+    removeUrl: jest.fn(),
+    reorderUrls: jest.fn(),
+  } as unknown as jest.Mocked<SessionsService>;
+}
+
+function makeMockParticipantsService(): jest.Mocked<ParticipantsService> {
+  return {
+    findById: jest.fn(),
+    findBySession: jest.fn(),
+    create: jest.fn(),
+    updateSocketId: jest.fn(),
+    updateOnlineStatus: jest.fn(),
+    toParticipantDto: jest.fn(),
+    deleteParticipant: jest.fn().mockResolvedValue(undefined),
+  } as unknown as jest.Mocked<ParticipantsService>;
+}
+
+// ---------------------------------------------------------------------------
+// Test setup
+// ---------------------------------------------------------------------------
+describe('SessionGateway', () => {
+  let gateway: SessionGateway;
+  let sessionsService: jest.Mocked<SessionsService>;
+  let participantsService: jest.Mocked<ParticipantsService>;
+  let mockServer: { to: jest.Mock; emit: jest.Mock };
+
+  beforeEach(async () => {
+    sessionsService = makeMockSessionsService();
+    participantsService = makeMockParticipantsService();
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        SessionGateway,
+        { provide: SessionsService, useValue: sessionsService },
+        { provide: ParticipantsService, useValue: participantsService },
+      ],
+    }).compile();
+
+    gateway = module.get<SessionGateway>(SessionGateway);
+
+    // Attach a mock Server so server.to(...).emit(...) works
+    mockServer = {
+      to: jest.fn().mockReturnThis(),
+      emit: jest.fn(),
+    };
+    (gateway as unknown as { server: typeof mockServer }).server = mockServer;
+  });
+
+  // -------------------------------------------------------------------------
+  // handleJoinSession()
+  // -------------------------------------------------------------------------
+  describe('handleJoinSession()', () => {
+    it('should emit error if session not found', async () => {
+      const client = makeMockSocket();
+      sessionsService.findById.mockResolvedValue(null);
+
+      await gateway.handleJoinSession(client, { sessionId: 'bad-id' });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'SESSION_NOT_FOUND' }),
+      );
+    });
+
+    it('should emit error if session has ended', async () => {
+      const client = makeMockSocket();
+      const endedDoc = makeSessionDoc({ state: 'ended' as const });
+      sessionsService.findById.mockResolvedValue(endedDoc);
+      sessionsService.validateHostKey.mockResolvedValue(false);
+      sessionsService.toSessionDto.mockReturnValue(makeSessionDto({ state: 'ended' }));
+      participantsService.findBySession.mockResolvedValue([]);
+
+      // A participant trying to join an ended session still receives session_state
+      // with ended state; the gateway does not emit an explicit "ended" error.
+      // The client gets a session_state with state=ended.
+      await gateway.handleJoinSession(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+      });
+
+      const calls = (client.emit as jest.Mock).mock.calls;
+      const sessionStateCall = calls.find(([event]: [string]) => event === WS_EVENTS.SESSION_STATE);
+      expect(sessionStateCall).toBeDefined();
+      expect(sessionStateCall[1].session.state).toBe('ended');
+    });
+
+    it('should emit error if host key is invalid', async () => {
+      const client = makeMockSocket();
+      sessionsService.findById.mockResolvedValue(makeSessionDoc());
+      sessionsService.validateHostKey.mockResolvedValue(false);
+
+      await gateway.handleJoinSession(client, {
+        sessionId: 'session-1',
+        hostKey: 'wrong-key',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'INVALID_HOST_KEY' }),
+      );
+    });
+
+    it('should emit session_state to joining client on success', async () => {
+      const client = makeMockSocket();
+      sessionsService.findById.mockResolvedValue(makeSessionDoc());
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.toSessionDto.mockReturnValue(makeSessionDto());
+      participantsService.findBySession.mockResolvedValue([]);
+
+      await gateway.handleJoinSession(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid-key',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.SESSION_STATE,
+        expect.objectContaining({ session: expect.any(Object) }),
+      );
+    });
+
+    it('should broadcast participant_online when participant reconnects (wasOffline)', async () => {
+      const client = makeMockSocket();
+      const participantDoc = makeParticipantDoc({ isOnline: false });
+      sessionsService.findById.mockResolvedValue(makeSessionDoc());
+      sessionsService.validateHostKey.mockResolvedValue(false);
+      sessionsService.toSessionDto.mockReturnValue(makeSessionDto());
+      participantsService.findById.mockResolvedValue(participantDoc);
+      participantsService.findBySession.mockResolvedValue([]);
+      participantsService.updateSocketId.mockResolvedValue(participantDoc);
+      participantsService.updateOnlineStatus.mockResolvedValue(
+        makeParticipantDoc({ isOnline: true }),
+      );
+      participantsService.toParticipantDto.mockReturnValue(makeParticipantDto());
+
+      await gateway.handleJoinSession(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+      });
+
+      // server.to(sessionId).emit should have been called with PARTICIPANT_ONLINE
+      expect(mockServer.to).toHaveBeenCalledWith('session-1');
+      expect(mockServer.emit).toHaveBeenCalledWith(
+        WS_EVENTS.PARTICIPANT_ONLINE,
+        expect.objectContaining({ participantId: 'p-1', isOnline: true }),
+      );
+    });
+
+    it('should emit navigate_to if session is already active', async () => {
+      const client = makeMockSocket();
+      const activeDoc = makeSessionDoc({ state: 'active' as const, currentIndex: 0 });
+      sessionsService.findById.mockResolvedValue(activeDoc);
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.toSessionDto.mockReturnValue(makeSessionDto({ state: 'active' }));
+      participantsService.findBySession.mockResolvedValue([]);
+
+      await gateway.handleJoinSession(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid-key',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.NAVIGATE_TO,
+        expect.objectContaining({ url: 'https://example.com', index: 0 }),
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // handleStartSession()
+  // -------------------------------------------------------------------------
+  describe('handleStartSession()', () => {
+    it('should emit error if host key is invalid', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(false);
+
+      await gateway.handleStartSession(client, {
+        sessionId: 'session-1',
+        hostKey: 'wrong',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'INVALID_HOST_KEY' }),
+      );
+    });
+
+    it('should update session state to active', async () => {
+      const client = makeMockSocket();
+      const activeDoc = makeSessionDoc({ state: 'active' as const });
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.updateState.mockResolvedValue(activeDoc);
+      sessionsService.toSessionDto.mockReturnValue(makeSessionDto({ state: 'active' }));
+      participantsService.findBySession.mockResolvedValue([]);
+
+      await gateway.handleStartSession(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+      });
+
+      expect(sessionsService.updateState).toHaveBeenCalledWith('session-1', 'active');
+    });
+
+    it('should broadcast session_started to the room', async () => {
+      const client = makeMockSocket();
+      const activeDoc = makeSessionDoc({ state: 'active' as const });
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.updateState.mockResolvedValue(activeDoc);
+      sessionsService.toSessionDto.mockReturnValue(makeSessionDto({ state: 'active' }));
+      participantsService.findBySession.mockResolvedValue([]);
+
+      await gateway.handleStartSession(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+      });
+
+      expect(mockServer.emit).toHaveBeenCalledWith(
+        WS_EVENTS.SESSION_STARTED,
+        expect.objectContaining({ currentIndex: 0 }),
+      );
+    });
+
+    it('should broadcast navigate_to with the first URL to the room', async () => {
+      const client = makeMockSocket();
+      const activeDoc = makeSessionDoc({ state: 'active' as const });
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.updateState.mockResolvedValue(activeDoc);
+      sessionsService.toSessionDto.mockReturnValue(makeSessionDto({ state: 'active' }));
+      participantsService.findBySession.mockResolvedValue([]);
+
+      await gateway.handleStartSession(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+      });
+
+      expect(mockServer.emit).toHaveBeenCalledWith(
+        WS_EVENTS.NAVIGATE_TO,
+        expect.objectContaining({ url: 'https://example.com', index: 0 }),
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // handleNavigate()
+  // -------------------------------------------------------------------------
+  describe('handleNavigate()', () => {
+    it('should emit error if host key is invalid', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(false);
+
+      await gateway.handleNavigate(client, {
+        sessionId: 'session-1',
+        hostKey: 'wrong',
+        direction: 'next',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'INVALID_HOST_KEY' }),
+      );
+    });
+
+    it('should navigate to the next URL (currentIndex + 1)', async () => {
+      const client = makeMockSocket();
+      const sessionDoc = makeSessionDoc({ currentIndex: 0 });
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.findById.mockResolvedValue(sessionDoc);
+      sessionsService.updateCurrentIndex.mockResolvedValue(makeSessionDoc({ currentIndex: 1 }));
+
+      await gateway.handleNavigate(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        direction: 'next',
+      });
+
+      expect(sessionsService.updateCurrentIndex).toHaveBeenCalledWith('session-1', 1);
+      expect(mockServer.emit).toHaveBeenCalledWith(
+        WS_EVENTS.NAVIGATE_TO,
+        expect.objectContaining({ url: 'https://other.com', index: 1 }),
+      );
+    });
+
+    it('should navigate to the previous URL (currentIndex - 1)', async () => {
+      const client = makeMockSocket();
+      const sessionDoc = makeSessionDoc({ currentIndex: 1 });
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.findById.mockResolvedValue(sessionDoc);
+      sessionsService.updateCurrentIndex.mockResolvedValue(makeSessionDoc({ currentIndex: 0 }));
+
+      await gateway.handleNavigate(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        direction: 'prev',
+      });
+
+      expect(sessionsService.updateCurrentIndex).toHaveBeenCalledWith('session-1', 0);
+      expect(mockServer.emit).toHaveBeenCalledWith(
+        WS_EVENTS.NAVIGATE_TO,
+        expect.objectContaining({ url: 'https://example.com', index: 0 }),
+      );
+    });
+
+    it('should clamp to 0 on prev when already at the first URL', async () => {
+      const client = makeMockSocket();
+      const sessionDoc = makeSessionDoc({ currentIndex: 0 });
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.findById.mockResolvedValue(sessionDoc);
+
+      await gateway.handleNavigate(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        direction: 'prev',
+      });
+
+      // Index is already 0 → no change → updateCurrentIndex should NOT be called
+      expect(sessionsService.updateCurrentIndex).not.toHaveBeenCalled();
+    });
+
+    it('should clamp to length-1 on next when already at the last URL', async () => {
+      const client = makeMockSocket();
+      const sessionDoc = makeSessionDoc({ currentIndex: 1 }); // last index (2 URLs)
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.findById.mockResolvedValue(sessionDoc);
+
+      await gateway.handleNavigate(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        direction: 'next',
+      });
+
+      // Index already at last → no change → updateCurrentIndex should NOT be called
+      expect(sessionsService.updateCurrentIndex).not.toHaveBeenCalled();
+    });
+
+    it('should navigate to a specific index when provided', async () => {
+      const client = makeMockSocket();
+      const sessionDoc = makeSessionDoc({ currentIndex: 0 });
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.findById.mockResolvedValue(sessionDoc);
+      sessionsService.updateCurrentIndex.mockResolvedValue(makeSessionDoc({ currentIndex: 1 }));
+
+      await gateway.handleNavigate(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        index: 1,
+      });
+
+      expect(sessionsService.updateCurrentIndex).toHaveBeenCalledWith('session-1', 1);
+    });
+
+    it('should not emit if the index has not changed', async () => {
+      const client = makeMockSocket();
+      // currentIndex is already 0, we request index 0
+      const sessionDoc = makeSessionDoc({ currentIndex: 0 });
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.findById.mockResolvedValue(sessionDoc);
+
+      await gateway.handleNavigate(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        index: 0,
+      });
+
+      expect(sessionsService.updateCurrentIndex).not.toHaveBeenCalled();
+      expect(mockServer.emit).not.toHaveBeenCalledWith(WS_EVENTS.NAVIGATE_TO, expect.anything());
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // handleOpenUrl()
+  // -------------------------------------------------------------------------
+  describe('handleOpenUrl()', () => {
+    it('should broadcast open_tab with a valid https URL', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+
+      await gateway.handleOpenUrl(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        url: 'https://example.com',
+      });
+
+      expect(mockServer.emit).toHaveBeenCalledWith(
+        WS_EVENTS.OPEN_TAB,
+        expect.objectContaining({ url: 'https://example.com' }),
+      );
+    });
+
+    it('should emit error for a non-http/https URL (javascript: scheme)', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+
+      await gateway.handleOpenUrl(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        url: 'javascript:alert(1)',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'INVALID_URL_PROTOCOL' }),
+      );
+    });
+
+    it('should emit error for a completely invalid URL', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+
+      await gateway.handleOpenUrl(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        url: 'not-a-url',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'INVALID_URL' }),
+      );
+    });
+
+    it('should emit error if host key is invalid', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(false);
+
+      await gateway.handleOpenUrl(client, {
+        sessionId: 'session-1',
+        hostKey: 'wrong',
+        url: 'https://example.com',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'INVALID_HOST_KEY' }),
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // handleEndSession()
+  // -------------------------------------------------------------------------
+  describe('handleEndSession()', () => {
+    it('should emit error if host key is invalid', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(false);
+
+      await gateway.handleEndSession(client, {
+        sessionId: 'session-1',
+        hostKey: 'wrong',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'INVALID_HOST_KEY' }),
+      );
+    });
+
+    it('should update state to ended', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.updateState.mockResolvedValue(makeSessionDoc({ state: 'ended' as const }));
+
+      await gateway.handleEndSession(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+      });
+
+      expect(sessionsService.updateState).toHaveBeenCalledWith('session-1', 'ended');
+    });
+
+    it('should broadcast session_ended to the room', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.updateState.mockResolvedValue(makeSessionDoc({ state: 'ended' as const }));
+
+      await gateway.handleEndSession(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+      });
+
+      expect(mockServer.to).toHaveBeenCalledWith('session-1');
+      expect(mockServer.emit).toHaveBeenCalledWith(WS_EVENTS.SESSION_ENDED, {});
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // handleJoinSession() — locked session
+  // -------------------------------------------------------------------------
+  describe('handleJoinSession() — locked session', () => {
+    it('should emit SESSION_LOCKED error when a new participant tries to join a locked session', async () => {
+      const client = makeMockSocket();
+      const lockedDoc = makeSessionDoc({ isLocked: true });
+      sessionsService.findById.mockResolvedValue(lockedDoc);
+      sessionsService.validateHostKey.mockResolvedValue(false);
+
+      await gateway.handleJoinSession(client, { sessionId: 'session-1' });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'SESSION_LOCKED' }),
+      );
+    });
+
+    it('should allow a participant to reconnect to a locked session using their existing participantId', async () => {
+      const client = makeMockSocket();
+      const lockedDoc = makeSessionDoc({ isLocked: true });
+      const participantDoc = makeParticipantDoc({ isOnline: false });
+      sessionsService.findById.mockResolvedValue(lockedDoc);
+      sessionsService.validateHostKey.mockResolvedValue(false);
+      sessionsService.toSessionDto.mockReturnValue(makeSessionDto({ isLocked: true }));
+      participantsService.findById.mockResolvedValue(participantDoc);
+      participantsService.findBySession.mockResolvedValue([]);
+      participantsService.updateSocketId.mockResolvedValue(participantDoc);
+      participantsService.updateOnlineStatus.mockResolvedValue(
+        makeParticipantDoc({ isOnline: true }),
+      );
+      participantsService.toParticipantDto.mockReturnValue(makeParticipantDto());
+
+      await gateway.handleJoinSession(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.SESSION_STATE,
+        expect.objectContaining({ session: expect.any(Object) }),
+      );
+      expect(client.emit).not.toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'SESSION_LOCKED' }),
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // handleToggleLock()
+  // -------------------------------------------------------------------------
+  describe('handleToggleLock()', () => {
+    it('should emit error if host key is invalid', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(false);
+
+      await gateway.handleToggleLock(client, {
+        sessionId: 'session-1',
+        hostKey: 'wrong',
+        locked: true,
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'UNAUTHORIZED' }),
+      );
+    });
+
+    it('should broadcast updated session_state after locking', async () => {
+      const client = makeMockSocket();
+      const lockedDoc = makeSessionDoc({ isLocked: true });
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.setLocked.mockResolvedValue(lockedDoc);
+      sessionsService.toSessionDto.mockReturnValue(makeSessionDto({ isLocked: true }));
+      participantsService.findBySession.mockResolvedValue([]);
+
+      await gateway.handleToggleLock(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        locked: true,
+      });
+
+      expect(sessionsService.setLocked).toHaveBeenCalledWith('session-1', true);
+      expect(mockServer.emit).toHaveBeenCalledWith(
+        WS_EVENTS.SESSION_STATE,
+        expect.objectContaining({ session: expect.objectContaining({ isLocked: true }) }),
+      );
+    });
+
+    it('should do nothing when setLocked returns null', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.setLocked.mockResolvedValue(null);
+
+      await gateway.handleToggleLock(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        locked: true,
+      });
+
+      expect(mockServer.emit).not.toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // handleKickParticipant()
+  // -------------------------------------------------------------------------
+  describe('handleKickParticipant()', () => {
+    it('should emit error if host key is invalid', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(false);
+
+      await gateway.handleKickParticipant(client, {
+        sessionId: 'session-1',
+        hostKey: 'wrong',
+        participantId: 'p-1',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'UNAUTHORIZED' }),
+      );
+    });
+
+    it('should delete the participant and broadcast PARTICIPANT_LEFT to the room', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+
+      await gateway.handleKickParticipant(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        participantId: 'p-99',
+      });
+
+      expect(participantsService.deleteParticipant).toHaveBeenCalledWith('p-99');
+      expect(mockServer.to).toHaveBeenCalledWith('session-1');
+      expect(mockServer.emit).toHaveBeenCalledWith(WS_EVENTS.PARTICIPANT_LEFT, {
+        participantId: 'p-99',
+      });
+    });
+
+    it('should emit KICKED to the participant socket and clean up socketMeta', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+
+      // Seed the socketMeta map as if p-1 is connected on socket "socket-p1"
+      (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta.set('socket-p1', {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        isHost: false,
+      });
+
+      await gateway.handleKickParticipant(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        participantId: 'p-1',
+      });
+
+      expect(mockServer.to).toHaveBeenCalledWith('socket-p1');
+      expect(mockServer.emit).toHaveBeenCalledWith(WS_EVENTS.KICKED, { participantId: 'p-1' });
+
+      const meta = (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta.get(
+        'socket-p1',
+      );
+      expect(meta).toBeUndefined();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // handleAddUrl()
+  // -------------------------------------------------------------------------
+  describe('handleAddUrl()', () => {
+    it('should emit error if host key is invalid', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(false);
+
+      await gateway.handleAddUrl(client, {
+        sessionId: 'session-1',
+        hostKey: 'wrong',
+        url: 'https://example.com',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'UNAUTHORIZED' }),
+      );
+    });
+
+    it('should emit error for an invalid URL', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+
+      await gateway.handleAddUrl(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        url: 'not-a-url',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'INVALID_URL' }),
+      );
+    });
+
+    it('should broadcast updated session_state after adding a URL', async () => {
+      const client = makeMockSocket();
+      const updatedDoc = makeSessionDoc({
+        urls: ['https://example.com', 'https://other.com', 'https://new.com'],
+      });
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.addUrl.mockResolvedValue(updatedDoc);
+      sessionsService.toSessionDto.mockReturnValue(
+        makeSessionDto({ urls: updatedDoc.urls as string[] }),
+      );
+      participantsService.findBySession.mockResolvedValue([]);
+
+      await gateway.handleAddUrl(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        url: 'https://new.com',
+      });
+
+      expect(sessionsService.addUrl).toHaveBeenCalledWith('session-1', 'https://new.com');
+      expect(mockServer.emit).toHaveBeenCalledWith(
+        WS_EVENTS.SESSION_STATE,
+        expect.objectContaining({ session: expect.any(Object) }),
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // handleRemoveUrl()
+  // -------------------------------------------------------------------------
+  describe('handleRemoveUrl()', () => {
+    it('should emit error if host key is invalid', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(false);
+
+      await gateway.handleRemoveUrl(client, {
+        sessionId: 'session-1',
+        hostKey: 'wrong',
+        index: 0,
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'UNAUTHORIZED' }),
+      );
+    });
+
+    it('should broadcast updated session_state after removing a URL', async () => {
+      const client = makeMockSocket();
+      const updatedDoc = makeSessionDoc({ urls: ['https://other.com'] });
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.removeUrl.mockResolvedValue(updatedDoc);
+      sessionsService.toSessionDto.mockReturnValue(
+        makeSessionDto({ urls: updatedDoc.urls as string[] }),
+      );
+      participantsService.findBySession.mockResolvedValue([]);
+
+      await gateway.handleRemoveUrl(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        index: 0,
+      });
+
+      expect(sessionsService.removeUrl).toHaveBeenCalledWith('session-1', 0);
+      expect(mockServer.emit).toHaveBeenCalledWith(
+        WS_EVENTS.SESSION_STATE,
+        expect.objectContaining({ session: expect.any(Object) }),
+      );
+    });
+
+    it('should do nothing when removeUrl returns null', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.removeUrl.mockResolvedValue(null);
+
+      await gateway.handleRemoveUrl(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        index: 99,
+      });
+
+      expect(mockServer.emit).not.toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // handleReorderUrls()
+  // -------------------------------------------------------------------------
+  describe('handleReorderUrls()', () => {
+    it('should emit error if host key is invalid', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(false);
+
+      await gateway.handleReorderUrls(client, {
+        sessionId: 'session-1',
+        hostKey: 'wrong',
+        fromIndex: 1,
+        toIndex: 2,
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'UNAUTHORIZED' }),
+      );
+    });
+
+    it('should broadcast updated session_state after reordering URLs', async () => {
+      const client = makeMockSocket();
+      const reorderedDoc = makeSessionDoc({
+        urls: ['https://example.com', 'https://c.com', 'https://other.com'],
+      });
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.reorderUrls.mockResolvedValue(reorderedDoc);
+      sessionsService.toSessionDto.mockReturnValue(
+        makeSessionDto({ urls: reorderedDoc.urls as string[] }),
+      );
+      participantsService.findBySession.mockResolvedValue([]);
+
+      await gateway.handleReorderUrls(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        fromIndex: 1,
+        toIndex: 2,
+      });
+
+      expect(sessionsService.reorderUrls).toHaveBeenCalledWith('session-1', 1, 2);
+      expect(mockServer.emit).toHaveBeenCalledWith(
+        WS_EVENTS.SESSION_STATE,
+        expect.objectContaining({ session: expect.any(Object) }),
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // handleDisconnect()
+  // -------------------------------------------------------------------------
+  describe('handleDisconnect()', () => {
+    it('should mark the participant offline on disconnect', async () => {
+      const client = makeMockSocket('socket-99');
+      // Seed socket metadata as if the participant joined
+      (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta.set('socket-99', {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        isHost: false,
+      });
+      participantsService.updateOnlineStatus.mockResolvedValue(
+        makeParticipantDoc({ isOnline: false }),
+      );
+
+      await gateway.handleDisconnect(client);
+
+      expect(participantsService.updateOnlineStatus).toHaveBeenCalledWith('p-1', false);
+    });
+
+    it('should broadcast participant_online(false) to the room on disconnect', async () => {
+      const client = makeMockSocket('socket-99');
+      (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta.set('socket-99', {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        isHost: false,
+      });
+      participantsService.updateOnlineStatus.mockResolvedValue(
+        makeParticipantDoc({ isOnline: false }),
+      );
+
+      await gateway.handleDisconnect(client);
+
+      expect(mockServer.to).toHaveBeenCalledWith('session-1');
+      expect(mockServer.emit).toHaveBeenCalledWith(WS_EVENTS.PARTICIPANT_ONLINE, {
+        participantId: 'p-1',
+        isOnline: false,
+      });
+    });
+
+    it('should do nothing if there is no socket metadata for the client', async () => {
+      const client = makeMockSocket('unknown-socket');
+      await gateway.handleDisconnect(client);
+      expect(participantsService.updateOnlineStatus).not.toHaveBeenCalled();
+    });
+  });
+});

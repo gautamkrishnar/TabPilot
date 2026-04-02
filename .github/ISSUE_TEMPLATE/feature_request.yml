@@ -1,0 +1,78 @@
+name: Feature Request
+description: Suggest a new feature or improvement for Tab Pilot
+title: "[Feature]: "
+labels:
+  - enhancement
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping make Tab Pilot better. Before submitting, please check that a similar request hasn't already been opened in [Issues](https://github.com/[OWNER]/TabPilot/issues) or [Discussions](https://github.com/[OWNER]/TabPilot/discussions).
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What problem does this feature solve? Describe the pain point clearly.
+      placeholder: |
+        As a [host / participant], I find it frustrating when...
+        Currently there is no way to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the feature or behaviour you would like to see added.
+      placeholder: |
+        I would like Tab Pilot to...
+        This could work by...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you tried any workarounds or considered alternative approaches? What were their shortcomings?
+      placeholder: |
+        I considered... but it doesn't work because...
+        A workaround I use today is...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: role
+    attributes:
+      label: User role affected
+      description: Which role does this feature primarily affect?
+      options:
+        - Host (session facilitator / PM)
+        - Participant (team member joining a session)
+        - Both Host and Participant
+        - Developer / Self-hoster
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority (your assessment)
+      description: How important is this feature to you?
+      options:
+        - Nice to have — would improve the experience but not blocking
+        - Should have — significantly improves the workflow
+        - Must have — blocking a key use case
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Any mockups, screenshots, links to similar features in other tools, or other relevant context.
+      placeholder: Add any other context or screenshots here...
+    validations:
+      required: false

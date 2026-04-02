@@ -1,0 +1,28 @@
+# CODEOWNERS — each path maps to the GitHub user(s) who own it.
+# Owners are automatically requested for review when a PR touches their paths.
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global owner — catches everything not matched by a more specific rule below
+* @[OWNER]
+
+# API — NestJS backend
+/apps/api/ @[OWNER]
+
+# Web frontend — React + Vite
+/apps/web/ @[OWNER]
+
+# Shared types and WebSocket contracts
+/packages/shared/ @[OWNER]
+
+# CI/CD workflows, issue templates, PR templates, and community files
+/.github/ @[OWNER]
+
+# Container build and compose files
+/Containerfile @[OWNER]
+/compose.yml @[OWNER]
+/compose.dev.yml @[OWNER]
+
+# Documentation
+/docs/ @[OWNER]
+/README.md @[OWNER]
+/CHANGELOG.md @[OWNER]

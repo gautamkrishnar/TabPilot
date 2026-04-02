@@ -1,0 +1,157 @@
+name: Publish Container Image
+
+# Runs automatically after CI succeeds on the default branch.
+# Also triggered by semver tags (v1.2.3) for release publishes.
+# Can be manually triggered with an optional tag override.
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main, master]
+    types: [completed]
+
+  push:
+    tags:
+      - 'v*.*.*'
+
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Additional image tag (e.g. "v1.0.0"). SHA + latest are always added.'
+        required: false
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  publish:
+    name: Build & Push to GHCR
+    runs-on: ubuntu-latest
+
+    # For workflow_run triggers: only proceed when CI passed
+    if: >
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          # For workflow_run events the SHA is on the triggering workflow's commit
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      # ── Compute image tags & labels ─────────────────────────────────────────
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ inputs.tag }},enable=${{ inputs.tag != '' }}
+          labels: |
+            org.opencontainers.image.title=Tab Pilot
+            org.opencontainers.image.description=Real-time grooming and tab synchronization tool
+            org.opencontainers.image.vendor=${{ github.repository_owner }}
+
+      # ── QEMU for arm64 emulation on the amd64 runner ────────────────────────
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      # ── Install a pinned Buildah ─────────────────────────────────────────────
+      - name: Install Buildah
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y buildah
+
+      # ── Authenticate to GHCR ────────────────────────────────────────────────
+      - name: Log in to GHCR
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Build both architectures into a single manifest list ────────────────
+      # buildah bud --manifest creates/updates a local manifest as it builds each arch.
+      - name: Build amd64
+        run: |
+          buildah bud \
+            --platform linux/amd64 \
+            --manifest tab-pilot \
+            --label "org.opencontainers.image.title=Tab Pilot" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            -f Containerfile .
+
+      - name: Build arm64
+        run: |
+          buildah bud \
+            --platform linux/arm64 \
+            --manifest tab-pilot \
+            --label "org.opencontainers.image.title=Tab Pilot" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            -f Containerfile .
+
+      # ── Push the manifest list under every computed tag ──────────────────────
+      - name: Push manifest to GHCR
+        id: push
+        run: |
+          FIRST_TAG=""
+          while IFS= read -r TAG; do
+            [ -z "$TAG" ] && continue
+            echo "Pushing $TAG …"
+            OUTPUT=$(buildah manifest push --all tab-pilot "docker://${TAG}" 2>&1)
+            echo "$OUTPUT"
+            if [ -z "$FIRST_TAG" ]; then
+              FIRST_TAG="$TAG"
+              DIGEST=$(echo "$OUTPUT" | grep -oP 'sha256:[a-f0-9]+' | head -1)
+              echo "digest=${DIGEST}" >> $GITHUB_OUTPUT
+              echo "image=${TAG}" >> $GITHUB_OUTPUT
+            fi
+          done <<< "${{ steps.meta.outputs.tags }}"
+
+      # ── Supply-chain attestation ─────────────────────────────────────────────
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v1
+        if: steps.push.outputs.digest != ''
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      # ── Job summary ──────────────────────────────────────────────────────────
+      - name: Summary
+        run: |
+          {
+            echo "## Container Image Published :ship:"
+            echo ""
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| **Registry** | \`${{ env.REGISTRY }}\` |"
+            echo "| **Image** | \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\` |"
+            echo "| **Digest** | \`${{ steps.push.outputs.digest }}\` |"
+            echo "| **Platforms** | \`linux/amd64\`, \`linux/arm64\` |"
+            echo "| **Commit** | \`${{ github.sha }}\` |"
+            echo ""
+            echo "**Tags pushed:**"
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}"
+            echo '```'
+            echo ""
+            echo '```bash'
+            echo "podman pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY

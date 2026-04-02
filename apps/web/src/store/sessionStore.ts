@@ -1,0 +1,221 @@
+import type { Participant, Session } from '@tabpilot/shared';
+import { create } from 'zustand';
+
+// ─── Saved session record (host or participant) ───────────────────────────────
+
+export interface SavedSession {
+  sessionId: string;
+  name: string;
+  joinCode: string;
+  urlCount: number;
+  expiresAt: string;
+  createdAt: string;
+  role: 'host' | 'participant';
+  hostKey?: string; // only for role === 'host'
+  participantId?: string; // only for role === 'participant'
+}
+
+const SAVED_SESSIONS_KEY = 'tabpilot_saved_sessions';
+
+function readSavedSessions(): SavedSession[] {
+  try {
+    const raw = localStorage.getItem(SAVED_SESSIONS_KEY);
+    if (!raw) return [];
+    const parsed: SavedSession[] = JSON.parse(raw);
+    // Filter out sessions that have already expired
+    const now = new Date();
+    return parsed.filter((s) => new Date(s.expiresAt) > now);
+  } catch {
+    return [];
+  }
+}
+
+function writeSavedSessions(sessions: SavedSession[]) {
+  try {
+    localStorage.setItem(SAVED_SESSIONS_KEY, JSON.stringify(sessions));
+  } catch {
+    // localStorage may not be available
+  }
+}
+
+// ─── Store interface ──────────────────────────────────────────────────────────
+
+interface SessionStore {
+  session: Session | null;
+  participants: Participant[];
+  participantId: string | null;
+  isHost: boolean;
+  hostKey: string | null;
+  tabSyncEnabled: boolean;
+  syncedWindow: Window | null;
+  currentNavigateUrl: string | null;
+
+  setSession: (session: Session | null) => void;
+  setParticipants: (participants: Participant[]) => void;
+  addParticipant: (participant: Participant) => void;
+  removeParticipant: (participantId: string) => void;
+  updateParticipant: (participantId: string, updates: Partial<Participant>) => void;
+  setParticipantId: (id: string | null) => void;
+  setIsHost: (isHost: boolean) => void;
+  setHostKey: (hostKey: string | null) => void;
+  setTabSyncEnabled: (enabled: boolean) => void;
+  setSyncedWindow: (win: Window | null) => void;
+  setCurrentNavigateUrl: (url: string | null) => void;
+
+  saveHostKey: (sessionId: string, hostKey: string) => void;
+  loadHostKey: (sessionId: string) => string | null;
+  saveParticipantId: (sessionId: string, participantId: string) => void;
+  loadParticipantId: (sessionId: string) => string | null;
+
+  getSavedSessions: () => SavedSession[];
+  saveHostSession: (session: Session, hostKey: string) => void;
+  saveParticipantSession: (session: Session, participantId: string) => void;
+  removeSavedSession: (sessionId: string) => void;
+
+  /** Resets live session state only; does not clear saved sessions. */
+  reset: () => void;
+}
+
+const initialState = {
+  session: null,
+  participants: [],
+  participantId: null,
+  isHost: false,
+  hostKey: null,
+  tabSyncEnabled: false,
+  syncedWindow: null,
+  currentNavigateUrl: null,
+};
+
+export const useSessionStore = create<SessionStore>((set, get) => ({
+  ...initialState,
+
+  setSession: (session) => set({ session }),
+
+  setParticipants: (participants) => set({ participants }),
+
+  addParticipant: (participant) =>
+    set((state) => {
+      const exists = state.participants.some((p) => p.id === participant.id);
+      if (exists) {
+        return {
+          participants: state.participants.map((p) =>
+            p.id === participant.id ? { ...p, ...participant } : p,
+          ),
+        };
+      }
+      return { participants: [...state.participants, participant] };
+    }),
+
+  removeParticipant: (participantId) =>
+    set((state) => ({
+      participants: state.participants.filter((p) => p.id !== participantId),
+    })),
+
+  updateParticipant: (participantId, updates) =>
+    set((state) => ({
+      participants: state.participants.map((p) =>
+        p.id === participantId ? { ...p, ...updates } : p,
+      ),
+    })),
+
+  setParticipantId: (id) => set({ participantId: id }),
+  setIsHost: (isHost) => set({ isHost }),
+  setHostKey: (hostKey) => set({ hostKey }),
+  setTabSyncEnabled: (enabled) => set({ tabSyncEnabled: enabled }),
+  setSyncedWindow: (win) => set({ syncedWindow: win }),
+  setCurrentNavigateUrl: (url) => set({ currentNavigateUrl: url }),
+
+  // ── Per-session key helpers ────────────────────────────────────────────────
+
+  saveHostKey: (sessionId, hostKey) => {
+    try {
+      localStorage.setItem(`tabpilot_host_${sessionId}`, hostKey);
+    } catch {
+      // ignore
+    }
+  },
+
+  loadHostKey: (sessionId) => {
+    try {
+      return localStorage.getItem(`tabpilot_host_${sessionId}`);
+    } catch {
+      return null;
+    }
+  },
+
+  saveParticipantId: (sessionId, participantId) => {
+    try {
+      localStorage.setItem(`tabpilot_participant_${sessionId}`, participantId);
+    } catch {
+      // ignore
+    }
+  },
+
+  loadParticipantId: (sessionId) => {
+    try {
+      return localStorage.getItem(`tabpilot_participant_${sessionId}`);
+    } catch {
+      return null;
+    }
+  },
+
+  // ── Saved sessions list ───────────────────────────────────────────────────
+
+  getSavedSessions: () => readSavedSessions(),
+
+  saveHostSession: (session, hostKey) => {
+    get().saveHostKey(session.id, hostKey);
+
+    const existing = readSavedSessions().filter((s) => s.sessionId !== session.id);
+    const record: SavedSession = {
+      sessionId: session.id,
+      name: session.name,
+      joinCode: session.joinCode,
+      urlCount: session.urls.length,
+      expiresAt: session.expiresAt,
+      createdAt: session.createdAt,
+      role: 'host',
+      hostKey,
+    };
+    writeSavedSessions([record, ...existing]);
+  },
+
+  saveParticipantSession: (session, participantId) => {
+    get().saveParticipantId(session.id, participantId);
+
+    const existing = readSavedSessions().filter((s) => s.sessionId !== session.id);
+    const record: SavedSession = {
+      sessionId: session.id,
+      name: session.name,
+      joinCode: session.joinCode,
+      urlCount: session.urls.length,
+      expiresAt: session.expiresAt,
+      createdAt: session.createdAt,
+      role: 'participant',
+      participantId,
+    };
+    writeSavedSessions([record, ...existing]);
+  },
+
+  removeSavedSession: (sessionId) => {
+    const updated = readSavedSessions().filter((s) => s.sessionId !== sessionId);
+    writeSavedSessions(updated);
+    try {
+      localStorage.removeItem(`tabpilot_host_${sessionId}`);
+      localStorage.removeItem(`tabpilot_participant_${sessionId}`);
+    } catch {
+      // ignore
+    }
+  },
+
+  // ── Live session reset ────────────────────────────────────────────────────
+
+  reset: () => {
+    const state = get();
+    if (state.syncedWindow && !state.syncedWindow.closed) {
+      state.syncedWindow.close();
+    }
+    set(initialState);
+  },
+}));

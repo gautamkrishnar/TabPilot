@@ -1,0 +1,9 @@
+{
+  "watch": ["src", "nodemon.json", ".env"],
+  "ext": "ts,json,env",
+  "ignore": ["src/**/*.spec.ts"],
+  "exec": "node --env-file-if-exists=.env --require ts-node/register src/main.ts",
+  "env": {
+    "TS_NODE_PROJECT": "tsconfig.json"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "tabpilot",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "yarn workspace @tabpilot/shared build && concurrently -n shared,api,web -c yellow,cyan,magenta \"yarn workspace @tabpilot/shared dev\" \"yarn workspace @tabpilot/api dev\" \"yarn workspace @tabpilot/web dev\"",
+    "build": "yarn workspaces foreach -t run build",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format --write .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "test": "yarn workspaces foreach -A run test --passWithNoTests",
+    "test:api": "yarn workspace @tabpilot/api test",
+    "test:web": "yarn workspace @tabpilot/web test",
+    "clean": "yarn workspaces foreach run clean"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.10",
+    "concurrently": "^9.1.0",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "yarn@4.13.0"
+}

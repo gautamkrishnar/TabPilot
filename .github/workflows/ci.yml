@@ -1,0 +1,186 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+env:
+  NODE_VERSION: '22'
+
+# Cancel in-progress runs on the same branch when a new push arrives
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# ─── Reusable setup ───────────────────────────────────────────────────────────
+# Every job that needs Node + Yarn uses this identical block so caches are shared.
+
+jobs:
+  # ── Lint & format ─────────────────────────────────────────────────────────
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Enable Corepack first
+        run: |
+          corepack enable
+          corepack prepare yarn@4.13.0 --activate
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Yarn cache
+        id: yarn-cache
+        uses: actions/cache@v5
+        with:
+          path: $(yarn config get cacheFolder)
+          key: yarn-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-
+
+      - run: yarn install --immutable
+
+      - name: Biome (lint + format)
+        run: yarn biome ci .
+
+  # ── Type-check ────────────────────────────────────────────────────────────
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Enable Corepack first
+        run: |
+          corepack enable
+          corepack prepare yarn@4.13.0 --activate
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Yarn cache
+        uses: actions/cache@v5
+        with:
+          path: $(yarn config get cacheFolder)
+          key: yarn-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-
+
+      - run: yarn install --immutable
+
+      - name: Build shared package
+        run: yarn workspace @tabpilot/shared build
+
+      - name: Type-check API
+        run: yarn workspace @tabpilot/api tsc --noEmit
+
+      - name: Type-check Web
+        run: yarn workspace @tabpilot/web tsc --noEmit
+
+  # ── Unit tests ────────────────────────────────────────────────────────────
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: typecheck
+
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Enable Corepack first
+        run: |
+          corepack enable
+          corepack prepare yarn@4.13.0 --activate
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Yarn cache
+        uses: actions/cache@v5
+        with:
+          path: $(yarn config get cacheFolder)
+          key: yarn-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-
+
+      # Cache the mongodb-memory-server binary so it's only downloaded once
+      - name: mongodb-memory-server binary cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: mongodb-binaries-7
+
+      - run: yarn install --immutable
+
+      - name: Build shared package
+        run: yarn workspace @tabpilot/shared build
+
+      - name: API tests
+        run: yarn test:api
+        env:
+          MONGODB_URI: mongodb://localhost:27017/tabpilot_test
+          NODE_ENV: test
+
+      - name: Web tests
+        run: yarn test:web
+        env:
+          NODE_ENV: test
+
+      - name: Test summary
+        if: always()
+        run: |
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Suite | Command |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "| API (Jest) | \`yarn test:api\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Web (Vitest) | \`yarn test:web\` |" >> $GITHUB_STEP_SUMMARY
+
+  # ── Build verification ────────────────────────────────────────────────────
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: typecheck
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Enable Corepack first
+        run: |
+          corepack enable
+          corepack prepare yarn@4.13.0 --activate
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Yarn cache
+        uses: actions/cache@v5
+        with:
+          path: $(yarn config get cacheFolder)
+          key: yarn-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-
+
+      - run: yarn install --immutable
+
+      - name: Build shared
+        run: yarn workspace @tabpilot/shared build
+
+      - name: Build web
+        run: yarn workspace @tabpilot/web build
+
+      - name: Build API
+        run: yarn workspace @tabpilot/api build
