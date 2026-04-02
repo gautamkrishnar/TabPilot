@@ -71,9 +71,10 @@ See **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** for the full setup guide.
 
 Bug reports, feature requests, and pull requests are welcome.
 
-- [Report a bug](.github/ISSUE_TEMPLATE/bug_report.yml)
-- [Request a feature](.github/ISSUE_TEMPLATE/feature_request.yml)
-- [Contributing guide](.github/CONTRIBUTING.md)
+- [Report a bug](https://github.com/gautamkrishnar/TabPilot/issues/new?template=bug_report.yml)
+- [Request a feature](https://github.com/gautamkrishnar/TabPilot/issues/new?template=feature_request.yml)
+- [Browse open issues](https://github.com/gautamkrishnar/TabPilot/issues)
+- [Contributing guide](https://github.com/gautamkrishnar/TabPilot/blob/master/.github/CONTRIBUTING.md)
 - [Discussions](https://github.com/gautamkrishnar/TabPilot/discussions)
 
 ## License
