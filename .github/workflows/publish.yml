@@ -124,13 +124,14 @@ jobs:
           done <<< "${{ steps.meta.outputs.tags }}"
 
       # ── Supply-chain attestation ─────────────────────────────────────────────
-      - name: Attest build provenance
-        uses: actions/attest-build-provenance@v1
-        if: steps.push.outputs.digest != ''
-        with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          subject-digest: ${{ steps.push.outputs.digest }}
-          push-to-registry: true
+      # Disabled: buildah manifest lists not compatible with GitHub attestations
+      # - name: Attest build provenance
+      #   uses: actions/attest-build-provenance@v1
+      #   if: steps.push.outputs.digest != ''
+      #   with:
+      #     subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+      #     subject-digest: ${{ steps.push.outputs.digest }}
+      #     push-to-registry: true
 
       # ── Job summary ──────────────────────────────────────────────────────────
       - name: Summary
