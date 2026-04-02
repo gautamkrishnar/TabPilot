@@ -116,21 +116,21 @@ const testimonials = [
   },
   {
     quote:
-      'As a project manager, keeping everyone focused during grooming is half the battle. Tab Pilot solves that instantly: one host, one ticket, zero confusion. It\'s become a staple in our sprint rituals.',
+      "As a project manager, keeping everyone focused during grooming is half the battle. Tab Pilot solves that instantly: one host, one ticket, zero confusion. It's become a staple in our sprint rituals.",
     name: 'Radhika Nargotra',
     title: 'Project Manager, Red Hat',
     avatar: '/radhika-nargotra.png',
   },
   {
     quote:
-      'Tab Pilot has completely changed how we run our grooming sessions. No more screen sharing lag or people losing track of which ticket we\'re on. Everyone is always in sync.',
+      "Tab Pilot has completely changed how we run our grooming sessions. No more screen sharing lag or people losing track of which ticket we're on. Everyone is always in sync.",
     name: 'Ayushi Midha',
     title: 'Software Engineer, Red Hat',
     avatar: '/ayushi-midha.jpg',
   },
   {
     quote:
-      'The tab sync feature is genuinely clever. Watching everyone\'s browser follow along in real time without any plugins or setup makes remote grooming feel as natural as being in the same room.',
+      "The tab sync feature is genuinely clever. Watching everyone's browser follow along in real time without any plugins or setup makes remote grooming feel as natural as being in the same room.",
     name: 'Atharva Upadhye',
     title: 'Software Engineer, Red Hat',
     avatar: '/atharva-upadhye.jpg',
@@ -152,36 +152,36 @@ function TestimonialCarousel() {
   return (
     <div className="relative">
       <div className="relative h-[280px] sm:h-[240px] overflow-hidden">
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={t.name}
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -16 }}
-          transition={{ duration: 0.4 }}
-          className="absolute inset-0 glass-card rounded-3xl p-8 sm:p-12"
-        >
-          <div className="absolute -top-4 left-10 text-6xl leading-none text-indigo-400/40 font-serif select-none">
-            &ldquo;
-          </div>
-          <blockquote className="relative">
-            <p className="text-lg sm:text-xl text-zinc-700 dark:text-zinc-300 leading-relaxed italic mb-8">
-              {t.quote}
-            </p>
-            <footer className="flex items-center gap-4">
-              <img
-                src={t.avatar}
-                alt={t.name}
-                className="w-11 h-11 rounded-full object-cover flex-shrink-0"
-              />
-              <div>
-                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{t.name}</p>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">{t.title}</p>
-              </div>
-            </footer>
-          </blockquote>
-        </motion.div>
-      </AnimatePresence>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={t.name}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            transition={{ duration: 0.4 }}
+            className="absolute inset-0 glass-card rounded-3xl p-8 sm:p-12"
+          >
+            <div className="absolute -top-4 left-10 text-6xl leading-none text-indigo-400/40 font-serif select-none">
+              &ldquo;
+            </div>
+            <blockquote className="relative">
+              <p className="text-lg sm:text-xl text-zinc-700 dark:text-zinc-300 leading-relaxed italic mb-8">
+                {t.quote}
+              </p>
+              <footer className="flex items-center gap-4">
+                <img
+                  src={t.avatar}
+                  alt={t.name}
+                  className="w-11 h-11 rounded-full object-cover flex-shrink-0"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{t.name}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">{t.title}</p>
+                </div>
+              </footer>
+            </blockquote>
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* Dot indicators */}
@@ -701,7 +701,12 @@ export function Home() {
           <p className="text-zinc-500 dark:text-zinc-400 text-lg mb-8 max-w-xl mx-auto">
             Start a session in 30 seconds. Your team joins instantly.
           </p>
-          <Button asChild variant="glow" size="lg" className="text-base px-10 h-14 w-full sm:w-auto">
+          <Button
+            asChild
+            variant="glow"
+            size="lg"
+            className="text-base px-10 h-14 w-full sm:w-auto"
+          >
             <Link to="/create">
               Create your first session
               <ArrowRight className="h-5 w-5 ml-2" />

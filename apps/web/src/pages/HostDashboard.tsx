@@ -590,7 +590,9 @@ export function HostDashboard() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between px-4 h-14 border-b border-zinc-200 dark:border-zinc-800 flex-shrink-0">
-                <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Participants</span>
+                <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  Participants
+                </span>
                 <button
                   type="button"
                   onClick={() => setShowMobileParticipants(false)}

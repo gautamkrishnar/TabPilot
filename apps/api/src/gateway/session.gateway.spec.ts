@@ -1094,14 +1094,14 @@ describe('SessionGateway', () => {
       });
     });
 
-    it('should show one decimal place when average is not a whole number', async () => {
+    it('should round average to the nearest integer', async () => {
       const client = makeMockSocket();
       sessionsService.validateHostKey.mockResolvedValue(true);
       sessionsService.findById.mockResolvedValue(
         makeSessionDoc({ votingEnabled: true, state: 'active' }),
       );
 
-      // Votes: 1, 2 → average 1.5
+      // Votes: 1, 2 → average 1.5 → rounds to 2
       await gateway.handleSubmitVote(client, {
         sessionId: 'session-1',
         participantId: 'p-1',
@@ -1120,7 +1120,7 @@ describe('SessionGateway', () => {
 
       const emitCalls = (mockServer.emit as jest.Mock).mock.calls;
       const revealCall = emitCalls.find(([event]: [string]) => event === WS_EVENTS.VOTES_REVEALED);
-      expect(revealCall[1].average).toBe('1.5');
+      expect(revealCall[1].average).toBe('2');
     });
 
     it('should return mode for all non-numeric votes (e.g. ?, ☕)', async () => {
