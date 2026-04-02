@@ -122,11 +122,13 @@ export function ParticipantView() {
     };
   }, [session?.name, session]);
 
-  // Reset vote when URL changes
+  // Reset vote when URL changes. currentNavigateUrl is used as a trigger only —
+  // it intentionally doesn't appear in the callback body.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional trigger dependency
   useEffect(() => {
     setSelectedVote(null);
     votedRef.current = false;
-  }, []);
+  }, [currentNavigateUrl]);
 
   const currentUrl = session?.urls[session.currentIndex];
   const onlineCount = participants.filter((p) => p.isOnline).length;
