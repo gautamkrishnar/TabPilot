@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -7,6 +7,8 @@ interface NavigationControlsProps {
   total: number;
   onPrevious: () => void;
   onNext: () => void;
+  onComplete: () => void;
+  completed?: boolean;
   disabled?: boolean;
   className?: string;
 }
@@ -16,6 +18,8 @@ export function NavigationControls({
   total,
   onPrevious,
   onNext,
+  onComplete,
+  completed = false,
   disabled = false,
   className,
 }: NavigationControlsProps) {
@@ -32,6 +36,14 @@ export function NavigationControls({
         className,
       )}
     >
+      {/* Completion banner */}
+      {completed && (
+        <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-medium">
+          <CheckCircle className="h-4 w-4 flex-shrink-0" />
+          All tickets groomed!
+        </div>
+      )}
+
       {/* Progress bar */}
       <div className="flex items-center gap-3">
         <span className="text-xs text-zinc-500 font-medium w-12 flex-shrink-0">
@@ -39,7 +51,12 @@ export function NavigationControls({
         </span>
         <div className="flex-1 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all duration-500 ease-out"
+            className={cn(
+              'h-full rounded-full transition-all duration-500 ease-out',
+              completed
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                : 'bg-gradient-to-r from-indigo-500 to-violet-500',
+            )}
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -71,15 +88,34 @@ export function NavigationControls({
           <div className="text-xs text-zinc-500">of {total}</div>
         </div>
 
-        <Button
-          variant="glow"
-          className={cn('flex-1 h-11 gap-2', 'disabled:opacity-30 disabled:shadow-none')}
-          onClick={onNext}
-          disabled={disabled || isLast}
-        >
-          Next
-          <ChevronRight className="h-5 w-5" />
-        </Button>
+        {isLast ? (
+          completed ? (
+            <div className="flex-1 h-11 flex items-center justify-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-semibold">
+              <CheckCircle className="h-4 w-4" />
+              Completed
+            </div>
+          ) : (
+            <Button
+              variant="glow"
+              className="flex-1 h-11 gap-2 disabled:opacity-30 disabled:shadow-none"
+              onClick={onComplete}
+              disabled={disabled}
+            >
+              <CheckCircle className="h-5 w-5" />
+              Complete
+            </Button>
+          )
+        ) : (
+          <Button
+            variant="glow"
+            className={cn('flex-1 h-11 gap-2', 'disabled:opacity-30 disabled:shadow-none')}
+            onClick={onNext}
+            disabled={disabled}
+          >
+            Next
+            <ChevronRight className="h-5 w-5" />
+          </Button>
+        )}
       </div>
     </div>
   );

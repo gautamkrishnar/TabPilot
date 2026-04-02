@@ -1,4 +1,5 @@
 import { WS_EVENTS } from '@tabpilot/shared';
+import confetti from 'canvas-confetti';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Copy,
@@ -38,6 +39,7 @@ export function HostDashboard() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [newUrl, setNewUrl] = useState('');
   const [showMobileParticipants, setShowMobileParticipants] = useState(false);
+  const [isGroomingComplete, setIsGroomingComplete] = useState(false);
 
   const {
     session,
@@ -100,11 +102,22 @@ export function HostDashboard() {
   const handleNavigate = useCallback(
     (direction: 'next' | 'prev') => {
       if (!sessionId || !hostKey) return;
+      if (direction === 'prev') setIsGroomingComplete(false);
       const socket = getSocket();
       socket.emit(WS_EVENTS.HOST_NAVIGATE, { sessionId, hostKey, direction });
     },
     [sessionId, hostKey],
   );
+
+  const handleComplete = useCallback(() => {
+    setIsGroomingComplete(true);
+    confetti({
+      particleCount: 160,
+      spread: 80,
+      origin: { y: 0.7 },
+      colors: ['#6366f1', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b'],
+    });
+  }, []);
 
   const handleJumpTo = useCallback(
     (index: number) => {
@@ -471,6 +484,8 @@ export function HostDashboard() {
               total={session.urls.length}
               onPrevious={() => handleNavigate('prev')}
               onNext={() => handleNavigate('next')}
+              onComplete={handleComplete}
+              completed={isGroomingComplete}
               disabled={!isConnected}
             />
           )}

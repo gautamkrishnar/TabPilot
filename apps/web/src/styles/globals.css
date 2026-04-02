@@ -97,6 +97,22 @@
     box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
   }
 
+  /* Success / complete button */
+  .success-button {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.35), 0 4px 15px rgba(16, 185, 129, 0.2);
+  }
+
+  .success-button:hover {
+    box-shadow: 0 0 30px rgba(16, 185, 129, 0.5), 0 8px 25px rgba(16, 185, 129, 0.3);
+    transform: translateY(-1px);
+  }
+
+  .success-button:active {
+    transform: translateY(0);
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+  }
+
   /* Online indicator */
   .online-dot {
     @apply relative inline-flex h-2.5 w-2.5;
