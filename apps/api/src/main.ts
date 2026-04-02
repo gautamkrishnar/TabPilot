@@ -8,10 +8,25 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { SocketIoAdapter } from './adapters/socket-io.adapter';
 import { AppModule } from './app.module';
 
+// TLS — enable HTTPS by setting TLS_CERT and TLS_KEY env vars to cert/key file paths.
+// On OpenShift, these are typically populated from a service-serving-cert secret.
+const TLS_CERT = process.env.TLS_CERT ?? '';
+const TLS_KEY = process.env.TLS_KEY ?? '';
+const hasTLS = !!TLS_CERT && !!TLS_KEY && existsSync(TLS_CERT) && existsSync(TLS_KEY);
+const HTTPS_PORT = process.env.HTTPS_PORT ? parseInt(process.env.HTTPS_PORT, 10) : 8443;
+
 async function bootstrap() {
+  // When OpenShift service-serving certs are present, serve HTTPS on port 8443
+  // so the Route can use `reencrypt` TLS termination. This enables WebSocket
+  // connections to pass through HAProxy without being blocked by the WAF.
+  // Falls back to plain HTTP on port 3000 for local development.
+  const fastifyOptions = hasTLS
+    ? { https: { key: readFileSync(TLS_KEY), cert: readFileSync(TLS_CERT) } }
+    : { logger: false };
+
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({ logger: false }),
+    new FastifyAdapter(fastifyOptions),
   );
 
   app.enableCors({
@@ -74,7 +89,7 @@ async function bootstrap() {
     });
   }
 
-  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+  const port = hasTLS ? HTTPS_PORT : (process.env.PORT ? parseInt(process.env.PORT, 10) : 3000);
   await app.listen(port, '0.0.0.0');
 }
 

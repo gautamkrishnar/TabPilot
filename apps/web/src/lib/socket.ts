@@ -10,7 +10,7 @@ export function getSocket(): Socket {
     const url = import.meta.env.VITE_API_URL || window.location.origin;
 
     socket = io(url, {
-      transports: ['polling', 'websocket'],
+      transports: ['websocket', 'polling'],
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 10,

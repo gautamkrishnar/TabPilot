@@ -460,7 +460,7 @@ export function HostDashboard() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm z-20"
+            className="fixed inset-0 flex items-center justify-center bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm z-20"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -482,7 +482,7 @@ export function HostDashboard() {
               </p>
 
               <div className="flex justify-center mb-6">
-                <JoinCodeDisplay joinCode={session.joinCode} />
+                <JoinCodeDisplay joinCode={session.joinCode} codeOnly />
               </div>
 
               <Button
@@ -510,7 +510,7 @@ export function HostDashboard() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 flex items-center justify-center bg-white/90 dark:bg-zinc-950/90 backdrop-blur-sm z-20"
+            className="fixed inset-0 flex items-center justify-center bg-white/90 dark:bg-zinc-950/90 backdrop-blur-sm z-20"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
