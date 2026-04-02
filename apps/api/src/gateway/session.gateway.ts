@@ -15,6 +15,7 @@ import {
   type HostOpenUrlPayload,
   type HostRemoveUrlPayload,
   type HostReorderUrlsPayload,
+  type HostRevealVotesPayload,
   type HostStartSessionPayload,
   type HostToggleLockPayload,
   type JoinSessionPayload,
@@ -25,6 +26,7 @@ import {
   type SessionStartedPayload,
   type SessionStatePayload,
   type SubmitVotePayload,
+  type VotesRevealedPayload,
   type VoteUpdatePayload,
   WS_EVENTS,
   type WsErrorPayload,
@@ -46,16 +48,59 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
   private socketMeta = new Map<string, SocketMeta>();
 
-  /**
-   * In-memory vote store keyed by sessionId → { participantId → value }.
-   * Votes are ephemeral and reset when navigation changes.
-   */
+  /** Current-round votes: sessionId → { participantId → value }. Hidden until revealed. */
   private votes = new Map<string, Map<string, string>>();
+
+  /** Whether the host has revealed votes for the current ticket. */
+  private revealed = new Map<string, boolean>();
+
+  /**
+   * Saved average vote per URL index: sessionId → { urlIndex → averageString }.
+   * Persists across navigation within the session lifetime.
+   */
+  private savedVotes = new Map<string, Map<number, string>>();
 
   constructor(
     private readonly sessionsService: SessionsService,
     private readonly participantsService: ParticipantsService,
   ) {}
+
+  /**
+   * Compute the average of numeric votes. Non-numeric values (?, ☕) are ignored.
+   * Returns the mean rounded to one decimal, or the mode of non-numeric values
+   * if there are no numeric votes at all.
+   */
+  private computeAverage(votes: Map<string, string>): string {
+    const values = Array.from(votes.values());
+    const numeric = values.map(Number).filter((n) => !Number.isNaN(n));
+    if (numeric.length > 0) {
+      const mean = numeric.reduce((a, b) => a + b, 0) / numeric.length;
+      return mean % 1 === 0 ? String(mean) : mean.toFixed(1);
+    }
+    // All non-numeric — return the most common value
+    const freq = new Map<string, number>();
+    for (const v of values) freq.set(v, (freq.get(v) ?? 0) + 1);
+    let mode = values[0] ?? '?';
+    let max = 0;
+    freq.forEach((count, val) => {
+      if (count > max) {
+        max = count;
+        mode = val;
+      }
+    });
+    return mode;
+  }
+
+  /** Snapshot of savedVotes for a session as a plain Record (for wire transfer). */
+  private savedVotesRecord(sessionId: string): Record<number, string> {
+    const map = this.savedVotes.get(sessionId);
+    if (!map) return {};
+    const record: Record<number, string> = {};
+    map.forEach((avg, idx) => {
+      record[idx] = avg;
+    });
+    return record;
+  }
 
   handleConnection(_client: Socket) {
     // Meta is populated on join_session
@@ -141,6 +186,8 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
     const sessionStatePayload: SessionStatePayload = {
       session: this.sessionsService.toSessionDto(sessionDoc),
       participants,
+      hasVoted: Array.from(this.votes.get(sessionId)?.keys() ?? []),
+      savedVotes: this.savedVotesRecord(sessionId),
     };
     client.emit(WS_EVENTS.SESSION_STATE, sessionStatePayload);
 
@@ -260,8 +307,23 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
     await this.sessionsService.updateCurrentIndex(sessionId, newIndex);
 
-    // Clear votes when navigating to a new page
+    // Save the average vote for the ticket we're leaving (if any votes were cast)
+    const currentVotes = this.votes.get(sessionId);
+    if (currentVotes && currentVotes.size > 0) {
+      if (!this.savedVotes.has(sessionId)) this.savedVotes.set(sessionId, new Map());
+      // biome-ignore lint/style/noNonNullAssertion: set on the line above
+      this.savedVotes
+        .get(sessionId)!
+        .set(sessionDoc.currentIndex, this.computeAverage(currentVotes));
+    }
+
+    // Clear current-round voting state
     this.votes.delete(sessionId);
+    this.revealed.delete(sessionId);
+
+    // Broadcast cleared has-voted state so participant indicators reset
+    const clearedVoteUpdate: VoteUpdatePayload = { hasVoted: [] };
+    this.server.to(sessionId).emit(WS_EVENTS.VOTE_UPDATE, clearedVoteUpdate);
 
     const url = sessionDoc.urls[newIndex];
     if (!url) return;
@@ -270,6 +332,7 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       url,
       index: newIndex,
       total,
+      savedVotes: this.savedVotesRecord(sessionId),
     };
     this.server.to(sessionId).emit(WS_EVENTS.NAVIGATE_TO, navPayload);
   }
@@ -331,6 +394,8 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
     await this.sessionsService.updateState(sessionId, 'ended');
     this.votes.delete(sessionId);
+    this.revealed.delete(sessionId);
+    this.savedVotes.delete(sessionId);
     this.server.to(sessionId).emit(WS_EVENTS.SESSION_ENDED, {});
   }
 
@@ -503,16 +568,52 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
     if (!this.votes.has(sessionId)) {
       this.votes.set(sessionId, new Map());
     }
-    this.votes.get(sessionId)?.set(participantId, value);
+    // biome-ignore lint/style/noNonNullAssertion: set on the line above
+    this.votes.get(sessionId)!.set(participantId, value);
 
-    // biome-ignore lint/style/noNonNullAssertion: set on the line above, guaranteed to exist
-    const sessionVotes = this.votes.get(sessionId)!;
+    // Only broadcast WHO has voted — actual values stay hidden until host reveals
+    const voteUpdatePayload: VoteUpdatePayload = {
+      hasVoted: Array.from(this.votes.get(sessionId)?.keys() ?? []),
+    };
+    this.server.to(sessionId).emit(WS_EVENTS.VOTE_UPDATE, voteUpdatePayload);
+  }
+
+  @SubscribeMessage(WS_EVENTS.HOST_REVEAL_VOTES)
+  async handleRevealVotes(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: HostRevealVotesPayload,
+  ) {
+    const { sessionId, hostKey } = payload;
+
+    const isValid = await this.sessionsService.validateHostKey(sessionId, hostKey);
+    if (!isValid) {
+      client.emit(WS_EVENTS.ERROR, {
+        message: 'Invalid host key',
+        code: 'INVALID_HOST_KEY',
+      } satisfies WsErrorPayload);
+      return;
+    }
+
+    const currentVotes = this.votes.get(sessionId);
+    if (!currentVotes || currentVotes.size === 0) {
+      client.emit(WS_EVENTS.ERROR, {
+        message: 'No votes to reveal',
+        code: 'NO_VOTES',
+      } satisfies WsErrorPayload);
+      return;
+    }
+
+    this.revealed.set(sessionId, true);
+
     const votesRecord: Record<string, string> = {};
-    sessionVotes.forEach((v, pid) => {
+    currentVotes.forEach((v, pid) => {
       votesRecord[pid] = v;
     });
 
-    const voteUpdatePayload: VoteUpdatePayload = { votes: votesRecord };
-    this.server.to(sessionId).emit(WS_EVENTS.VOTE_UPDATE, voteUpdatePayload);
+    const revealPayload: VotesRevealedPayload = {
+      votes: votesRecord,
+      average: this.computeAverage(currentVotes),
+    };
+    this.server.to(sessionId).emit(WS_EVENTS.VOTES_REVEALED, revealPayload);
   }
 }

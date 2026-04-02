@@ -74,6 +74,7 @@ interface RowProps {
   onJumpTo?: (index: number) => void;
   onDelete?: (index: number) => void;
   isDragOverlay?: boolean;
+  savedVote?: string;
 }
 
 function UrlRow({
@@ -85,6 +86,7 @@ function UrlRow({
   onJumpTo,
   onDelete,
   isDragOverlay,
+  savedVote,
 }: RowProps) {
   const isCurrent = index === currentIndex;
   const isPast = index < currentIndex;
@@ -194,6 +196,16 @@ function UrlRow({
         </span>
       )}
 
+      {/* Saved average vote badge for past tickets */}
+      {isPast && savedVote !== undefined && (
+        <span
+          className="flex-shrink-0 min-w-[28px] h-6 px-1.5 flex items-center justify-center rounded-md bg-zinc-700/60 text-zinc-300 text-xs font-bold border border-zinc-600/50"
+          title={`Average vote: ${savedVote}`}
+        >
+          {savedVote}
+        </span>
+      )}
+
       {/* Action buttons (host only) */}
       {isHost && (
         // biome-ignore lint/a11y/noStaticElementInteractions: stopPropagation wrapper only, not an interactive control
@@ -241,6 +253,8 @@ export interface UrlQueueProps {
   onDelete?: (index: number) => void;
   onReorder?: (fromIndex: number, toIndex: number) => void;
   className?: string;
+  /** Average vote per URL index — shown as a badge on past tickets */
+  savedVotes?: Record<number, string>;
 }
 
 export function UrlQueue({
@@ -251,6 +265,7 @@ export function UrlQueue({
   onDelete,
   onReorder,
   className,
+  savedVotes,
 }: UrlQueueProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -313,6 +328,7 @@ export function UrlQueue({
                 isHost={isHost}
                 onJumpTo={onJumpTo}
                 onDelete={onDelete}
+                savedVote={savedVotes?.[index]}
               />
             </motion.div>
           ))}

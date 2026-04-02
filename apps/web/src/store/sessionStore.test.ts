@@ -213,3 +213,63 @@ describe('saveParticipantId() / loadParticipantId()', () => {
     expect(loaded).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Voting state — setVotedParticipantIds / setRevealedVotes / setSavedVotesMap
+// ---------------------------------------------------------------------------
+describe('voting state', () => {
+  it('starts with empty votedParticipantIds, null revealedVotes, empty savedVotesMap', () => {
+    const { votedParticipantIds, revealedVotes, savedVotesMap } = useSessionStore.getState();
+    expect(votedParticipantIds).toEqual([]);
+    expect(revealedVotes).toBeNull();
+    expect(savedVotesMap).toEqual({});
+  });
+
+  it('setVotedParticipantIds updates the voted list', () => {
+    useSessionStore.getState().setVotedParticipantIds(['p-1', 'p-2']);
+    expect(useSessionStore.getState().votedParticipantIds).toEqual(['p-1', 'p-2']);
+  });
+
+  it('setRevealedVotes stores the revealed vote map', () => {
+    const votes = { 'p-1': '5', 'p-2': '8' };
+    useSessionStore.getState().setRevealedVotes(votes);
+    expect(useSessionStore.getState().revealedVotes).toEqual(votes);
+  });
+
+  it('setRevealedVotes can be set back to null (hidden)', () => {
+    useSessionStore.getState().setRevealedVotes({ 'p-1': '5' });
+    useSessionStore.getState().setRevealedVotes(null);
+    expect(useSessionStore.getState().revealedVotes).toBeNull();
+  });
+
+  it('setSavedVotesMap stores averages keyed by URL index', () => {
+    const map = { 0: '5', 1: '3' };
+    useSessionStore.getState().setSavedVotesMap(map);
+    expect(useSessionStore.getState().savedVotesMap).toEqual(map);
+  });
+
+  it('clearVotingRound resets votedParticipantIds and revealedVotes without touching savedVotesMap', () => {
+    useSessionStore.getState().setVotedParticipantIds(['p-1']);
+    useSessionStore.getState().setRevealedVotes({ 'p-1': '5' });
+    useSessionStore.getState().setSavedVotesMap({ 0: '5' });
+
+    useSessionStore.getState().clearVotingRound();
+
+    expect(useSessionStore.getState().votedParticipantIds).toEqual([]);
+    expect(useSessionStore.getState().revealedVotes).toBeNull();
+    // savedVotesMap must survive — it represents completed tickets
+    expect(useSessionStore.getState().savedVotesMap).toEqual({ 0: '5' });
+  });
+
+  it('reset() clears all voting state including savedVotesMap', () => {
+    useSessionStore.getState().setVotedParticipantIds(['p-1']);
+    useSessionStore.getState().setRevealedVotes({ 'p-1': '5' });
+    useSessionStore.getState().setSavedVotesMap({ 0: '5' });
+
+    useSessionStore.getState().reset();
+
+    expect(useSessionStore.getState().votedParticipantIds).toEqual([]);
+    expect(useSessionStore.getState().revealedVotes).toBeNull();
+    expect(useSessionStore.getState().savedVotesMap).toEqual({});
+  });
+});

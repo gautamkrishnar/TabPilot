@@ -50,6 +50,13 @@ interface SessionStore {
   syncedWindow: Window | null;
   currentNavigateUrl: string | null;
 
+  /** Participant IDs who have voted in the current round (values hidden until revealed) */
+  votedParticipantIds: string[];
+  /** Actual vote values after host reveals — null means not yet revealed */
+  revealedVotes: Record<string, string> | null;
+  /** Average vote per URL index for past tickets */
+  savedVotesMap: Record<number, string>;
+
   setSession: (session: Session | null) => void;
   setParticipants: (participants: Participant[]) => void;
   addParticipant: (participant: Participant) => void;
@@ -61,6 +68,10 @@ interface SessionStore {
   setTabSyncEnabled: (enabled: boolean) => void;
   setSyncedWindow: (win: Window | null) => void;
   setCurrentNavigateUrl: (url: string | null) => void;
+  setVotedParticipantIds: (ids: string[]) => void;
+  setRevealedVotes: (votes: Record<string, string> | null) => void;
+  setSavedVotesMap: (map: Record<number, string>) => void;
+  clearVotingRound: () => void;
 
   saveHostKey: (sessionId: string, hostKey: string) => void;
   loadHostKey: (sessionId: string) => string | null;
@@ -85,6 +96,9 @@ const initialState = {
   tabSyncEnabled: false,
   syncedWindow: null,
   currentNavigateUrl: null,
+  votedParticipantIds: [] as string[],
+  revealedVotes: null as Record<string, string> | null,
+  savedVotesMap: {} as Record<number, string>,
 };
 
 export const useSessionStore = create<SessionStore>((set, get) => ({
@@ -125,6 +139,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   setTabSyncEnabled: (enabled) => set({ tabSyncEnabled: enabled }),
   setSyncedWindow: (win) => set({ syncedWindow: win }),
   setCurrentNavigateUrl: (url) => set({ currentNavigateUrl: url }),
+  setVotedParticipantIds: (ids) => set({ votedParticipantIds: ids }),
+  setRevealedVotes: (votes) => set({ revealedVotes: votes }),
+  setSavedVotesMap: (map) => set({ savedVotesMap: map }),
+  clearVotingRound: () => set({ votedParticipantIds: [], revealedVotes: null }),
 
   // ── Per-session key helpers ────────────────────────────────────────────────
 

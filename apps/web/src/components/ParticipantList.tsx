@@ -7,9 +7,11 @@ import { ParticipantAvatar } from './ParticipantAvatar';
 interface ParticipantItemProps {
   participant: Participant;
   onKick?: (participantId: string) => void;
+  hasVoted?: boolean;
+  revealedVote?: string;
 }
 
-function ParticipantItem({ participant, onKick }: ParticipantItemProps) {
+function ParticipantItem({ participant, onKick, hasVoted, revealedVote }: ParticipantItemProps) {
   return (
     <motion.div
       layout
@@ -33,8 +35,27 @@ function ParticipantItem({ participant, onKick }: ParticipantItemProps) {
       </div>
 
       <div className="flex items-center gap-2 flex-shrink-0">
-        {/* Online indicator */}
-        {participant.isOnline ? (
+        {/* Revealed vote badge */}
+        {revealedVote !== undefined ? (
+          <motion.span
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="min-w-[28px] h-7 px-1.5 flex items-center justify-center rounded-lg bg-indigo-500 text-white text-xs font-bold shadow-glow-indigo"
+          >
+            {revealedVote}
+          </motion.span>
+        ) : hasVoted ? (
+          /* Voted indicator — shows they've voted but hides the value */
+          <motion.span
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="h-5 w-5 flex items-center justify-center rounded-full bg-green-500/20 border border-green-500/40"
+            title="Voted"
+          >
+            <span className="h-2 w-2 rounded-full bg-green-500" />
+          </motion.span>
+        ) : /* Online indicator */
+        participant.isOnline ? (
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
@@ -68,11 +89,23 @@ interface ParticipantListProps {
   participants: Participant[];
   onKick?: (participantId: string) => void;
   className?: string;
+  /** IDs of participants who have voted this round (value hidden until revealed) */
+  votedParticipantIds?: string[];
+  /** Revealed vote values keyed by participant ID */
+  revealedVotes?: Record<string, string> | null;
 }
 
-export function ParticipantList({ participants, onKick, className }: ParticipantListProps) {
+export function ParticipantList({
+  participants,
+  onKick,
+  className,
+  votedParticipantIds,
+  revealedVotes,
+}: ParticipantListProps) {
   const online = participants.filter((p) => p.isOnline);
   const offline = participants.filter((p) => !p.isOnline);
+
+  const votedSet = new Set(votedParticipantIds ?? []);
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
@@ -94,7 +127,13 @@ export function ParticipantList({ participants, onKick, className }: Participant
             </p>
             <AnimatePresence mode="popLayout">
               {online.map((p) => (
-                <ParticipantItem key={p.id} participant={p} onKick={onKick} />
+                <ParticipantItem
+                  key={p.id}
+                  participant={p}
+                  onKick={onKick}
+                  hasVoted={votedSet.has(p.id)}
+                  revealedVote={revealedVotes?.[p.id]}
+                />
               ))}
             </AnimatePresence>
           </div>
@@ -108,7 +147,13 @@ export function ParticipantList({ participants, onKick, className }: Participant
             </p>
             <AnimatePresence mode="popLayout">
               {offline.map((p) => (
-                <ParticipantItem key={p.id} participant={p} onKick={onKick} />
+                <ParticipantItem
+                  key={p.id}
+                  participant={p}
+                  onKick={onKick}
+                  hasVoted={votedSet.has(p.id)}
+                  revealedVote={revealedVotes?.[p.id]}
+                />
               ))}
             </AnimatePresence>
           </div>

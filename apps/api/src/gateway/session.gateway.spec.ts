@@ -926,6 +926,364 @@ describe('SessionGateway', () => {
   });
 
   // -------------------------------------------------------------------------
+  // handleSubmitVote()
+  // -------------------------------------------------------------------------
+  describe('handleSubmitVote()', () => {
+    it('should emit error if session not found', async () => {
+      const client = makeMockSocket();
+      sessionsService.findById.mockResolvedValue(null);
+
+      await gateway.handleSubmitVote(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        value: '5',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'SESSION_NOT_FOUND' }),
+      );
+    });
+
+    it('should emit error if voting is disabled', async () => {
+      const client = makeMockSocket();
+      sessionsService.findById.mockResolvedValue(makeSessionDoc({ votingEnabled: false }));
+
+      await gateway.handleSubmitVote(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        value: '5',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'VOTING_DISABLED' }),
+      );
+    });
+
+    it('should emit error if session is not active', async () => {
+      const client = makeMockSocket();
+      sessionsService.findById.mockResolvedValue(
+        makeSessionDoc({ votingEnabled: true, state: 'waiting' }),
+      );
+
+      await gateway.handleSubmitVote(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        value: '5',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'SESSION_NOT_ACTIVE' }),
+      );
+    });
+
+    it('should broadcast VOTE_UPDATE with hasVoted IDs (not the values) to the room', async () => {
+      const client = makeMockSocket();
+      sessionsService.findById.mockResolvedValue(
+        makeSessionDoc({ votingEnabled: true, state: 'active' }),
+      );
+
+      await gateway.handleSubmitVote(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        value: '5',
+      });
+
+      expect(mockServer.to).toHaveBeenCalledWith('session-1');
+      expect(mockServer.emit).toHaveBeenCalledWith(WS_EVENTS.VOTE_UPDATE, {
+        hasVoted: ['p-1'],
+      });
+      // The actual vote value must NOT appear in the broadcast
+      const emitCalls = (mockServer.emit as jest.Mock).mock.calls;
+      const voteUpdateCall = emitCalls.find(([event]: [string]) => event === WS_EVENTS.VOTE_UPDATE);
+      expect(JSON.stringify(voteUpdateCall[1])).not.toContain('"5"');
+    });
+
+    it('should accumulate multiple votes — hasVoted contains all voter IDs', async () => {
+      const client = makeMockSocket();
+      sessionsService.findById.mockResolvedValue(
+        makeSessionDoc({ votingEnabled: true, state: 'active' }),
+      );
+
+      await gateway.handleSubmitVote(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        value: '5',
+      });
+      await gateway.handleSubmitVote(client, {
+        sessionId: 'session-1',
+        participantId: 'p-2',
+        value: '8',
+      });
+
+      const emitCalls = (mockServer.emit as jest.Mock).mock.calls;
+      const lastVoteUpdate = emitCalls
+        .filter(([event]: [string]) => event === WS_EVENTS.VOTE_UPDATE)
+        .at(-1);
+      expect(lastVoteUpdate[1].hasVoted).toEqual(expect.arrayContaining(['p-1', 'p-2']));
+      expect(lastVoteUpdate[1].hasVoted).toHaveLength(2);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // handleRevealVotes()
+  // -------------------------------------------------------------------------
+  describe('handleRevealVotes()', () => {
+    it('should emit error if host key is invalid', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(false);
+
+      await gateway.handleRevealVotes(client, {
+        sessionId: 'session-1',
+        hostKey: 'wrong',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'INVALID_HOST_KEY' }),
+      );
+    });
+
+    it('should emit NO_VOTES error if there are no votes to reveal', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+
+      await gateway.handleRevealVotes(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'NO_VOTES' }),
+      );
+    });
+
+    it('should broadcast VOTES_REVEALED with actual values and numeric average', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.findById.mockResolvedValue(
+        makeSessionDoc({ votingEnabled: true, state: 'active' }),
+      );
+
+      // Seed two votes: 3 and 5 → average 4
+      await gateway.handleSubmitVote(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        value: '3',
+      });
+      await gateway.handleSubmitVote(client, {
+        sessionId: 'session-1',
+        participantId: 'p-2',
+        value: '5',
+      });
+
+      (mockServer.emit as jest.Mock).mockClear();
+
+      await gateway.handleRevealVotes(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+      });
+
+      expect(mockServer.to).toHaveBeenCalledWith('session-1');
+      expect(mockServer.emit).toHaveBeenCalledWith(WS_EVENTS.VOTES_REVEALED, {
+        votes: { 'p-1': '3', 'p-2': '5' },
+        average: '4',
+      });
+    });
+
+    it('should show one decimal place when average is not a whole number', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.findById.mockResolvedValue(
+        makeSessionDoc({ votingEnabled: true, state: 'active' }),
+      );
+
+      // Votes: 1, 2 → average 1.5
+      await gateway.handleSubmitVote(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        value: '1',
+      });
+      await gateway.handleSubmitVote(client, {
+        sessionId: 'session-1',
+        participantId: 'p-2',
+        value: '2',
+      });
+
+      await gateway.handleRevealVotes(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+      });
+
+      const emitCalls = (mockServer.emit as jest.Mock).mock.calls;
+      const revealCall = emitCalls.find(([event]: [string]) => event === WS_EVENTS.VOTES_REVEALED);
+      expect(revealCall[1].average).toBe('1.5');
+    });
+
+    it('should return mode for all non-numeric votes (e.g. ?, ☕)', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.findById.mockResolvedValue(
+        makeSessionDoc({ votingEnabled: true, state: 'active' }),
+      );
+
+      await gateway.handleSubmitVote(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        value: '?',
+      });
+      await gateway.handleSubmitVote(client, {
+        sessionId: 'session-1',
+        participantId: 'p-2',
+        value: '?',
+      });
+      await gateway.handleSubmitVote(client, {
+        sessionId: 'session-1',
+        participantId: 'p-3',
+        value: '☕',
+      });
+
+      await gateway.handleRevealVotes(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+      });
+
+      const emitCalls = (mockServer.emit as jest.Mock).mock.calls;
+      const revealCall = emitCalls.find(([event]: [string]) => event === WS_EVENTS.VOTES_REVEALED);
+      // Mode is '?' (appears twice)
+      expect(revealCall[1].average).toBe('?');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // handleNavigate() — voting integration
+  // -------------------------------------------------------------------------
+  describe('handleNavigate() — voting state', () => {
+    it('should clear votes and broadcast VOTE_UPDATE with empty hasVoted on navigation', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.findById.mockResolvedValue(makeSessionDoc({ currentIndex: 0 }));
+      sessionsService.updateCurrentIndex.mockResolvedValue(makeSessionDoc({ currentIndex: 1 }));
+      sessionsService.findById.mockResolvedValue(
+        makeSessionDoc({ votingEnabled: true, state: 'active', currentIndex: 0 }),
+      );
+
+      // Seed a vote first
+      await gateway.handleSubmitVote(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        value: '5',
+      });
+
+      (mockServer.emit as jest.Mock).mockClear();
+
+      await gateway.handleNavigate(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        direction: 'next',
+      });
+
+      expect(mockServer.emit).toHaveBeenCalledWith(WS_EVENTS.VOTE_UPDATE, { hasVoted: [] });
+    });
+
+    it('should save average vote in savedVotes before clearing', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      const activeDoc = makeSessionDoc({ votingEnabled: true, state: 'active', currentIndex: 0 });
+      sessionsService.findById.mockResolvedValue(activeDoc);
+      sessionsService.updateCurrentIndex.mockResolvedValue(makeSessionDoc({ currentIndex: 1 }));
+
+      // Seed votes: 4 and 8 → average 6
+      await gateway.handleSubmitVote(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        value: '4',
+      });
+      await gateway.handleSubmitVote(client, {
+        sessionId: 'session-1',
+        participantId: 'p-2',
+        value: '8',
+      });
+
+      await gateway.handleNavigate(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        direction: 'next',
+      });
+
+      // NAVIGATE_TO should include savedVotes with the computed average for index 0
+      const emitCalls = (mockServer.emit as jest.Mock).mock.calls;
+      const navCall = emitCalls.find(([event]: [string]) => event === WS_EVENTS.NAVIGATE_TO);
+      expect(navCall[1].savedVotes).toEqual({ 0: '6' });
+    });
+
+    it('should not save votes if no one voted before navigating', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.findById.mockResolvedValue(makeSessionDoc({ currentIndex: 0 }));
+      sessionsService.updateCurrentIndex.mockResolvedValue(makeSessionDoc({ currentIndex: 1 }));
+
+      await gateway.handleNavigate(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        direction: 'next',
+      });
+
+      const emitCalls = (mockServer.emit as jest.Mock).mock.calls;
+      const navCall = emitCalls.find(([event]: [string]) => event === WS_EVENTS.NAVIGATE_TO);
+      // savedVotes should be empty (no votes were cast)
+      expect(navCall[1].savedVotes).toEqual({});
+    });
+
+    it('should accumulate savedVotes across multiple navigations', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.findById.mockResolvedValue(
+        makeSessionDoc({ votingEnabled: true, state: 'active', currentIndex: 0 }),
+      );
+      sessionsService.updateCurrentIndex.mockResolvedValue(makeSessionDoc({ currentIndex: 1 }));
+
+      // Vote on ticket 0 and navigate
+      await gateway.handleSubmitVote(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        value: '5',
+      });
+      await gateway.handleNavigate(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        direction: 'next',
+      });
+
+      // Now on ticket 1 — vote and navigate back
+      sessionsService.findById.mockResolvedValue(
+        makeSessionDoc({ votingEnabled: true, state: 'active', currentIndex: 1 }),
+      );
+      sessionsService.updateCurrentIndex.mockResolvedValue(makeSessionDoc({ currentIndex: 0 }));
+
+      await gateway.handleSubmitVote(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        value: '8',
+      });
+      await gateway.handleNavigate(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        direction: 'prev',
+      });
+
+      const emitCalls = (mockServer.emit as jest.Mock).mock.calls;
+      const navCalls = emitCalls.filter(([event]: [string]) => event === WS_EVENTS.NAVIGATE_TO);
+      const lastNav = navCalls.at(-1);
+      // Should have saved votes for both index 0 and index 1
+      expect(lastNav[1].savedVotes).toEqual({ 0: '5', 1: '8' });
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // handleDisconnect()
   // -------------------------------------------------------------------------
   describe('handleDisconnect()', () => {

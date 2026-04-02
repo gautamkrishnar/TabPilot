@@ -54,6 +54,8 @@ export function ParticipantView() {
     setParticipantId,
     loadParticipantId,
     currentNavigateUrl,
+    votedParticipantIds,
+    revealedVotes,
   } = useSessionStore();
 
   const { navigateTo, isEnabled: tabSyncEnabled } = useTabSync();
@@ -323,30 +325,77 @@ export function ParticipantView() {
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
                   Story Points
-                  {selectedVote && (
+                  {selectedVote && !revealedVotes && (
                     <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 text-xs border border-indigo-500/30">
                       You voted: {selectedVote}
                     </span>
                   )}
+                  {votedParticipantIds.length > 0 && !revealedVotes && (
+                    <span className="text-xs text-zinc-500">
+                      {votedParticipantIds.length} voted
+                    </span>
+                  )}
                 </h3>
-                <div className="grid grid-cols-5 gap-2">
-                  {VOTING_VALUES.map((val) => (
-                    <button
-                      key={val}
-                      type="button"
-                      onClick={() => handleVote(val)}
-                      className={cn(
-                        'h-12 rounded-xl font-bold text-base transition-all duration-150',
-                        'border focus:outline-none focus:ring-2 focus:ring-indigo-500',
-                        selectedVote === val
-                          ? 'bg-indigo-500 border-indigo-400 text-white shadow-glow-indigo scale-105'
-                          : 'bg-zinc-50 dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:border-indigo-500/50 hover:bg-zinc-100 dark:hover:bg-zinc-800',
-                      )}
-                    >
-                      {val}
-                    </button>
-                  ))}
-                </div>
+
+                {/* Revealed votes */}
+                {revealedVotes ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/20 space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">
+                        Results
+                      </p>
+                      {(() => {
+                        const nums = Object.values(revealedVotes)
+                          .map(Number)
+                          .filter((n) => !Number.isNaN(n));
+                        const avg =
+                          nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
+                        return avg !== null ? (
+                          <span className="text-sm font-bold px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                            avg {avg % 1 === 0 ? avg : avg.toFixed(1)}
+                          </span>
+                        ) : null;
+                      })()}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(revealedVotes).map(([pid, val]) => {
+                        const p = participants.find((x) => x.id === pid);
+                        return (
+                          <div
+                            key={pid}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30"
+                          >
+                            <span className="text-xs text-zinc-400">{p?.name || 'Unknown'}:</span>
+                            <span className="text-xs font-bold text-indigo-300">{val}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                ) : (
+                  <div className="grid grid-cols-5 gap-2">
+                    {VOTING_VALUES.map((val) => (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => handleVote(val)}
+                        className={cn(
+                          'h-12 rounded-xl font-bold text-base transition-all duration-150',
+                          'border focus:outline-none focus:ring-2 focus:ring-indigo-500',
+                          selectedVote === val
+                            ? 'bg-indigo-500 border-indigo-400 text-white shadow-glow-indigo scale-105'
+                            : 'bg-zinc-50 dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:border-indigo-500/50 hover:bg-zinc-100 dark:hover:bg-zinc-800',
+                        )}
+                      >
+                        {val}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

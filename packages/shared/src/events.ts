@@ -69,11 +69,20 @@ export interface SubmitVotePayload {
   value: string;
 }
 
+export interface HostRevealVotesPayload {
+  sessionId: string;
+  hostKey: string;
+}
+
 // ─── Server → Client ──────────────────────────────────────────────────────────
 
 export interface SessionStatePayload {
   session: Session;
   participants: Participant[];
+  /** Participant IDs who have voted in the current round (values hidden until revealed) */
+  hasVoted?: string[];
+  /** Average vote per URL index for past tickets */
+  savedVotes?: Record<number, string>;
 }
 
 export interface ParticipantJoinedPayload {
@@ -99,14 +108,28 @@ export interface NavigateToPayload {
   url: string;
   index: number;
   total: number;
+  /** Average vote per URL index — updated after each navigation */
+  savedVotes?: Record<number, string>;
 }
 
 export interface OpenTabPayload {
   url: string;
 }
 
+/**
+ * Broadcast when any participant votes. Only reveals WHO has voted,
+ * not the actual values — values are hidden until the host reveals them.
+ */
 export interface VoteUpdatePayload {
-  votes: Record<string, string>;
+  hasVoted: string[]; // participant IDs who have voted this round
+}
+
+/**
+ * Broadcast by the host to reveal all votes at once.
+ */
+export interface VotesRevealedPayload {
+  votes: Record<string, string>; // participantId → value
+  average: string; // computed average (numeric mean or mode of non-numeric values)
 }
 
 export interface WsErrorPayload {
@@ -129,6 +152,7 @@ export const WS_EVENTS = {
   HOST_REMOVE_URL: 'host_remove_url',
   HOST_REORDER_URLS: 'host_reorder_urls',
   SUBMIT_VOTE: 'submit_vote',
+  HOST_REVEAL_VOTES: 'host_reveal_votes',
   LEAVE_SESSION: 'leave_session',
 
   // Server → Client
@@ -142,5 +166,6 @@ export const WS_EVENTS = {
   SESSION_ENDED: 'session_ended',
   KICKED: 'kicked',
   VOTE_UPDATE: 'vote_update',
+  VOTES_REVEALED: 'votes_revealed',
   ERROR: 'error',
 } as const;

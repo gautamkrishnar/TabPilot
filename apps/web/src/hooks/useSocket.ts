@@ -4,6 +4,8 @@ import type {
   ParticipantLeftPayload,
   ParticipantOnlinePayload,
   SessionStatePayload,
+  VotesRevealedPayload,
+  VoteUpdatePayload,
   WsErrorPayload,
 } from '@tabpilot/shared';
 import { WS_EVENTS } from '@tabpilot/shared';
@@ -42,6 +44,10 @@ export function useSocket({ sessionId, participantId, hostKey, onNavigate }: Use
     removeParticipant,
     updateParticipant,
     setCurrentNavigateUrl,
+    setVotedParticipantIds,
+    setRevealedVotes,
+    setSavedVotesMap,
+    clearVotingRound,
     reset,
   } = useSessionStore();
 
@@ -74,6 +80,8 @@ export function useSocket({ sessionId, participantId, hostKey, onNavigate }: Use
     const handleSessionState = (payload: SessionStatePayload) => {
       setSession(payload.session);
       setParticipants(payload.participants);
+      if (payload.hasVoted) setVotedParticipantIds(payload.hasVoted);
+      if (payload.savedVotes) setSavedVotesMap(payload.savedVotes);
     };
 
     const handleParticipantJoined = (payload: ParticipantJoinedPayload) => {
@@ -105,12 +113,23 @@ export function useSocket({ sessionId, participantId, hostKey, onNavigate }: Use
       });
     };
 
+    const handleVoteUpdate = (payload: VoteUpdatePayload) => {
+      setVotedParticipantIds(payload.hasVoted);
+    };
+
+    const handleVotesRevealed = (payload: VotesRevealedPayload) => {
+      setRevealedVotes(payload.votes);
+    };
+
     const handleNavigateTo = (payload: NavigateToPayload) => {
       setCurrentNavigateUrl(payload.url);
       const currentSession = useSessionStore.getState().session;
       if (currentSession) {
         setSession({ ...currentSession, currentIndex: payload.index });
       }
+      // Clear voting state for the new ticket
+      clearVotingRound();
+      if (payload.savedVotes) setSavedVotesMap(payload.savedVotes);
       if (onNavigateRef.current) {
         onNavigateRef.current(payload.url, payload.index);
       }
@@ -146,6 +165,8 @@ export function useSocket({ sessionId, participantId, hostKey, onNavigate }: Use
     socket.on(WS_EVENTS.PARTICIPANT_ONLINE, handleParticipantOnline);
     socket.on(WS_EVENTS.SESSION_STARTED, handleSessionStarted);
     socket.on(WS_EVENTS.NAVIGATE_TO, handleNavigateTo);
+    socket.on(WS_EVENTS.VOTE_UPDATE, handleVoteUpdate);
+    socket.on(WS_EVENTS.VOTES_REVEALED, handleVotesRevealed);
     socket.on(WS_EVENTS.SESSION_ENDED, handleSessionEnded);
     socket.on(WS_EVENTS.ERROR, handleError);
 
@@ -162,6 +183,8 @@ export function useSocket({ sessionId, participantId, hostKey, onNavigate }: Use
       socket.off(WS_EVENTS.PARTICIPANT_ONLINE, handleParticipantOnline);
       socket.off(WS_EVENTS.SESSION_STARTED, handleSessionStarted);
       socket.off(WS_EVENTS.NAVIGATE_TO, handleNavigateTo);
+      socket.off(WS_EVENTS.VOTE_UPDATE, handleVoteUpdate);
+      socket.off(WS_EVENTS.VOTES_REVEALED, handleVotesRevealed);
       socket.off(WS_EVENTS.SESSION_ENDED, handleSessionEnded);
       socket.off(WS_EVENTS.KICKED, handleKicked);
       socket.off(WS_EVENTS.ERROR, handleError);
@@ -178,6 +201,10 @@ export function useSocket({ sessionId, participantId, hostKey, onNavigate }: Use
     removeParticipant,
     updateParticipant,
     setCurrentNavigateUrl,
+    setVotedParticipantIds,
+    setRevealedVotes,
+    setSavedVotesMap,
+    clearVotingRound,
     reset,
     navigate,
   ]);

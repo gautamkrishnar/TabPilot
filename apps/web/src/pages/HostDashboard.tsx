@@ -1,9 +1,9 @@
 import { WS_EVENTS } from '@tabpilot/shared';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  BarChart3,
   Copy,
   ExternalLink,
+  Eye,
   Link2,
   Lock,
   LockOpen,
@@ -36,12 +36,20 @@ export function HostDashboard() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const [showShareModal, setShowShareModal] = useState(false);
-  const [showVotes, setShowVotes] = useState(false);
-  const [votes, setVotes] = useState<Record<string, string>>({});
   const [newUrl, setNewUrl] = useState('');
 
-  const { session, participants, hostKey, setIsHost, setHostKey, loadHostKey, reset } =
-    useSessionStore();
+  const {
+    session,
+    participants,
+    hostKey,
+    setIsHost,
+    setHostKey,
+    loadHostKey,
+    reset,
+    votedParticipantIds,
+    revealedVotes,
+    savedVotesMap,
+  } = useSessionStore();
 
   // Ref guard: React StrictMode double-invokes effects in dev, which would
   // show the "Host key not found" toast twice before navigation completes.
@@ -76,20 +84,11 @@ export function HostDashboard() {
     };
   }, [session?.name, session]);
 
-  // Listen to vote updates
-  useEffect(() => {
-    if (!sessionId) return;
+  const handleRevealVotes = useCallback(() => {
+    if (!sessionId || !hostKey) return;
     const socket = getSocket();
-
-    const handleVoteUpdate = (payload: { votes: Record<string, string> }) => {
-      setVotes(payload.votes);
-    };
-
-    socket.on(WS_EVENTS.VOTE_UPDATE, handleVoteUpdate);
-    return () => {
-      socket.off(WS_EVENTS.VOTE_UPDATE, handleVoteUpdate);
-    };
-  }, [sessionId]);
+    socket.emit(WS_EVENTS.HOST_REVEAL_VOTES, { sessionId, hostKey });
+  }, [sessionId, hostKey]);
 
   const handleStartSession = useCallback(() => {
     if (!sessionId || !hostKey) return;
@@ -254,15 +253,16 @@ export function HostDashboard() {
           <span className="hidden sm:block">{isConnected ? 'Connected' : 'Disconnected'}</span>
         </div>
 
-        {/* Voting */}
-        {session.votingEnabled && (
+        {/* Reveal votes button — voting enabled + someone has voted + not yet revealed */}
+        {session.votingEnabled && votedParticipantIds.length > 0 && !revealedVotes && (
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            onClick={() => setShowVotes(!showVotes)}
-            className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+            onClick={handleRevealVotes}
+            className="flex-shrink-0 gap-1.5 border-indigo-500/50 text-indigo-400 hover:bg-indigo-500/10"
           >
-            <BarChart3 className="h-4 w-4" />
+            <Eye className="h-4 w-4" />
+            <span className="hidden sm:block">Reveal ({votedParticipantIds.length})</span>
           </Button>
         )}
 
@@ -314,6 +314,8 @@ export function HostDashboard() {
             participants={participants}
             onKick={handleKickParticipant}
             className="flex-1"
+            votedParticipantIds={session.votingEnabled ? votedParticipantIds : undefined}
+            revealedVotes={session.votingEnabled ? revealedVotes : undefined}
           />
         </aside>
 
@@ -359,18 +361,33 @@ export function HostDashboard() {
                 </a>
               </div>
 
-              {/* Votes display */}
-              {session.votingEnabled && showVotes && Object.keys(votes).length > 0 && (
+              {/* Revealed votes panel */}
+              {session.votingEnabled && revealedVotes && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
-                  className="mt-3 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800"
+                  className="mt-3 p-3 rounded-lg bg-indigo-500/5 border border-indigo-500/20"
                 >
-                  <p className="text-xs font-semibold text-zinc-400 mb-2 uppercase tracking-wider">
-                    Votes
-                  </p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">
+                      Votes Revealed
+                    </p>
+                    {Object.keys(revealedVotes).length > 0 &&
+                      (() => {
+                        const nums = Object.values(revealedVotes)
+                          .map(Number)
+                          .filter((n) => !Number.isNaN(n));
+                        const avg =
+                          nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
+                        return avg !== null ? (
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                            avg {avg % 1 === 0 ? avg : avg.toFixed(1)}
+                          </span>
+                        ) : null;
+                      })()}
+                  </div>
                   <div className="flex flex-wrap gap-2">
-                    {Object.entries(votes).map(([pid, val]) => {
+                    {Object.entries(revealedVotes).map(([pid, val]) => {
                       const participant = participants.find((p) => p.id === pid);
                       return (
                         <div
@@ -407,6 +424,7 @@ export function HostDashboard() {
               onJumpTo={handleJumpTo}
               onDelete={handleDeleteUrl}
               onReorder={handleReorderUrls}
+              savedVotes={session.votingEnabled ? savedVotesMap : undefined}
             />
 
             {/* Add URL input */}
