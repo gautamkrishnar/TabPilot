@@ -11,7 +11,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import { motion } from 'framer-motion';
 import { Check, ExternalLink, GripVertical, Loader2, Lock, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useJiraIssue } from '@/hooks/useJiraIssue';
 import { useUrlTitle } from '@/hooks/useUrlTitle';
 import { formatJiraTitle, parseJiraUrl } from '@/lib/jira';
@@ -268,16 +268,24 @@ export function UrlQueue({
   savedVotes,
 }: UrlQueueProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  // Optimistic local copy — updated immediately on drop so there's no
+  // visual snap-back while we wait for the server round-trip.
+  const [localUrls, setLocalUrls] = useState(urls);
+
+  // Keep in sync when the authoritative prop changes (server confirms reorder,
+  // URL added/removed, etc.).
+  useEffect(() => {
+    setLocalUrls(urls);
+  }, [urls]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      // Require a small drag distance before starting to prevent accidental drags
       activationConstraint: { distance: 6 },
     }),
   );
 
   // Stable IDs for dnd-kit: use URL + index to handle duplicate URLs
-  const items = urls.map((url, i) => `${i}:${url}`);
+  const items = localUrls.map((url, i) => `${i}:${url}`);
 
   function handleDragStart(event: DragStartEvent) {
     setActiveId(event.active.id as string);
@@ -292,15 +300,19 @@ export function UrlQueue({
     const toIndex = items.indexOf(over.id as string);
 
     // Only allow moves strictly within the future zone.
-    // toIndex <= currentIndex would push currentIndex forward, marking extra items done.
-    // fromIndex <= currentIndex is caught by useSortable disabled, but guard here too.
     if (fromIndex === -1 || toIndex === -1) return;
     if (fromIndex <= currentIndex || toIndex <= currentIndex) return;
+
+    // Apply optimistically so the list settles immediately — no snap-back.
+    const reordered = [...localUrls];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+    setLocalUrls(reordered);
 
     onReorder?.(fromIndex, toIndex);
   }
 
-  const activeUrl = activeId ? urls[items.indexOf(activeId)] : null;
+  const activeUrl = activeId ? localUrls[items.indexOf(activeId)] : null;
   const activeIndex = activeId ? items.indexOf(activeId) : -1;
 
   return (
@@ -313,16 +325,18 @@ export function UrlQueue({
       <SortableContext items={items} strategy={verticalListSortingStrategy}>
         <div className={cn('flex flex-col gap-1', className)}>
           {items.map((id, index) => (
+            // Key by URL (not index-based id) so React reuses the DOM node
+            // when items reorder, preventing the entry animation from replaying.
             <motion.div
-              key={id}
+              key={localUrls[index]}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96 }}
-              transition={{ delay: index * 0.03, duration: 0.18 }}
+              transition={{ duration: 0.18 }}
             >
               <UrlRow
                 id={id}
-                url={urls[index]}
+                url={localUrls[index]}
                 index={index}
                 currentIndex={currentIndex}
                 isHost={isHost}
