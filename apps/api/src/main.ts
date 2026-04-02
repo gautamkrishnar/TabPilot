@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
@@ -58,16 +58,19 @@ async function bootstrap() {
       wildcard: false,
     });
 
-    // SPA fallback — all non-API routes serve index.html.
-    // @fastify/static augments the reply with sendFile at runtime, which the
-    // base FastifyInstance types don't know about, so the cast via unknown is necessary.
+    // SPA fallback — intercept 404s for non-API routes and serve index.html.
+    // We use onSend instead of setNotFoundHandler because NestJS registers its
+    // own NotFoundHandler during app.init() and Fastify rejects a second one.
+    const indexHtml = readFileSync(join(webDistPath, 'index.html'), 'utf-8');
     const instance = app.getHttpAdapter().getInstance() as unknown as {
-      setNotFoundHandler: (
-        fn: (req: unknown, reply: { sendFile: (f: string) => void }) => void,
-      ) => void;
+      addHook: (event: string, fn: (...args: unknown[]) => void) => void;
     };
-    instance.setNotFoundHandler((_req, reply) => {
-      reply.sendFile('index.html');
+    instance.addHook('onSend', (req: any, reply: any, payload: any, done: any) => {
+      if (reply.statusCode === 404 && !req.url.startsWith('/api')) {
+        reply.code(200).type('text/html');
+        return done(null, indexHtml);
+      }
+      done(null, payload);
     });
   }
 
