@@ -3,6 +3,7 @@ import type {
   ParticipantJoinedPayload,
   ParticipantLeftPayload,
   ParticipantOnlinePayload,
+  ParticipantUpdatedPayload,
   SessionStatePayload,
   VotesRevealedPayload,
   VoteUpdatePayload,
@@ -100,6 +101,10 @@ export function useSocket({ sessionId, participantId, hostKey, onNavigate }: Use
       updateParticipant(payload.participantId, { isOnline: payload.isOnline });
     };
 
+    const handleParticipantUpdated = (payload: ParticipantUpdatedPayload) => {
+      updateParticipant(payload.participant.id, payload.participant);
+    };
+
     const handleSessionStarted = () => {
       setSession(
         useSessionStore.getState().session
@@ -163,6 +168,7 @@ export function useSocket({ sessionId, participantId, hostKey, onNavigate }: Use
     socket.on(WS_EVENTS.PARTICIPANT_JOINED, handleParticipantJoined);
     socket.on(WS_EVENTS.PARTICIPANT_LEFT, handleParticipantLeft);
     socket.on(WS_EVENTS.PARTICIPANT_ONLINE, handleParticipantOnline);
+    socket.on(WS_EVENTS.PARTICIPANT_UPDATED, handleParticipantUpdated);
     socket.on(WS_EVENTS.SESSION_STARTED, handleSessionStarted);
     socket.on(WS_EVENTS.NAVIGATE_TO, handleNavigateTo);
     socket.on(WS_EVENTS.VOTE_UPDATE, handleVoteUpdate);
@@ -181,6 +187,7 @@ export function useSocket({ sessionId, participantId, hostKey, onNavigate }: Use
       socket.off(WS_EVENTS.PARTICIPANT_JOINED, handleParticipantJoined);
       socket.off(WS_EVENTS.PARTICIPANT_LEFT, handleParticipantLeft);
       socket.off(WS_EVENTS.PARTICIPANT_ONLINE, handleParticipantOnline);
+      socket.off(WS_EVENTS.PARTICIPANT_UPDATED, handleParticipantUpdated);
       socket.off(WS_EVENTS.SESSION_STARTED, handleSessionStarted);
       socket.off(WS_EVENTS.NAVIGATE_TO, handleNavigateTo);
       socket.off(WS_EVENTS.VOTE_UPDATE, handleVoteUpdate);

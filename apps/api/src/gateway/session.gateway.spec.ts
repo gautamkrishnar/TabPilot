@@ -107,6 +107,7 @@ function makeMockSessionsService(): jest.Mocked<SessionsService> {
     addUrl: jest.fn(),
     removeUrl: jest.fn(),
     reorderUrls: jest.fn(),
+    updateHostProfile: jest.fn(),
   } as unknown as jest.Mocked<SessionsService>;
 }
 
@@ -119,6 +120,7 @@ function makeMockParticipantsService(): jest.Mocked<ParticipantsService> {
     updateOnlineStatus: jest.fn(),
     toParticipantDto: jest.fn(),
     deleteParticipant: jest.fn().mockResolvedValue(undefined),
+    updateProfile: jest.fn(),
   } as unknown as jest.Mocked<ParticipantsService>;
 }
 
@@ -1328,6 +1330,149 @@ describe('SessionGateway', () => {
       const client = makeMockSocket('unknown-socket');
       await gateway.handleDisconnect(client);
       expect(participantsService.updateOnlineStatus).not.toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // handleUpdateParticipantProfile()
+  // -------------------------------------------------------------------------
+  describe('handleUpdateParticipantProfile()', () => {
+    it('should update the participant and broadcast PARTICIPANT_UPDATED to the room', async () => {
+      const client = makeMockSocket();
+      const updatedDoc = makeParticipantDoc({ name: 'Alicia', email: 'alicia@example.com' });
+      const updatedDto = makeParticipantDto({ name: 'Alicia', email: 'alicia@example.com' });
+      participantsService.updateProfile = jest.fn().mockResolvedValue(updatedDoc);
+      participantsService.toParticipantDto.mockReturnValue(updatedDto);
+
+      await gateway.handleUpdateParticipantProfile(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        name: 'Alicia',
+        email: 'alicia@example.com',
+      });
+
+      expect(participantsService.updateProfile).toHaveBeenCalledWith(
+        'p-1',
+        'Alicia',
+        'alicia@example.com',
+      );
+      expect(mockServer.to).toHaveBeenCalledWith('session-1');
+      expect(mockServer.emit).toHaveBeenCalledWith(
+        WS_EVENTS.PARTICIPANT_UPDATED,
+        expect.objectContaining({ participant: updatedDto }),
+      );
+    });
+
+    it('should emit error when name is empty', async () => {
+      const client = makeMockSocket();
+
+      await gateway.handleUpdateParticipantProfile(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        name: '   ',
+        email: '',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'INVALID_NAME' }),
+      );
+    });
+
+    it('should emit error when name exceeds 50 characters', async () => {
+      const client = makeMockSocket();
+
+      await gateway.handleUpdateParticipantProfile(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        name: 'A'.repeat(51),
+        email: '',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'INVALID_NAME' }),
+      );
+    });
+
+    it('should emit error when updateProfile throws', async () => {
+      const client = makeMockSocket();
+      participantsService.updateProfile = jest.fn().mockRejectedValue(new Error('not found'));
+
+      await gateway.handleUpdateParticipantProfile(client, {
+        sessionId: 'session-1',
+        participantId: 'bad-id',
+        name: 'Ghost',
+        email: '',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'UPDATE_FAILED' }),
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // handleUpdateHostProfile()
+  // -------------------------------------------------------------------------
+  describe('handleUpdateHostProfile()', () => {
+    it('should update the session and broadcast SESSION_STATE to the room', async () => {
+      const client = makeMockSocket();
+      const updatedDoc = makeSessionDoc({ hostName: 'New Host' });
+      const updatedDto = makeSessionDto({ hostName: 'New Host' });
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.updateHostProfile = jest.fn().mockResolvedValue(updatedDoc);
+      sessionsService.toSessionDto.mockReturnValue(updatedDto);
+      participantsService.findBySession.mockResolvedValue([makeParticipantDto()]);
+
+      await gateway.handleUpdateHostProfile(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid-key',
+        name: 'New Host',
+        email: '',
+      });
+
+      expect(sessionsService.updateHostProfile).toHaveBeenCalledWith('session-1', 'New Host', '');
+      expect(mockServer.to).toHaveBeenCalledWith('session-1');
+      expect(mockServer.emit).toHaveBeenCalledWith(
+        WS_EVENTS.SESSION_STATE,
+        expect.objectContaining({ session: updatedDto }),
+      );
+    });
+
+    it('should emit error when host key is invalid', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(false);
+
+      await gateway.handleUpdateHostProfile(client, {
+        sessionId: 'session-1',
+        hostKey: 'wrong-key',
+        name: 'New Host',
+        email: '',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'INVALID_HOST_KEY' }),
+      );
+    });
+
+    it('should emit error when name is empty', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+
+      await gateway.handleUpdateHostProfile(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid-key',
+        name: '',
+        email: '',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'INVALID_NAME' }),
+      );
     });
   });
 });

@@ -8,6 +8,7 @@ import { ParticipantAvatar } from '@/components/ParticipantAvatar';
 import { ParticipantList } from '@/components/ParticipantList';
 import { StatusBadge } from '@/components/StatusBadge';
 import { TabSyncToggle } from '@/components/TabSyncToggle';
+import { UserAvatarMenu } from '@/components/UserAvatarMenu';
 import { Button } from '@/components/ui/button';
 import { useJiraIssue } from '@/hooks/useJiraIssue';
 import { useSocket } from '@/hooks/useSocket';
@@ -140,7 +141,6 @@ export function ParticipantView() {
       ? formatJiraTitle(currentJiraIssue)
       : (currentPageTitle ?? parseJiraUrl(currentUrl)?.key ?? formatUrl(currentUrl))
     : '';
-  const myParticipant = participants.find((p) => p.id === participantId);
 
   if (!session) {
     return (
@@ -171,6 +171,10 @@ export function ParticipantView() {
             {session.name}
           </h1>
           <StatusBadge state={session.state} size="sm" />
+          <span className="hidden sm:block text-xs text-zinc-400 truncate">
+            hosted by{' '}
+            <span className="text-zinc-600 dark:text-zinc-300 font-medium">{session.hostName}</span>
+          </span>
         </div>
 
         {/* Participant count */}
@@ -193,15 +197,7 @@ export function ParticipantView() {
           {isConnected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
         </div>
 
-        {/* My avatar */}
-        {myParticipant && (
-          <ParticipantAvatar
-            participant={myParticipant}
-            size="sm"
-            showOnlineIndicator={false}
-            showTooltip={false}
-          />
-        )}
+        <UserAvatarMenu />
       </header>
 
       <div className="flex flex-1 overflow-hidden">
@@ -435,7 +431,11 @@ export function ParticipantView() {
               transition={{ duration: 0.25 }}
               className="flex-shrink-0 border-l border-zinc-200 dark:border-zinc-800 overflow-hidden"
             >
-              <ParticipantList participants={participants} className="h-full w-64" />
+              <ParticipantList
+                participants={participants}
+                session={session}
+                className="h-full w-64"
+              />
             </motion.aside>
           )}
         </AnimatePresence>

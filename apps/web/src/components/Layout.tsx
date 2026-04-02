@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from './ThemeToggle';
+import { UserAvatarMenu } from './UserAvatarMenu';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -52,6 +53,7 @@ export function Layout({ children, showNav = true }: LayoutProps) {
                   <Github className="h-5 w-5" />
                 </a>
                 <ThemeToggle />
+                <UserAvatarMenu />
                 {!isHome && (
                   <Button asChild variant="glow" size="sm">
                     <Link to="/create">

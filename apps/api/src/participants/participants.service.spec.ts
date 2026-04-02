@@ -157,6 +157,35 @@ describe('ParticipantsService', () => {
   });
 
   // -------------------------------------------------------------------------
+  // updateProfile()
+  // -------------------------------------------------------------------------
+  describe('updateProfile()', () => {
+    it('should update the name', async () => {
+      const created = await service.create('session-1', 'Alice');
+      const updated = await service.updateProfile(created.id, 'Alicia');
+      expect(updated.name).toBe('Alicia');
+    });
+
+    it('should set email when provided', async () => {
+      const created = await service.create('session-1', 'Alice');
+      const updated = await service.updateProfile(created.id, 'Alice', 'alice@example.com');
+      expect(updated.email).toBe('alice@example.com');
+    });
+
+    it('should clear email when empty string is passed', async () => {
+      const created = await service.create('session-1', 'Alice', 'alice@example.com');
+      const updated = await service.updateProfile(created.id, 'Alice', '');
+      expect(updated.email).toBeNull();
+    });
+
+    it('should throw NotFoundException for an unknown participantId', async () => {
+      await expect(
+        service.updateProfile('00000000-0000-0000-0000-000000000000', 'Ghost'),
+      ).rejects.toThrow('not found');
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // deleteParticipant()
   // -------------------------------------------------------------------------
   describe('deleteParticipant()', () => {

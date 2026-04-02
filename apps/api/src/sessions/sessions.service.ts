@@ -103,6 +103,15 @@ export class SessionsService {
     };
   }
 
+  async updateHostProfile(sessionId: string, name: string, email = ''): Promise<SessionDocument> {
+    const update: Record<string, unknown> = { hostName: name, hostEmail: email || null };
+    const doc = await this.sessionModel
+      .findOneAndUpdate({ sessionId }, update, { new: true })
+      .exec();
+    if (!doc) throw new NotFoundException(`Session ${sessionId} not found`);
+    return doc;
+  }
+
   async setLocked(sessionId: string, isLocked: boolean): Promise<SessionDocument | null> {
     return this.sessionModel.findOneAndUpdate({ sessionId }, { isLocked }, { new: true }).exec();
   }

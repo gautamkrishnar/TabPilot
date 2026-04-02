@@ -24,6 +24,7 @@ import { NavigationControls } from '@/components/NavigationControls';
 import { ParticipantList } from '@/components/ParticipantList';
 import { StatusBadge } from '@/components/StatusBadge';
 import { UrlQueue } from '@/components/UrlQueue';
+import { UserAvatarMenu } from '@/components/UserAvatarMenu';
 import { Button } from '@/components/ui/button';
 import { useJiraIssue } from '@/hooks/useJiraIssue';
 import { useSocket } from '@/hooks/useSocket';
@@ -216,10 +217,10 @@ export function HostDashboard() {
 
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden">
-      {/* Top bar — single row on desktop, two rows on mobile */}
-      <header className="flex-shrink-0 flex flex-wrap sm:flex-nowrap items-center gap-2 px-4 py-2 sm:py-0 sm:h-16 border-b border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-sm z-10">
-        {/* Row 1: logo + session name + status (full width on mobile) */}
-        <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto sm:flex-1">
+      {/* Top bar */}
+      <header className="flex-shrink-0 border-b border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-sm z-10">
+        {/* Row 1: logo + session name + status + avatar */}
+        <div className="flex items-center gap-2.5 px-4 h-14 sm:h-16">
           <a href="/" aria-label="Tab Pilot home">
             <img
               src="/logo.svg"
@@ -229,100 +230,136 @@ export function HostDashboard() {
               className="rounded-md flex-shrink-0"
             />
           </a>
-          <h1 className="font-semibold text-zinc-900 dark:text-zinc-100 truncate text-sm">
+          <h1 className="font-semibold text-zinc-900 dark:text-zinc-100 truncate text-sm flex-1 min-w-0">
             {session.name}
           </h1>
           <StatusBadge state={session.state} size="sm" />
+
+          {/* Desktop-only controls (inline with title row) */}
+          <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+            <button
+              type="button"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors text-sm font-mono"
+              onClick={() => setShowShareModal(true)}
+              title="Share session"
+            >
+              <span className="text-zinc-500 text-xs">Code:</span>
+              <span className="text-zinc-800 dark:text-zinc-200 font-bold tracking-widest">
+                {session.joinCode}
+              </span>
+              <Copy className="h-3.5 w-3.5 text-zinc-500" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowMobileParticipants(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
+            >
+              <Users className="h-4 w-4 text-zinc-400" />
+              <span className="text-zinc-700 dark:text-zinc-300 font-medium">{onlineCount}</span>
+              <span className="text-zinc-600">/{participants.length}</span>
+            </button>
+
+            <div
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium',
+                isConnected ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400',
+              )}
+            >
+              {isConnected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
+              <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
+            </div>
+
+            {session.votingEnabled && votedParticipantIds.length > 0 && !revealedVotes && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRevealVotes}
+                className="gap-1.5 border-indigo-500/50 text-indigo-400 hover:bg-indigo-500/10"
+              >
+                <Eye className="h-4 w-4" />
+                Reveal ({votedParticipantIds.length})
+              </Button>
+            )}
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleToggleLock}
+              className={cn(
+                'gap-1.5',
+                session.isLocked
+                  ? 'border-amber-500/50 text-amber-400 hover:bg-amber-500/10 dark:border-amber-500/50'
+                  : 'border-zinc-300 dark:border-zinc-700',
+              )}
+              title={session.isLocked ? 'Unlock session' : 'Lock session'}
+            >
+              {session.isLocked ? <Lock className="h-4 w-4" /> : <LockOpen className="h-4 w-4" />}
+              {session.isLocked ? 'Locked' : 'Lock'}
+            </Button>
+
+            <Button variant="destructive" size="sm" onClick={handleEndSession} className="gap-1.5">
+              <Power className="h-4 w-4" />
+              End
+            </Button>
+          </div>
+
+          <UserAvatarMenu />
         </div>
 
-        {/* Row 2 on mobile / same row on desktop: action controls */}
-        {/* Code — desktop only */}
-        <button
-          type="button"
-          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors text-sm font-mono"
-          onClick={() => setShowShareModal(true)}
-          title="Share session"
-        >
-          <span className="text-zinc-500 text-xs">Code:</span>
-          <span className="text-zinc-800 dark:text-zinc-200 font-bold tracking-widest">
-            {session.joinCode}
-          </span>
-          <Copy className="h-3.5 w-3.5 text-zinc-500" />
-        </button>
+        {/* Row 2: mobile-only action bar */}
+        <div className="sm:hidden flex items-center gap-2 px-4 pb-3">
+          <button
+            type="button"
+            onClick={() => setShowMobileParticipants(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
+          >
+            <Users className="h-4 w-4 text-zinc-400" />
+            <span className="text-zinc-700 dark:text-zinc-300 font-medium">{onlineCount}</span>
+            <span className="text-zinc-500">/{participants.length}</span>
+          </button>
 
-        {/* Participant count — tappable to open participants overlay */}
-        <button
-          type="button"
-          onClick={() => setShowMobileParticipants(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
-        >
-          <Users className="h-4 w-4 text-zinc-400" />
-          <span className="text-zinc-700 dark:text-zinc-300 font-medium">{onlineCount}</span>
-          <span className="text-zinc-600">/{participants.length}</span>
-        </button>
+          <div
+            className={cn(
+              'flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium',
+              isConnected ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400',
+            )}
+          >
+            {isConnected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
+          </div>
 
-        {/* Connection status */}
-        <div
-          className={cn(
-            'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium',
-            isConnected ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400',
+          {session.votingEnabled && votedParticipantIds.length > 0 && !revealedVotes && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRevealVotes}
+              className="gap-1.5 border-indigo-500/50 text-indigo-400 hover:bg-indigo-500/10"
+            >
+              <Eye className="h-4 w-4" />
+              Reveal ({votedParticipantIds.length})
+            </Button>
           )}
-        >
-          {isConnected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
-          <span className="hidden sm:block">{isConnected ? 'Connected' : 'Disconnected'}</span>
-        </div>
 
-        {/* Reveal votes */}
-        {session.votingEnabled && votedParticipantIds.length > 0 && !revealedVotes && (
+          <div className="flex-1" />
+
           <Button
             variant="outline"
             size="sm"
-            onClick={handleRevealVotes}
-            className="flex-shrink-0 gap-1.5 border-indigo-500/50 text-indigo-400 hover:bg-indigo-500/10"
+            onClick={handleToggleLock}
+            className={cn(
+              session.isLocked
+                ? 'border-amber-500/50 text-amber-400 hover:bg-amber-500/10'
+                : 'border-zinc-300 dark:border-zinc-700',
+            )}
+            title={session.isLocked ? 'Unlock session' : 'Lock session'}
           >
-            <Eye className="h-4 w-4" />
-            <span className="hidden sm:block">Reveal ({votedParticipantIds.length})</span>
+            {session.isLocked ? <Lock className="h-4 w-4" /> : <LockOpen className="h-4 w-4" />}
           </Button>
-        )}
 
-        {/* Lock / unlock */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleToggleLock}
-          className={cn(
-            'flex-shrink-0 gap-1.5',
-            session.isLocked
-              ? 'border-amber-500/50 text-amber-400 hover:bg-amber-500/10 dark:border-amber-500/50'
-              : 'border-zinc-300 dark:border-zinc-700',
-          )}
-          title={
-            session.isLocked ? 'Unlock session (allow new joins)' : 'Lock session (block new joins)'
-          }
-        >
-          {session.isLocked ? (
-            <>
-              <Lock className="h-4 w-4" />
-              <span className="hidden sm:block">Locked</span>
-            </>
-          ) : (
-            <>
-              <LockOpen className="h-4 w-4" />
-              <span className="hidden sm:block">Lock</span>
-            </>
-          )}
-        </Button>
-
-        {/* End session */}
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={handleEndSession}
-          className="flex-shrink-0 gap-1.5"
-        >
-          <Power className="h-4 w-4" />
-          <span className="hidden sm:block">End</span>
-        </Button>
+          <Button variant="destructive" size="sm" onClick={handleEndSession}>
+            <Power className="h-4 w-4" />
+          </Button>
+        </div>
       </header>
 
       {/* Main content */}
@@ -333,6 +370,7 @@ export function HostDashboard() {
             participants={participants}
             onKick={handleKickParticipant}
             className="flex-1"
+            session={session}
             votedParticipantIds={session.votingEnabled ? votedParticipantIds : undefined}
             revealedVotes={session.votingEnabled ? revealedVotes : undefined}
           />
@@ -606,6 +644,7 @@ export function HostDashboard() {
                 participants={participants}
                 onKick={handleKickParticipant}
                 className="flex-1"
+                session={session}
                 votedParticipantIds={session.votingEnabled ? votedParticipantIds : undefined}
                 revealedVotes={session.votingEnabled ? revealedVotes : undefined}
               />

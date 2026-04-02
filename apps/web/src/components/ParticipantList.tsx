@@ -1,7 +1,8 @@
-import type { Participant } from '@tabpilot/shared';
+import type { Participant, Session } from '@tabpilot/shared';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Users, UserX } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Crown, Users, UserX } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { cn, getDiceBearUrl } from '@/lib/utils';
 import { ParticipantAvatar } from './ParticipantAvatar';
 
 interface ParticipantItemProps {
@@ -85,6 +86,50 @@ function ParticipantItem({ participant, onKick, hasVoted, revealedVote }: Partic
   );
 }
 
+function HostItem({ session }: { session: Session }) {
+  const initials = session.hostName
+    .split(' ')
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-3 px-3 py-2.5 rounded-lg',
+        'hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60 transition-colors duration-150',
+        'cursor-default',
+      )}
+    >
+      <div className="relative inline-flex">
+        <Avatar className="h-8 w-8 ring-2 ring-amber-400/40 dark:ring-amber-500/30">
+          <AvatarImage
+            src={getDiceBearUrl(session.hostName)}
+            alt={session.hostName}
+            className="object-cover"
+          />
+          <AvatarFallback className="text-xs bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">
+            {initials}
+          </AvatarFallback>
+        </Avatar>
+        <span className="absolute bottom-0 right-0 block rounded-full ring-2 ring-white dark:ring-zinc-900 h-2 w-2 bg-green-500">
+          <span className="absolute inset-0 rounded-full bg-green-400 animate-ping opacity-75" />
+        </span>
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">
+          {session.hostName}
+        </p>
+        {session.hostEmail && <p className="text-xs text-zinc-500 truncate">{session.hostEmail}</p>}
+      </div>
+
+      <Crown className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" aria-label="Host" />
+    </div>
+  );
+}
+
 interface ParticipantListProps {
   participants: Participant[];
   onKick?: (participantId: string) => void;
@@ -93,6 +138,8 @@ interface ParticipantListProps {
   votedParticipantIds?: string[];
   /** Revealed vote values keyed by participant ID */
   revealedVotes?: Record<string, string> | null;
+  /** Session object — if provided, renders the host at the top of the list */
+  session?: Session | null;
 }
 
 export function ParticipantList({
@@ -101,11 +148,13 @@ export function ParticipantList({
   className,
   votedParticipantIds,
   revealedVotes,
+  session,
 }: ParticipantListProps) {
   const online = participants.filter((p) => p.isOnline);
   const offline = participants.filter((p) => !p.isOnline);
 
   const votedSet = new Set(votedParticipantIds ?? []);
+  const totalCount = participants.length + (session ? 1 : 0);
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
@@ -114,11 +163,21 @@ export function ParticipantList({
         <Users className="h-4 w-4 text-zinc-400" />
         <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Participants</span>
         <span className="ml-auto text-xs font-medium px-2 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
-          {participants.length}
+          {totalCount}
         </span>
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-thin px-2 py-2 space-y-4">
+        {/* Host */}
+        {session && (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 px-3 mb-1">
+              Host
+            </p>
+            <HostItem session={session} />
+          </div>
+        )}
+
         {/* Online */}
         {online.length > 0 && (
           <div>

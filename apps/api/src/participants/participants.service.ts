@@ -45,6 +45,19 @@ export class ParticipantsService {
     return doc;
   }
 
+  async updateProfile(
+    participantId: string,
+    name: string,
+    email = '',
+  ): Promise<ParticipantDocument> {
+    const update: Record<string, unknown> = { name, email: email || null };
+    const doc = await this.participantModel
+      .findOneAndUpdate({ participantId }, update, { new: true })
+      .exec();
+    if (!doc) throw new NotFoundException(`Participant ${participantId} not found`);
+    return doc;
+  }
+
   async updateOnlineStatus(participantId: string, isOnline: boolean): Promise<ParticipantDocument> {
     const doc = await this.participantModel
       .findOneAndUpdate({ participantId }, { isOnline }, { new: true })

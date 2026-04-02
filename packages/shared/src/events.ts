@@ -74,6 +74,22 @@ export interface HostRevealVotesPayload {
   hostKey: string;
 }
 
+export interface UpdateParticipantProfilePayload {
+  sessionId: string;
+  participantId: string;
+  name: string;
+  /** Pass empty string to clear the email */
+  email: string;
+}
+
+export interface UpdateHostProfilePayload {
+  sessionId: string;
+  hostKey: string;
+  name: string;
+  /** Pass empty string to clear the email */
+  email: string;
+}
+
 // ─── Server → Client ──────────────────────────────────────────────────────────
 
 export interface SessionStatePayload {
@@ -132,6 +148,10 @@ export interface VotesRevealedPayload {
   average: string; // computed average (numeric mean or mode of non-numeric values)
 }
 
+export interface ParticipantUpdatedPayload {
+  participant: Participant;
+}
+
 export interface WsErrorPayload {
   message: string;
   code: string;
@@ -154,12 +174,15 @@ export const WS_EVENTS = {
   SUBMIT_VOTE: 'submit_vote',
   HOST_REVEAL_VOTES: 'host_reveal_votes',
   LEAVE_SESSION: 'leave_session',
+  UPDATE_PARTICIPANT_PROFILE: 'update_participant_profile',
+  UPDATE_HOST_PROFILE: 'update_host_profile',
 
   // Server → Client
   SESSION_STATE: 'session_state',
   PARTICIPANT_JOINED: 'participant_joined',
   PARTICIPANT_LEFT: 'participant_left',
   PARTICIPANT_ONLINE: 'participant_online',
+  PARTICIPANT_UPDATED: 'participant_updated',
   SESSION_STARTED: 'session_started',
   NAVIGATE_TO: 'navigate_to',
   OPEN_TAB: 'open_tab',

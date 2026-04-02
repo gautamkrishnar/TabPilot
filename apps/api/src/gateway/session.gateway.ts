@@ -23,9 +23,12 @@ import {
   type OpenTabPayload,
   type ParticipantJoinedPayload,
   type ParticipantOnlinePayload,
+  type ParticipantUpdatedPayload,
   type SessionStartedPayload,
   type SessionStatePayload,
   type SubmitVotePayload,
+  type UpdateHostProfilePayload,
+  type UpdateParticipantProfilePayload,
   type VotesRevealedPayload,
   type VoteUpdatePayload,
   WS_EVENTS,
@@ -615,5 +618,67 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       average: this.computeAverage(currentVotes),
     };
     this.server.to(sessionId).emit(WS_EVENTS.VOTES_REVEALED, revealPayload);
+  }
+
+  @SubscribeMessage(WS_EVENTS.UPDATE_PARTICIPANT_PROFILE)
+  async handleUpdateParticipantProfile(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: UpdateParticipantProfilePayload,
+  ) {
+    const { sessionId, participantId, name, email } = payload;
+
+    const trimmed = name.trim();
+    if (!trimmed || trimmed.length > 50) {
+      client.emit(WS_EVENTS.ERROR, {
+        message: 'Name must be between 1 and 50 characters',
+        code: 'INVALID_NAME',
+      } satisfies WsErrorPayload);
+      return;
+    }
+
+    try {
+      const doc = await this.participantsService.updateProfile(participantId, trimmed, email ?? '');
+      const participant = this.participantsService.toParticipantDto(doc);
+      const updatedPayload: ParticipantUpdatedPayload = { participant };
+      this.server.to(sessionId).emit(WS_EVENTS.PARTICIPANT_UPDATED, updatedPayload);
+    } catch {
+      client.emit(WS_EVENTS.ERROR, {
+        message: 'Failed to update profile',
+        code: 'UPDATE_FAILED',
+      } satisfies WsErrorPayload);
+    }
+  }
+
+  @SubscribeMessage(WS_EVENTS.UPDATE_HOST_PROFILE)
+  async handleUpdateHostProfile(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: UpdateHostProfilePayload,
+  ) {
+    const { sessionId, hostKey, name, email } = payload;
+
+    const isValid = await this.sessionsService.validateHostKey(sessionId, hostKey);
+    if (!isValid) {
+      client.emit(WS_EVENTS.ERROR, {
+        message: 'Invalid host key',
+        code: 'INVALID_HOST_KEY',
+      } satisfies WsErrorPayload);
+      return;
+    }
+
+    const trimmed = name.trim();
+    if (!trimmed || trimmed.length > 50) {
+      client.emit(WS_EVENTS.ERROR, {
+        message: 'Name must be between 1 and 50 characters',
+        code: 'INVALID_NAME',
+      } satisfies WsErrorPayload);
+      return;
+    }
+
+    const updated = await this.sessionsService.updateHostProfile(sessionId, trimmed, email ?? '');
+    const participants = await this.participantsService.findBySession(sessionId);
+    this.server.to(sessionId).emit(WS_EVENTS.SESSION_STATE, {
+      session: this.sessionsService.toSessionDto(updated),
+      participants,
+    } satisfies SessionStatePayload);
   }
 }
