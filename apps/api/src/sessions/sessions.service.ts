@@ -1,7 +1,12 @@
 import { createHash } from 'node:crypto';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import type { CreateSessionResponse, Session, SessionState } from '@tabpilot/shared';
+import type {
+  CreateSessionResponse,
+  JoinAsCoHostResponse,
+  Session,
+  SessionState,
+} from '@tabpilot/shared';
 import type { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import { CreateSessionDto } from './dto/create-session.dto';
@@ -28,6 +33,8 @@ export class SessionsService {
     const joinCode = generateJoinCode();
     const hostKey = uuidv4();
     const hostKeyHash = hashKey(hostKey);
+    const hostInviteKey = uuidv4();
+    const hostInviteKeyHash = hashKey(hostInviteKey);
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + dto.expiryDays);
@@ -39,6 +46,8 @@ export class SessionsService {
       hostName: dto.hostName,
       hostEmail: dto.hostEmail,
       hostKeyHash,
+      hostInviteKeyHash,
+      coHosts: [],
       urls: dto.urls,
       currentIndex: 0,
       state: 'waiting',
@@ -49,6 +58,7 @@ export class SessionsService {
     return {
       session: this.toSessionDto(doc),
       hostKey,
+      hostInviteKey,
     };
   }
 
@@ -63,7 +73,52 @@ export class SessionsService {
   async validateHostKey(sessionId: string, hostKey: string): Promise<boolean> {
     const doc = await this.findById(sessionId);
     if (!doc) return false;
-    return doc.hostKeyHash === hashKey(hostKey);
+    const hash = hashKey(hostKey);
+    if (doc.hostKeyHash === hash) return true;
+    return doc.coHosts.some((ch) => ch.keyHash === hash);
+  }
+
+  async validateHostInviteKey(sessionId: string, inviteKey: string): Promise<boolean> {
+    const doc = await this.findById(sessionId);
+    if (!doc) return false;
+    return doc.hostInviteKeyHash === hashKey(inviteKey);
+  }
+
+  async joinAsCoHost(
+    sessionId: string,
+    inviteKey: string,
+    name: string,
+    email?: string,
+  ): Promise<JoinAsCoHostResponse> {
+    const valid = await this.validateHostInviteKey(sessionId, inviteKey);
+    if (!valid) throw new UnauthorizedException('Invalid host invite key.');
+
+    const coHostKey = uuidv4();
+    const coHostKeyHash = hashKey(coHostKey);
+
+    const doc = await this.sessionModel
+      .findOneAndUpdate(
+        { sessionId },
+        {
+          $push: {
+            coHosts: {
+              keyHash: coHostKeyHash,
+              name,
+              email: email || undefined,
+              joinedAt: new Date(),
+            },
+          },
+        },
+        { new: true },
+      )
+      .exec();
+
+    if (!doc) throw new NotFoundException(`Session ${sessionId} not found`);
+
+    return {
+      session: this.toSessionDto(doc),
+      hostKey: coHostKey,
+    };
   }
 
   async updateState(sessionId: string, state: SessionState): Promise<SessionDocument> {
@@ -93,6 +148,11 @@ export class SessionsService {
       joinCode: obj.joinCode,
       hostName: obj.hostName,
       hostEmail: obj.hostEmail,
+      coHosts: (obj.coHosts ?? []).map((ch) => ({
+        name: ch.name,
+        email: ch.email,
+        joinedAt: ch.joinedAt.toISOString(),
+      })),
       urls: obj.urls,
       currentIndex: obj.currentIndex,
       state: obj.state,

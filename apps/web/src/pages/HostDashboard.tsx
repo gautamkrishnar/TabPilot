@@ -2,6 +2,7 @@ import { WS_EVENTS } from '@tabpilot/shared';
 import confetti from 'canvas-confetti';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
+  ClipboardCopy,
   Copy,
   ExternalLink,
   Eye,
@@ -11,6 +12,7 @@ import {
   Play,
   Plus,
   Power,
+  UserPlus,
   Users,
   Wifi,
   WifiOff,
@@ -49,6 +51,7 @@ export function HostDashboard() {
     setIsHost,
     setHostKey,
     loadHostKey,
+    loadHostInviteKey,
     reset,
     votedParticipantIds,
     revealedVotes,
@@ -191,6 +194,24 @@ export function HostDashboard() {
     reset();
     navigate('/');
   }, [sessionId, hostKey, navigate, reset]);
+
+  const handleCopyCoHostInviteLink = useCallback(() => {
+    if (!sessionId) return;
+    const inviteKey = loadHostInviteKey(sessionId);
+    if (!inviteKey) {
+      toast.error('Host invite key not found.');
+      return;
+    }
+    const link = `${window.location.origin}/host/join/${sessionId}?key=${inviteKey}`;
+    navigator.clipboard
+      .writeText(link)
+      .then(() => {
+        toast.success('Co-host invite link copied to clipboard.', { icon: '🔗' });
+      })
+      .catch(() => {
+        toast.error('Failed to copy link.');
+      });
+  }, [sessionId, loadHostInviteKey]);
 
   const currentUrl = session?.urls[session.currentIndex];
   const onlineCount = participants.filter((p) => p.isOnline).length;
@@ -677,6 +698,24 @@ export function HostDashboard() {
                 </Button>
               </div>
               <JoinCodeDisplay joinCode={session.joinCode} />
+
+              <div className="mt-5 pt-5 border-t border-zinc-200 dark:border-zinc-700">
+                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5 flex items-center gap-1.5">
+                  <UserPlus className="h-3.5 w-3.5" />
+                  Invite Co-Hosts
+                </p>
+                <p className="text-xs text-zinc-500 mb-3">
+                  Share the secret invite link with other facilitators.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleCopyCoHostInviteLink}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20 hover:border-indigo-500/50 transition-colors text-sm font-medium"
+                >
+                  <ClipboardCopy className="h-4 w-4" />
+                  Copy Co-Host Invite Link
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

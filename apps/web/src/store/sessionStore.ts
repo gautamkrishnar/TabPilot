@@ -75,11 +75,13 @@ interface SessionStore {
 
   saveHostKey: (sessionId: string, hostKey: string) => void;
   loadHostKey: (sessionId: string) => string | null;
+  saveHostInviteKey: (sessionId: string, inviteKey: string) => void;
+  loadHostInviteKey: (sessionId: string) => string | null;
   saveParticipantId: (sessionId: string, participantId: string) => void;
   loadParticipantId: (sessionId: string) => string | null;
 
   getSavedSessions: () => SavedSession[];
-  saveHostSession: (session: Session, hostKey: string) => void;
+  saveHostSession: (session: Session, hostKey: string, hostInviteKey?: string) => void;
   saveParticipantSession: (session: Session, participantId: string) => void;
   removeSavedSession: (sessionId: string) => void;
 
@@ -162,6 +164,22 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     }
   },
 
+  saveHostInviteKey: (sessionId, inviteKey) => {
+    try {
+      localStorage.setItem(`tabpilot_host_invite_${sessionId}`, inviteKey);
+    } catch {
+      // ignore
+    }
+  },
+
+  loadHostInviteKey: (sessionId) => {
+    try {
+      return localStorage.getItem(`tabpilot_host_invite_${sessionId}`);
+    } catch {
+      return null;
+    }
+  },
+
   saveParticipantId: (sessionId, participantId) => {
     try {
       localStorage.setItem(`tabpilot_participant_${sessionId}`, participantId);
@@ -182,8 +200,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
   getSavedSessions: () => readSavedSessions(),
 
-  saveHostSession: (session, hostKey) => {
+  saveHostSession: (session, hostKey, hostInviteKey?: string) => {
     get().saveHostKey(session.id, hostKey);
+    if (hostInviteKey) get().saveHostInviteKey(session.id, hostInviteKey);
 
     const existing = readSavedSessions().filter((s) => s.sessionId !== session.id);
     const record: SavedSession = {
@@ -221,6 +240,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     writeSavedSessions(updated);
     try {
       localStorage.removeItem(`tabpilot_host_${sessionId}`);
+      localStorage.removeItem(`tabpilot_host_invite_${sessionId}`);
       localStorage.removeItem(`tabpilot_participant_${sessionId}`);
     } catch {
       // ignore

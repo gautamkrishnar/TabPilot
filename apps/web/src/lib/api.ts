@@ -1,6 +1,7 @@
 import type {
   CreateSessionDto,
   CreateSessionResponse,
+  JoinAsCoHostResponse,
   JoinSessionResponse,
   Session,
 } from '@tabpilot/shared';
@@ -55,6 +56,20 @@ export async function joinSession(
 
 export async function deleteSession(sessionId: string, hostKey: string): Promise<void> {
   await apiClient.delete(`/sessions/${sessionId}`, { data: { hostKey } });
+}
+
+export async function joinAsCoHost(
+  sessionId: string,
+  inviteKey: string,
+  name: string,
+  email?: string,
+): Promise<JoinAsCoHostResponse> {
+  const response = await apiClient.post<JoinAsCoHostResponse>(`/sessions/${sessionId}/hosts/join`, {
+    inviteKey,
+    name,
+    email,
+  });
+  return response.data;
 }
 
 export default apiClient;

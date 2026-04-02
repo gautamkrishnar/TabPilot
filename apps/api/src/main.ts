@@ -43,10 +43,13 @@ async function bootstrap() {
     .setTitle('Tab Pilot API')
     .setDescription(
       'REST API for Tab Pilot — real-time grooming and tab synchronization. ' +
-        'WebSocket events are documented in docs/DEVELOPMENT.md.',
+        'Real-time collaboration is handled over WebSocket (Socket.IO) using the events defined in @tabpilot/shared.',
     )
     .setVersion('1.0')
-    .addTag('sessions', 'Session lifecycle — create, query, and join grooming sessions')
+    .addTag(
+      'sessions',
+      'Session lifecycle — create, query, join as participant, and join as co-host',
+    )
     .addTag('health', 'Health check endpoint')
     .build();
 

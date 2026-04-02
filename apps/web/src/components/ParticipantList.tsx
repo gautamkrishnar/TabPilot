@@ -1,6 +1,6 @@
-import type { Participant, Session } from '@tabpilot/shared';
+import type { CoHost, Participant, Session } from '@tabpilot/shared';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Crown, Users, UserX } from 'lucide-react';
+import { Crown, ShieldCheck, Users, UserX } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn, getDiceBearUrl } from '@/lib/utils';
 import { ParticipantAvatar } from './ParticipantAvatar';
@@ -130,6 +130,41 @@ function HostItem({ session }: { session: Session }) {
   );
 }
 
+function CoHostItem({ coHost }: { coHost: CoHost }) {
+  const initials = coHost.name
+    .split(' ')
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-3 px-3 py-2.5 rounded-lg',
+        'hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60 transition-colors duration-150',
+        'cursor-default',
+      )}
+    >
+      <Avatar className="h-8 w-8 ring-2 ring-indigo-400/40 dark:ring-indigo-500/30">
+        <AvatarImage src={getDiceBearUrl(coHost.name)} alt={coHost.name} className="object-cover" />
+        <AvatarFallback className="text-xs bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300">
+          {initials}
+        </AvatarFallback>
+      </Avatar>
+
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">
+          {coHost.name}
+        </p>
+        {coHost.email && <p className="text-xs text-zinc-500 truncate">{coHost.email}</p>}
+      </div>
+
+      <ShieldCheck className="h-3.5 w-3.5 text-indigo-400 flex-shrink-0" aria-label="Co-host" />
+    </div>
+  );
+}
+
 interface ParticipantListProps {
   participants: Participant[];
   onKick?: (participantId: string) => void;
@@ -154,7 +189,8 @@ export function ParticipantList({
   const offline = participants.filter((p) => !p.isOnline);
 
   const votedSet = new Set(votedParticipantIds ?? []);
-  const totalCount = participants.length + (session ? 1 : 0);
+  const coHosts = session?.coHosts ?? [];
+  const totalCount = participants.length + (session ? 1 + coHosts.length : 0);
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
@@ -168,13 +204,26 @@ export function ParticipantList({
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-thin px-2 py-2 space-y-4">
-        {/* Host */}
+        {/* Hosts */}
         {session && (
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 px-3 mb-1">
-              Host
+              {coHosts.length > 0 ? `Hosts — ${1 + coHosts.length}` : 'Host'}
             </p>
             <HostItem session={session} />
+            <AnimatePresence mode="popLayout">
+              {coHosts.map((ch) => (
+                <motion.div
+                  key={ch.name + ch.joinedAt}
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -12 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <CoHostItem coHost={ch} />
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         )}
 

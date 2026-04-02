@@ -72,6 +72,14 @@
       "unsafeParameterDecoratorsEnabled": true
     }
   },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
   "overrides": [
     {
       "includes": ["apps/api/src/**/*.ts"],

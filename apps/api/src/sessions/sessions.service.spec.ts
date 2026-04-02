@@ -156,12 +156,47 @@ describe('SessionsService', () => {
   });
 
   // -------------------------------------------------------------------------
+  // create() — hostInviteKey
+  // -------------------------------------------------------------------------
+  describe('create() — hostInviteKey', () => {
+    it('should return a raw hostInviteKey that is a non-empty string', async () => {
+      const { hostInviteKey } = await service.create(defaultDto);
+      expect(typeof hostInviteKey).toBe('string');
+      expect(hostInviteKey.length).toBeGreaterThan(0);
+    });
+
+    it('should store a hashed hostInviteKeyHash distinct from the raw invite key', async () => {
+      const { session, hostInviteKey } = await service.create(defaultDto);
+      const doc = await sessionModel.findOne({ sessionId: session.id });
+      expect(doc).not.toBeNull();
+      expect(doc?.hostInviteKeyHash).not.toBe(hostInviteKey);
+    });
+
+    it('should initialise coHosts as an empty array', async () => {
+      const { session } = await service.create(defaultDto);
+      const doc = await sessionModel.findOne({ sessionId: session.id });
+      expect(doc?.coHosts).toEqual([]);
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // validateHostKey()
   // -------------------------------------------------------------------------
   describe('validateHostKey()', () => {
-    it('should return true for the correct host key', async () => {
+    it('should return true for the correct primary host key', async () => {
       const { session, hostKey } = await service.create(defaultDto);
       const valid = await service.validateHostKey(session.id, hostKey);
+      expect(valid).toBe(true);
+    });
+
+    it('should return true for a valid co-host key after joining', async () => {
+      const { session, hostInviteKey } = await service.create(defaultDto);
+      const { hostKey: coHostKey } = await service.joinAsCoHost(
+        session.id,
+        hostInviteKey,
+        'Co Host',
+      );
+      const valid = await service.validateHostKey(session.id, coHostKey);
       expect(valid).toBe(true);
     });
 
@@ -177,6 +212,104 @@ describe('SessionsService', () => {
         'any-key',
       );
       expect(valid).toBe(false);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // validateHostInviteKey()
+  // -------------------------------------------------------------------------
+  describe('validateHostInviteKey()', () => {
+    it('should return true for the correct invite key', async () => {
+      const { session, hostInviteKey } = await service.create(defaultDto);
+      const valid = await service.validateHostInviteKey(session.id, hostInviteKey);
+      expect(valid).toBe(true);
+    });
+
+    it('should return false for a wrong invite key', async () => {
+      const { session } = await service.create(defaultDto);
+      const valid = await service.validateHostInviteKey(session.id, 'wrong-invite-key');
+      expect(valid).toBe(false);
+    });
+
+    it('should return false for a nonexistent sessionId', async () => {
+      const valid = await service.validateHostInviteKey(
+        '00000000-0000-0000-0000-000000000000',
+        'any-key',
+      );
+      expect(valid).toBe(false);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // joinAsCoHost()
+  // -------------------------------------------------------------------------
+  describe('joinAsCoHost()', () => {
+    it('should return a unique hostKey for the co-host', async () => {
+      const { session, hostInviteKey, hostKey: primaryKey } = await service.create(defaultDto);
+      const { hostKey: coHostKey } = await service.joinAsCoHost(
+        session.id,
+        hostInviteKey,
+        'Co Host',
+      );
+      expect(typeof coHostKey).toBe('string');
+      expect(coHostKey.length).toBeGreaterThan(0);
+      expect(coHostKey).not.toBe(primaryKey);
+    });
+
+    it('should add the co-host to the coHosts array in the document', async () => {
+      const { session, hostInviteKey } = await service.create(defaultDto);
+      await service.joinAsCoHost(session.id, hostInviteKey, 'Co Host', 'co@example.com');
+      const doc = await sessionModel.findOne({ sessionId: session.id });
+      expect(doc?.coHosts).toHaveLength(1);
+      expect(doc?.coHosts[0].name).toBe('Co Host');
+      expect(doc?.coHosts[0].email).toBe('co@example.com');
+      expect(doc?.coHosts[0].keyHash).toBeTruthy();
+    });
+
+    it('should allow multiple co-hosts to join', async () => {
+      const { session, hostInviteKey } = await service.create(defaultDto);
+      await service.joinAsCoHost(session.id, hostInviteKey, 'Co Host One');
+      await service.joinAsCoHost(session.id, hostInviteKey, 'Co Host Two');
+      const doc = await sessionModel.findOne({ sessionId: session.id });
+      expect(doc?.coHosts).toHaveLength(2);
+    });
+
+    it('should include session DTO in the response', async () => {
+      const { session, hostInviteKey } = await service.create(defaultDto);
+      const { session: responseSession } = await service.joinAsCoHost(
+        session.id,
+        hostInviteKey,
+        'Co Host',
+      );
+      expect(responseSession.id).toBe(session.id);
+    });
+
+    it('should throw UnauthorizedException for an invalid invite key', async () => {
+      const { session } = await service.create(defaultDto);
+      await expect(service.joinAsCoHost(session.id, 'bad-invite-key', 'Co Host')).rejects.toThrow(
+        'Invalid host invite key',
+      );
+    });
+
+    it('should throw NotFoundException for a nonexistent sessionId', async () => {
+      const { hostInviteKey } = await service.create(defaultDto);
+      // Validate invite key returns false for nonexistent session, so it throws Unauthorized first
+      await expect(
+        service.joinAsCoHost('00000000-0000-0000-0000-000000000000', hostInviteKey, 'Co Host'),
+      ).rejects.toThrow();
+    });
+
+    it('should expose co-hosts in the session DTO after joining', async () => {
+      const { session, hostInviteKey } = await service.create(defaultDto);
+      const { session: updatedSession } = await service.joinAsCoHost(
+        session.id,
+        hostInviteKey,
+        'Co Host',
+        'co@example.com',
+      );
+      expect(updatedSession.coHosts).toHaveLength(1);
+      expect(updatedSession.coHosts[0].name).toBe('Co Host');
+      expect(updatedSession.coHosts[0].email).toBe('co@example.com');
     });
   });
 

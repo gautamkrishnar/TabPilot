@@ -3,6 +3,13 @@ import type { Document } from 'mongoose';
 
 export type SessionDocument = SessionDoc & Document;
 
+export class CoHostEntry {
+  keyHash: string;
+  name: string;
+  email?: string;
+  joinedAt: Date;
+}
+
 @Schema({ timestamps: true, versionKey: false })
 export class SessionDoc {
   @Prop({ required: true, unique: true, index: true })
@@ -22,6 +29,23 @@ export class SessionDoc {
 
   @Prop({ required: true })
   hostKeyHash: string;
+
+  /** Hash of the secret invite link key — lets any bearer join as a co-host. */
+  @Prop({ required: true })
+  hostInviteKeyHash: string;
+
+  @Prop({
+    type: [
+      {
+        keyHash: { type: String, required: true },
+        name: { type: String, required: true },
+        email: { type: String },
+        joinedAt: { type: Date, required: true },
+      },
+    ],
+    default: [],
+  })
+  coHosts: CoHostEntry[];
 
   @Prop({ type: [String], default: [] })
   urls: string[];

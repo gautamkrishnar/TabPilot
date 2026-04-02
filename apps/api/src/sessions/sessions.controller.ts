@@ -17,10 +17,15 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import type { CreateSessionResponse, JoinSessionResponse } from '@tabpilot/shared';
+import type {
+  CreateSessionResponse,
+  JoinAsCoHostResponse,
+  JoinSessionResponse,
+} from '@tabpilot/shared';
 import { IsString } from 'class-validator';
 import { ParticipantsService } from '../participants/participants.service';
 import { CreateSessionDto } from './dto/create-session.dto';
+import { JoinAsCoHostDto } from './dto/join-as-co-host.dto';
 import { JoinSessionDto } from './dto/join-session.dto';
 import { SessionsService } from './sessions.service';
 
@@ -41,7 +46,9 @@ export class SessionsController {
   @ApiOperation({
     summary: 'Create a session',
     description:
-      'Creates a new grooming session. Returns the session details and a one-time host key — store it securely in localStorage, as it cannot be recovered.',
+      'Creates a new grooming session. Returns the session details, a host key, and a host invite key. ' +
+      'Both keys must be stored securely in localStorage — they cannot be recovered. ' +
+      'The host invite key is used to invite co-hosts via POST /sessions/:id/hosts/join.',
   })
   @ApiResponse({ status: 201, description: 'Session created successfully.' })
   @ApiResponse({ status: 400, description: 'Validation error — check request body.' })
@@ -135,5 +142,30 @@ export class SessionsController {
       session: this.sessionsService.toSessionDto(sessionDoc),
       participant,
     };
+  }
+
+  @Post(':id/hosts/join')
+  @ApiOperation({
+    summary: 'Join a session as a co-host',
+    description:
+      'Validates the secret host invite key and registers the caller as a co-host. ' +
+      'Returns a unique host key that must be stored securely — it cannot be recovered.',
+  })
+  @ApiParam({ name: 'id', description: 'Session UUID' })
+  @ApiBody({ type: JoinAsCoHostDto })
+  @ApiResponse({ status: 201, description: 'Joined as co-host.' })
+  @ApiNotFoundResponse({ description: 'Session not found.' })
+  @ApiResponse({ status: 401, description: 'Invalid invite key.' })
+  async joinAsCoHost(
+    @Param('id') id: string,
+    @Body() dto: JoinAsCoHostDto,
+  ): Promise<JoinAsCoHostResponse> {
+    const sessionDoc = await this.sessionsService.findById(id);
+    if (!sessionDoc) throw new NotFoundException(`Session ${id} not found`);
+
+    const valid = await this.sessionsService.validateHostInviteKey(id, dto.inviteKey);
+    if (!valid) throw new UnauthorizedException('Invalid host invite key.');
+
+    return this.sessionsService.joinAsCoHost(id, dto.inviteKey, dto.name, dto.email);
   }
 }

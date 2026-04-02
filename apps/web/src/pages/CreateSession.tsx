@@ -93,7 +93,7 @@ export function CreateSession() {
     mutationFn: createSession,
     onSuccess: (res) => {
       saveHostKey(res.session.id, res.hostKey);
-      saveHostSession(res.session, res.hostKey);
+      saveHostSession(res.session, res.hostKey, res.hostInviteKey);
       setIsHost(true);
       setResult(res);
       toast.success('Session created!', { icon: '🎉' });

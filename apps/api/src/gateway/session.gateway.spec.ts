@@ -21,6 +21,8 @@ function makeSessionDoc(
     joinCode: 'ABC123',
     hostName: 'Host',
     hostKeyHash: 'hash',
+    hostInviteKeyHash: 'invite-hash',
+    coHosts: [],
     urls: ['https://example.com', 'https://other.com'],
     currentIndex: 0,
     state: 'waiting' as const,
@@ -68,6 +70,7 @@ function makeSessionDto(overrides: Partial<Session> = {}): Session {
     name: 'Test',
     joinCode: 'ABC123',
     hostName: 'Host',
+    coHosts: [],
     urls: ['https://example.com', 'https://other.com'],
     currentIndex: 0,
     state: 'waiting',
@@ -99,6 +102,8 @@ function makeMockSessionsService(): jest.Mocked<SessionsService> {
     findById: jest.fn(),
     findByJoinCode: jest.fn(),
     validateHostKey: jest.fn(),
+    validateHostInviteKey: jest.fn(),
+    joinAsCoHost: jest.fn(),
     updateState: jest.fn(),
     updateCurrentIndex: jest.fn(),
     toSessionDto: jest.fn(),
@@ -271,6 +276,30 @@ describe('SessionGateway', () => {
         WS_EVENTS.NAVIGATE_TO,
         expect.objectContaining({ url: 'https://example.com', index: 0 }),
       );
+    });
+
+    it('should allow a co-host to join with their own host key', async () => {
+      const client = makeMockSocket();
+      // validateHostKey returns true for co-host keys too (checked against coHosts array)
+      sessionsService.findById.mockResolvedValue(makeSessionDoc());
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.toSessionDto.mockReturnValue(makeSessionDto());
+      participantsService.findBySession.mockResolvedValue([]);
+
+      await gateway.handleJoinSession(client, {
+        sessionId: 'session-1',
+        hostKey: 'co-host-key',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.SESSION_STATE,
+        expect.objectContaining({ session: expect.any(Object) }),
+      );
+      // Should NOT emit an error
+      const errorCall = (client.emit as jest.Mock).mock.calls.find(
+        ([event]: [string]) => event === WS_EVENTS.ERROR,
+      );
+      expect(errorCall).toBeUndefined();
     });
   });
 
