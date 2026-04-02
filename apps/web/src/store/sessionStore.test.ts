@@ -10,6 +10,7 @@ const makeSession = (overrides: Partial<Session> = {}): Session => ({
   name: 'Test Session',
   joinCode: 'ABC123',
   hostName: 'Host',
+  coHosts: [],
   urls: ['https://example.com', 'https://other.com'],
   currentIndex: 0,
   state: 'waiting',

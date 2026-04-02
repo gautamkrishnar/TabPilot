@@ -32,6 +32,7 @@ const makeSession = (overrides: Partial<Session> = {}): Session => ({
   joinCode: 'ABC123',
   hostName: 'Grace',
   hostEmail: 'grace@example.com',
+  coHosts: [],
   urls: [],
   currentIndex: 0,
   state: 'active',
