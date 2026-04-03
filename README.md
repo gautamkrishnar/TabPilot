@@ -36,6 +36,9 @@ It works with any ticketing tool that has a URL: **Jira, Linear, GitHub Issues, 
 - 🏷️ **Jira title enrichment** — Jira URLs automatically show their issue summary
 - 💾 **Session memory** — previously joined sessions appear on the home screen for one-click resume
 - 🌓 **Dark / light mode** — system preference by default, with a manual toggle
+- 👥 **Co-host support** — invite trusted participants as co-hosts via a secure invite link; co-hosts share navigation control with the primary host
+- ✏️ **Edit profile mid-session** — participants and hosts can update their display name and email at any time during a session
+- ✅ **Session completion state** — the navigation controls highlight when every ticket has been groomed, with a clear "All tickets groomed!" indicator
 
 ## Get Started
 
