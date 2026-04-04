@@ -637,6 +637,15 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
   ) {
     const { sessionId, participantId, name, email } = payload;
 
+    const socketParticipantId = this.socketMeta.get(client.id)?.participantId;
+    if (!socketParticipantId || socketParticipantId !== participantId) {
+      client.emit(WS_EVENTS.ERROR, {
+        message: 'Unauthorized',
+        code: 'UNAUTHORIZED',
+      } satisfies WsErrorPayload);
+      return;
+    }
+
     const trimmed = name.trim();
     if (!trimmed || trimmed.length > 50) {
       client.emit(WS_EVENTS.ERROR, {
