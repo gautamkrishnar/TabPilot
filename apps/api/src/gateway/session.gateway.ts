@@ -115,6 +115,16 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
     this.socketMeta.delete(client.id);
 
+    // If no sockets remain for this session, release all in-memory voting state
+    const anyLeft = Array.from(this.socketMeta.values()).some(
+      (m) => m.sessionId === meta.sessionId,
+    );
+    if (!anyLeft) {
+      this.votes.delete(meta.sessionId);
+      this.revealed.delete(meta.sessionId);
+      this.savedVotes.delete(meta.sessionId);
+    }
+
     if (meta.participantId && !meta.isHost) {
       try {
         await this.participantsService.updateOnlineStatus(meta.participantId, false);
