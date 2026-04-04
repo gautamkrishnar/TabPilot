@@ -1,0 +1,89 @@
+name: E2E
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand(\"ping\").ok' --quiet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      MONGODB_URI: mongodb://localhost:27017/tabpilot-e2e
+      PORT: 3000
+      FRONTEND_URL: http://localhost:5173
+      NODE_ENV: production
+      VITE_API_URL: http://localhost:3000
+      BASE_URL: http://localhost:5173
+      API_URL: http://localhost:3000
+      BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+      BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Cache yarn
+        uses: actions/cache@v4
+        with:
+          path: .yarn/cache
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: ${{ runner.os }}-yarn-
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build shared package
+        run: yarn workspace @tabpilot/shared build
+
+      - name: Build API
+        run: yarn workspace @tabpilot/api build
+
+      - name: Build web
+        run: yarn workspace @tabpilot/web build
+
+      - name: Start API
+        run: yarn workspace @tabpilot/api start &
+
+      - name: Start web preview
+        run: yarn workspace @tabpilot/web preview --port 5173 &
+
+      - name: Wait for servers
+        run: npx wait-on http://localhost:3000/api-docs http://localhost:5173 --timeout 60000
+
+      - name: Run E2E tests
+        run: yarn test:e2e:github
+
+      - name: Upload JUnit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-results
+          path: packages/e2e/reports/**/*.xml
+
+      - name: Publish test results as GitHub Check
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: E2E Results
+          path: packages/e2e/reports/**/*.xml
+          reporter: java-junit

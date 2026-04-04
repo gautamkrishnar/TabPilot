@@ -1,0 +1,6 @@
+.env
+browserstack.log
+*.log
+logs/
+log/
+reports/

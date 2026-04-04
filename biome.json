@@ -16,6 +16,8 @@
       "!**/dist",
       "!**/.yarn",
       "!**/coverage",
+      "!packages/e2e/logs",
+      "!packages/e2e/log",
       "!apps/web/src/components/ui",
       "!**/*.min.js"
     ]

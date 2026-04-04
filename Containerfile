@@ -9,6 +9,7 @@ RUN npm install -g corepack && corepack enable
 # Copy workspace manifests first for layer caching
 COPY --chown=default:root package.json .yarnrc.yml yarn.lock ./
 COPY --chown=default:root packages/shared/package.json packages/shared/
+COPY --chown=default:root packages/e2e/package.json packages/e2e/
 COPY --chown=default:root apps/api/package.json apps/api/
 COPY --chown=default:root apps/web/package.json apps/web/
 
