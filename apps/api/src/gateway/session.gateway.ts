@@ -44,7 +44,7 @@ interface SocketMeta {
   isHost: boolean;
 }
 
-@WebSocketGateway({ cors: { origin: '*' } })
+@WebSocketGateway()
 export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
