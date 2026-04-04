@@ -177,8 +177,9 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
     let resolvedParticipantDoc = null;
     let wasOffline = false;
     if (!isHost && participantId) {
-      resolvedParticipantDoc = await this.participantsService.findById(participantId);
-      if (resolvedParticipantDoc) {
+      const found = await this.participantsService.findById(participantId);
+      if (found && found.sessionId === sessionId) {
+        resolvedParticipantDoc = found;
         wasOffline = !resolvedParticipantDoc.isOnline;
         await this.participantsService.updateSocketId(participantId, client.id);
         await this.participantsService.updateOnlineStatus(participantId, true);
