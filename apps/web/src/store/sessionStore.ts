@@ -11,7 +11,6 @@ export interface SavedSession {
   expiresAt: string;
   createdAt: string;
   role: 'host' | 'participant';
-  hostKey?: string; // only for role === 'host'
   participantId?: string; // only for role === 'participant'
 }
 
@@ -213,7 +212,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       expiresAt: session.expiresAt,
       createdAt: session.createdAt,
       role: 'host',
-      hostKey,
     };
     writeSavedSessions([record, ...existing]);
   },

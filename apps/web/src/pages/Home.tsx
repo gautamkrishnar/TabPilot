@@ -314,7 +314,7 @@ function SessionCard({ session, onResume, onRemove }: SessionCardProps) {
 
 export function Home() {
   const navigate = useNavigate();
-  const { getSavedSessions, removeSavedSession } = useSessionStore();
+  const { getSavedSessions, removeSavedSession, loadHostKey } = useSessionStore();
   const [savedSessions, setSavedSessions] = useState<SavedSession[]>(() => getSavedSessions());
 
   // On mount: silently verify participant sessions still exist on the server.
@@ -350,8 +350,9 @@ export function Home() {
       const session = savedSessions.find((s) => s.sessionId === sessionId);
 
       // For host sessions, also delete the session from the server
-      if (session?.role === 'host' && session.hostKey) {
-        deleteSession(sessionId, session.hostKey).catch(() => {
+      const hostKey = session?.role === 'host' ? loadHostKey(sessionId) : null;
+      if (hostKey) {
+        deleteSession(sessionId, hostKey).catch(() => {
           // Ignore — session may already be expired/deleted on server
         });
       }
@@ -359,7 +360,7 @@ export function Home() {
       removeSavedSession(sessionId);
       setSavedSessions((prev) => prev.filter((s) => s.sessionId !== sessionId));
     },
-    [savedSessions, removeSavedSession],
+    [savedSessions, removeSavedSession, loadHostKey],
   );
 
   return (
