@@ -40,6 +40,7 @@ export function HostDashboard() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [newUrl, setNewUrl] = useState('');
   const [showMobileParticipants, setShowMobileParticipants] = useState(false);
   const [isGroomingComplete, setIsGroomingComplete] = useState(false);
@@ -188,7 +189,6 @@ export function HostDashboard() {
 
   const handleEndSession = useCallback(() => {
     if (!sessionId || !hostKey) return;
-    if (!confirm('Are you sure you want to end this session?')) return;
     const socket = getSocket();
     socket.emit(WS_EVENTS.HOST_END_SESSION, { sessionId, hostKey });
     reset();
@@ -319,7 +319,12 @@ export function HostDashboard() {
               {session.isLocked ? 'Locked' : 'Lock'}
             </Button>
 
-            <Button variant="destructive" size="sm" onClick={handleEndSession} className="gap-1.5">
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowEndConfirm(true)}
+              className="gap-1.5"
+            >
               <Power className="h-4 w-4" />
               End
             </Button>
@@ -377,7 +382,7 @@ export function HostDashboard() {
             {session.isLocked ? <Lock className="h-4 w-4" /> : <LockOpen className="h-4 w-4" />}
           </Button>
 
-          <Button variant="destructive" size="sm" onClick={handleEndSession}>
+          <Button variant="destructive" size="sm" onClick={() => setShowEndConfirm(true)}>
             <Power className="h-4 w-4" />
           </Button>
         </div>
@@ -669,6 +674,62 @@ export function HostDashboard() {
                 votedParticipantIds={session.votingEnabled ? votedParticipantIds : undefined}
                 revealedVotes={session.votingEnabled ? revealedVotes : undefined}
               />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* End session confirm modal */}
+      <AnimatePresence>
+        {showEndConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowEndConfirm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 w-full max-w-sm"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">End session?</h3>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Close"
+                  onClick={() => setShowEndConfirm(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-sm text-zinc-500 mb-6">
+                This will disconnect all participants and close the session. This cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1 border-zinc-300 dark:border-zinc-700"
+                  onClick={() => setShowEndConfirm(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowEndConfirm(false);
+                    handleEndSession();
+                  }}
+                >
+                  <Power className="h-4 w-4 mr-1.5" />
+                  End Session
+                </Button>
+              </div>
             </motion.div>
           </motion.div>
         )}
