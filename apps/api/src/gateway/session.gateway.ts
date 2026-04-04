@@ -275,20 +275,19 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
   ) {
     const { sessionId, hostKey, direction, index } = payload;
 
-    const isValid = await this.sessionsService.validateHostKey(sessionId, hostKey);
-    if (!isValid) {
-      client.emit(WS_EVENTS.ERROR, {
-        message: 'Invalid host key',
-        code: 'INVALID_HOST_KEY',
-      } satisfies WsErrorPayload);
-      return;
-    }
-
     const sessionDoc = await this.sessionsService.findById(sessionId);
     if (!sessionDoc) {
       client.emit(WS_EVENTS.ERROR, {
         message: 'Session not found',
         code: 'SESSION_NOT_FOUND',
+      } satisfies WsErrorPayload);
+      return;
+    }
+
+    if (!this.sessionsService.validateHostKeyForDoc(sessionDoc, hostKey)) {
+      client.emit(WS_EVENTS.ERROR, {
+        message: 'Invalid host key',
+        code: 'INVALID_HOST_KEY',
       } satisfies WsErrorPayload);
       return;
     }

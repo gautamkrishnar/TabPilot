@@ -73,6 +73,10 @@ export class SessionsService {
   async validateHostKey(sessionId: string, hostKey: string): Promise<boolean> {
     const doc = await this.findById(sessionId);
     if (!doc) return false;
+    return this.validateHostKeyForDoc(doc, hostKey);
+  }
+
+  validateHostKeyForDoc(doc: SessionDocument, hostKey: string): boolean {
     const hash = hashKey(hostKey);
     if (doc.hostKeyHash === hash) return true;
     return doc.coHosts.some((ch) => ch.keyHash === hash);
