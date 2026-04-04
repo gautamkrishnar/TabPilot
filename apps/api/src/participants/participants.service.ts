@@ -50,7 +50,7 @@ export class ParticipantsService {
     name: string,
     email = '',
   ): Promise<ParticipantDocument> {
-    const update: Record<string, unknown> = { name, email: email || null };
+    const update: Record<string, unknown> = { name, email: email || undefined };
     const doc = await this.participantModel
       .findOneAndUpdate({ participantId }, update, { new: true })
       .exec();

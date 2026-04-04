@@ -168,7 +168,7 @@ export class SessionsService {
   }
 
   async updateHostProfile(sessionId: string, name: string, email = ''): Promise<SessionDocument> {
-    const update: Record<string, unknown> = { hostName: name, hostEmail: email || null };
+    const update: Record<string, unknown> = { hostName: name, hostEmail: email || undefined };
     const doc = await this.sessionModel
       .findOneAndUpdate({ sessionId }, update, { new: true })
       .exec();
