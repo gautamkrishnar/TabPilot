@@ -228,7 +228,7 @@ export class SessionsService {
       fromIndex <= currentIndex ||
       toIndex <= currentIndex
     )
-      return doc;
+      return null;
 
     const [moved] = urls.splice(fromIndex, 1);
     urls.splice(toIndex, 0, moved);

@@ -529,7 +529,13 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       return;
     }
     const updated = await this.sessionsService.reorderUrls(sessionId, fromIndex, toIndex);
-    if (!updated) return;
+    if (!updated) {
+      client.emit(WS_EVENTS.ERROR, {
+        message: 'Cannot reorder past or current URLs',
+        code: 'REORDER_NOT_ALLOWED',
+      } satisfies WsErrorPayload);
+      return;
+    }
     const participants = await this.participantsService.findBySession(sessionId);
     this.server.to(sessionId).emit(WS_EVENTS.SESSION_STATE, {
       session: this.sessionsService.toSessionDto(updated),
