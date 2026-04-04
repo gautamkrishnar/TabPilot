@@ -426,10 +426,10 @@ describe('SessionsService', () => {
       expect(updated?.urls[2]).toBe('https://b.com');
     });
 
-    it('should return the unchanged document when fromIndex equals toIndex', async () => {
+    it('should return null when fromIndex equals toIndex', async () => {
       const { session } = await service.create(defaultDto);
-      const updated = await service.reorderUrls(session.id, 1, 1);
-      expect(updated?.urls).toEqual(defaultDto.urls);
+      const result = await service.reorderUrls(session.id, 1, 1);
+      expect(result).toBeNull();
     });
 
     it('should return null for a nonexistent sessionId', async () => {

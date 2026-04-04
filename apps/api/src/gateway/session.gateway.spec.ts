@@ -102,6 +102,7 @@ function makeMockSessionsService(): jest.Mocked<SessionsService> {
     findById: jest.fn(),
     findByJoinCode: jest.fn(),
     validateHostKey: jest.fn(),
+    validateHostKeyForDoc: jest.fn().mockReturnValue(true),
     validateHostInviteKey: jest.fn(),
     joinAsCoHost: jest.fn(),
     updateState: jest.fn(),
@@ -383,7 +384,8 @@ describe('SessionGateway', () => {
   describe('handleNavigate()', () => {
     it('should emit error if host key is invalid', async () => {
       const client = makeMockSocket();
-      sessionsService.validateHostKey.mockResolvedValue(false);
+      sessionsService.findById.mockResolvedValue(makeSessionDoc());
+      sessionsService.validateHostKeyForDoc.mockReturnValue(false);
 
       await gateway.handleNavigate(client, {
         sessionId: 'session-1',
@@ -960,6 +962,15 @@ describe('SessionGateway', () => {
   // handleSubmitVote()
   // -------------------------------------------------------------------------
   describe('handleSubmitVote()', () => {
+    beforeEach(() => {
+      // socket-1 owns participant p-1 by default
+      (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta.set('socket-1', {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        isHost: false,
+      });
+    });
+
     it('should emit error if session not found', async () => {
       const client = makeMockSocket();
       sessionsService.findById.mockResolvedValue(null);
@@ -1033,17 +1044,23 @@ describe('SessionGateway', () => {
     });
 
     it('should accumulate multiple votes — hasVoted contains all voter IDs', async () => {
-      const client = makeMockSocket();
+      const client1 = makeMockSocket('socket-1');
+      const client2 = makeMockSocket('socket-2');
+      (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta.set('socket-2', {
+        sessionId: 'session-1',
+        participantId: 'p-2',
+        isHost: false,
+      });
       sessionsService.findById.mockResolvedValue(
         makeSessionDoc({ votingEnabled: true, state: 'active' }),
       );
 
-      await gateway.handleSubmitVote(client, {
+      await gateway.handleSubmitVote(client1, {
         sessionId: 'session-1',
         participantId: 'p-1',
         value: '5',
       });
-      await gateway.handleSubmitVote(client, {
+      await gateway.handleSubmitVote(client2, {
         sessionId: 'session-1',
         participantId: 'p-2',
         value: '8',
@@ -1093,19 +1110,30 @@ describe('SessionGateway', () => {
     });
 
     it('should broadcast VOTES_REVEALED with actual values and numeric average', async () => {
-      const client = makeMockSocket();
+      const client1 = makeMockSocket('socket-1');
+      const client2 = makeMockSocket('socket-2');
+      (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta.set('socket-1', {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        isHost: false,
+      });
+      (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta.set('socket-2', {
+        sessionId: 'session-1',
+        participantId: 'p-2',
+        isHost: false,
+      });
       sessionsService.validateHostKey.mockResolvedValue(true);
       sessionsService.findById.mockResolvedValue(
         makeSessionDoc({ votingEnabled: true, state: 'active' }),
       );
 
       // Seed two votes: 3 and 5 → average 4
-      await gateway.handleSubmitVote(client, {
+      await gateway.handleSubmitVote(client1, {
         sessionId: 'session-1',
         participantId: 'p-1',
         value: '3',
       });
-      await gateway.handleSubmitVote(client, {
+      await gateway.handleSubmitVote(client2, {
         sessionId: 'session-1',
         participantId: 'p-2',
         value: '5',
@@ -1113,7 +1141,7 @@ describe('SessionGateway', () => {
 
       (mockServer.emit as jest.Mock).mockClear();
 
-      await gateway.handleRevealVotes(client, {
+      await gateway.handleRevealVotes(client1, {
         sessionId: 'session-1',
         hostKey: 'valid',
       });
@@ -1126,25 +1154,36 @@ describe('SessionGateway', () => {
     });
 
     it('should round average to the nearest integer', async () => {
-      const client = makeMockSocket();
+      const client1 = makeMockSocket('socket-1');
+      const client2 = makeMockSocket('socket-2');
+      (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta.set('socket-1', {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        isHost: false,
+      });
+      (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta.set('socket-2', {
+        sessionId: 'session-1',
+        participantId: 'p-2',
+        isHost: false,
+      });
       sessionsService.validateHostKey.mockResolvedValue(true);
       sessionsService.findById.mockResolvedValue(
         makeSessionDoc({ votingEnabled: true, state: 'active' }),
       );
 
       // Votes: 1, 2 → average 1.5 → rounds to 2
-      await gateway.handleSubmitVote(client, {
+      await gateway.handleSubmitVote(client1, {
         sessionId: 'session-1',
         participantId: 'p-1',
         value: '1',
       });
-      await gateway.handleSubmitVote(client, {
+      await gateway.handleSubmitVote(client2, {
         sessionId: 'session-1',
         participantId: 'p-2',
         value: '2',
       });
 
-      await gateway.handleRevealVotes(client, {
+      await gateway.handleRevealVotes(client1, {
         sessionId: 'session-1',
         hostKey: 'valid',
       });
@@ -1155,29 +1194,46 @@ describe('SessionGateway', () => {
     });
 
     it('should return mode for all non-numeric votes (e.g. ?, ☕)', async () => {
-      const client = makeMockSocket();
+      const client1 = makeMockSocket('socket-1');
+      const client2 = makeMockSocket('socket-2');
+      const client3 = makeMockSocket('socket-3');
+      (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta.set('socket-1', {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        isHost: false,
+      });
+      (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta.set('socket-2', {
+        sessionId: 'session-1',
+        participantId: 'p-2',
+        isHost: false,
+      });
+      (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta.set('socket-3', {
+        sessionId: 'session-1',
+        participantId: 'p-3',
+        isHost: false,
+      });
       sessionsService.validateHostKey.mockResolvedValue(true);
       sessionsService.findById.mockResolvedValue(
         makeSessionDoc({ votingEnabled: true, state: 'active' }),
       );
 
-      await gateway.handleSubmitVote(client, {
+      await gateway.handleSubmitVote(client1, {
         sessionId: 'session-1',
         participantId: 'p-1',
         value: '?',
       });
-      await gateway.handleSubmitVote(client, {
+      await gateway.handleSubmitVote(client2, {
         sessionId: 'session-1',
         participantId: 'p-2',
         value: '?',
       });
-      await gateway.handleSubmitVote(client, {
+      await gateway.handleSubmitVote(client3, {
         sessionId: 'session-1',
         participantId: 'p-3',
         value: '☕',
       });
 
-      await gateway.handleRevealVotes(client, {
+      await gateway.handleRevealVotes(client1, {
         sessionId: 'session-1',
         hostKey: 'valid',
       });
@@ -1195,6 +1251,11 @@ describe('SessionGateway', () => {
   describe('handleNavigate() — voting state', () => {
     it('should clear votes and broadcast VOTE_UPDATE with empty hasVoted on navigation', async () => {
       const client = makeMockSocket();
+      (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta.set('socket-1', {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        isHost: false,
+      });
       sessionsService.validateHostKey.mockResolvedValue(true);
       sessionsService.findById.mockResolvedValue(makeSessionDoc({ currentIndex: 0 }));
       sessionsService.updateCurrentIndex.mockResolvedValue(makeSessionDoc({ currentIndex: 1 }));
@@ -1221,25 +1282,36 @@ describe('SessionGateway', () => {
     });
 
     it('should save average vote in savedVotes before clearing', async () => {
-      const client = makeMockSocket();
+      const client1 = makeMockSocket('socket-1');
+      const client2 = makeMockSocket('socket-2');
+      (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta.set('socket-1', {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        isHost: false,
+      });
+      (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta.set('socket-2', {
+        sessionId: 'session-1',
+        participantId: 'p-2',
+        isHost: false,
+      });
       sessionsService.validateHostKey.mockResolvedValue(true);
       const activeDoc = makeSessionDoc({ votingEnabled: true, state: 'active', currentIndex: 0 });
       sessionsService.findById.mockResolvedValue(activeDoc);
       sessionsService.updateCurrentIndex.mockResolvedValue(makeSessionDoc({ currentIndex: 1 }));
 
       // Seed votes: 4 and 8 → average 6
-      await gateway.handleSubmitVote(client, {
+      await gateway.handleSubmitVote(client1, {
         sessionId: 'session-1',
         participantId: 'p-1',
         value: '4',
       });
-      await gateway.handleSubmitVote(client, {
+      await gateway.handleSubmitVote(client2, {
         sessionId: 'session-1',
         participantId: 'p-2',
         value: '8',
       });
 
-      await gateway.handleNavigate(client, {
+      await gateway.handleNavigate(client1, {
         sessionId: 'session-1',
         hostKey: 'valid',
         direction: 'next',
@@ -1271,6 +1343,11 @@ describe('SessionGateway', () => {
 
     it('should accumulate savedVotes across multiple navigations', async () => {
       const client = makeMockSocket();
+      (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta.set('socket-1', {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        isHost: false,
+      });
       sessionsService.validateHostKey.mockResolvedValue(true);
       sessionsService.findById.mockResolvedValue(
         makeSessionDoc({ votingEnabled: true, state: 'active', currentIndex: 0 }),
@@ -1366,6 +1443,15 @@ describe('SessionGateway', () => {
   // handleUpdateParticipantProfile()
   // -------------------------------------------------------------------------
   describe('handleUpdateParticipantProfile()', () => {
+    beforeEach(() => {
+      // Seed socket meta so the ownership check passes (socket-1 owns p-1)
+      (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta.set('socket-1', {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        isHost: false,
+      });
+    });
+
     it('should update the participant and broadcast PARTICIPANT_UPDATED to the room', async () => {
       const client = makeMockSocket();
       const updatedDoc = makeParticipantDoc({ name: 'Alicia', email: 'alicia@example.com' });
@@ -1430,7 +1516,7 @@ describe('SessionGateway', () => {
 
       await gateway.handleUpdateParticipantProfile(client, {
         sessionId: 'session-1',
-        participantId: 'bad-id',
+        participantId: 'p-1',
         name: 'Ghost',
         email: '',
       });
