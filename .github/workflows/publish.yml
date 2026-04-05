@@ -58,7 +58,8 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
+            type=raw,value=master,enable={{is_default_branch}}
             type=raw,value=${{ inputs.tag }},enable=${{ inputs.tag != '' }}
           labels: |
             org.opencontainers.image.title=Tab Pilot
@@ -123,15 +124,25 @@ jobs:
             fi
           done <<< "${{ steps.meta.outputs.tags }}"
 
-      # ── Supply-chain attestation ─────────────────────────────────────────────
-      # Disabled: buildah manifest lists not compatible with GitHub attestations
-      # - name: Attest build provenance
-      #   uses: actions/attest-build-provenance@v1
-      #   if: steps.push.outputs.digest != ''
-      #   with:
-      #     subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-      #     subject-digest: ${{ steps.push.outputs.digest }}
-      #     push-to-registry: true
+      # ── Sign the manifest list with Cosign (keyless / OIDC) ────────────────────
+      # Sigstore keyless signing — no long-lived keys, identity is this workflow.
+      # The signature is stored in GHCR alongside the image.
+      # Verify with:
+      #   cosign verify \
+      #     --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/publish.yml@refs/.*" \
+      #     --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+      #     ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+      - name: Install Cosign
+        if: steps.push.outputs.digest != ''
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image
+        if: steps.push.outputs.digest != ''
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign sign --yes \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}"
 
       # ── Job summary ──────────────────────────────────────────────────────────
       - name: Summary
@@ -153,12 +164,12 @@ jobs:
             echo '```'
             echo ""
             echo '```bash'
-            echo "podman pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+            echo "podman pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:master"
             echo '```'
           } >> $GITHUB_STEP_SUMMARY
 
   # ── Prune old SHA-tagged versions from GHCR ─────────────────────────────────
-  # Keeps: latest, all semver tags (v*), and the 3 most recent sha- tags.
+  # Keeps: master, latest, all semver tags (v*), and the most recent sha- tag.
   # Deletes everything older to prevent unbounded GHCR growth.
   prune:
     name: Prune old images from GHCR
@@ -192,7 +203,7 @@ jobs:
             for (const v of versions) {
               const tags = v.metadata?.container?.tags ?? [];
               const hasSemver = tags.some(t => /^v\d+/.test(t));
-              const hasLatest = tags.includes('latest');
+              const hasLatest = tags.includes('latest') || tags.includes('master');
               const hasSha = tags.some(t => t.startsWith('sha-'));
               const isUntagged = tags.length === 0;
 
