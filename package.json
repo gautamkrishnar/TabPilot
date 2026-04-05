@@ -16,7 +16,9 @@
     "check:fix": "biome check --write .",
     "test": "yarn workspaces foreach -A run test --passWithNoTests",
     "test:api": "yarn workspace @tabpilot/api test",
+    "test:api:cov": "yarn workspace @tabpilot/api test:cov",
     "test:web": "yarn workspace @tabpilot/web test",
+    "test:web:cov": "yarn workspace @tabpilot/web test:cov",
     "test:e2e": "yarn workspace @tabpilot/e2e test",
     "test:e2e:github": "yarn workspace @tabpilot/e2e test:github",
     "clean": "yarn workspaces foreach run clean"
