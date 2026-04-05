@@ -41,7 +41,7 @@ export function NotFound() {
             variant="outline"
             size="lg"
             className="border-zinc-300 dark:border-zinc-700"
-            onClick={() => window.history.back()}
+            onClick={() => globalThis.history.back()}
           >
             <ArrowLeft className="h-5 w-5 mr-2" />
             Go Back

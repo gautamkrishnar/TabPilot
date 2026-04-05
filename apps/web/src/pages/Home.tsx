@@ -186,9 +186,9 @@ function TestimonialCarousel() {
 
       {/* Dot indicators */}
       <div className="flex justify-center gap-1 mt-6">
-        {testimonials.map((_, i) => (
+        {testimonials.map((t, i) => (
           <button
-            key={i}
+            key={t.name}
             type="button"
             onClick={() => setIndex(i)}
             className="flex items-center justify-center p-2"
@@ -223,9 +223,9 @@ const faqs = [
 ];
 
 interface SessionCardProps {
-  session: SavedSession;
-  onResume: () => void;
-  onRemove: () => void;
+  readonly session: SavedSession;
+  readonly onResume: () => void;
+  readonly onRemove: () => void;
 }
 
 function SessionCard({ session, onResume, onRemove }: SessionCardProps) {
@@ -323,7 +323,7 @@ export function Home() {
     const participantSessions = getSavedSessions().filter((s) => s.role === 'participant');
     if (participantSessions.length === 0) return;
 
-    participantSessions.forEach(async (s) => {
+    async function verifySession(s: SavedSession) {
       try {
         await getSessionByCode(s.joinCode);
       } catch {
@@ -331,7 +331,9 @@ export function Home() {
         removeSavedSession(s.sessionId);
         setSavedSessions((prev) => prev.filter((p) => p.sessionId !== s.sessionId));
       }
-    });
+    }
+
+    participantSessions.forEach(verifySession);
   }, [getSavedSessions, removeSavedSession]);
 
   const handleResume = useCallback(
@@ -487,18 +489,15 @@ export function Home() {
             className="mt-12 flex items-center justify-center gap-6 text-sm text-zinc-500 dark:text-zinc-500"
           >
             <span className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-              No account required
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500" /> No account required
             </span>
             <span className="h-4 w-px bg-zinc-200 dark:bg-zinc-800" />
             <span className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
-              Free to use
+              <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" /> Free to use
             </span>
             <span className="h-4 w-px bg-zinc-200 dark:bg-zinc-800" />
             <span className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-violet-500" />
-              Any tool works
+              <span className="h-1.5 w-1.5 rounded-full bg-violet-500" /> Any tool works
             </span>
           </motion.div>
         </div>
@@ -519,7 +518,7 @@ export function Home() {
                   Your sessions
                 </h2>
                 <span className="text-xs text-zinc-400">
-                  {savedSessions.length} session{savedSessions.length !== 1 ? 's' : ''}
+                  {savedSessions.length} session{savedSessions.length === 1 ? '' : 's'}
                 </span>
               </div>
               <div className="space-y-2">
@@ -672,7 +671,7 @@ export function Home() {
           <div className="space-y-4">
             {faqs.map((faq, i) => (
               <motion.div
-                key={i}
+                key={faq.q}
                 initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}

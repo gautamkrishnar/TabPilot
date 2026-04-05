@@ -6,8 +6,8 @@ import { ThemeToggle } from './ThemeToggle';
 import { UserAvatarMenu } from './UserAvatarMenu';
 
 interface LayoutProps {
-  children: React.ReactNode;
-  showNav?: boolean;
+  readonly children: React.ReactNode;
+  readonly showNav?: boolean;
 }
 
 export function Layout({ children, showNav = true }: LayoutProps) {

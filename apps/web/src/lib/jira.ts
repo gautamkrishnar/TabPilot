@@ -16,11 +16,11 @@ export function parseJiraUrl(url: string): JiraUrlInfo | null {
     if (!parsed.hostname.includes('atlassian.net')) return null;
 
     // /browse/PROJ-123
-    const browseMatch = parsed.pathname.match(/\/browse\/([A-Z][A-Z0-9_]*-\d+)/i);
+    const browseMatch = /\/browse\/([A-Z][A-Z0-9_]*-\d+)/i.exec(parsed.pathname);
     if (browseMatch) return { key: browseMatch[1].toUpperCase() };
 
     // /jira/.../issues/PROJ-123
-    const issuesMatch = parsed.pathname.match(/\/issues\/([A-Z][A-Z0-9_]*-\d+)/i);
+    const issuesMatch = /\/issues\/([A-Z][A-Z0-9_]*-\d+)/i.exec(parsed.pathname);
     if (issuesMatch) return { key: issuesMatch[1].toUpperCase() };
 
     return null;

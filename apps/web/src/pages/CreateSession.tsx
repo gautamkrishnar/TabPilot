@@ -171,9 +171,9 @@ export function CreateSession() {
 
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-200 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700">
                 <span className="text-xs text-zinc-400">
-                  {result.session.urls.length} ticket{result.session.urls.length !== 1 ? 's' : ''} ·
+                  {result.session.urls.length} ticket{result.session.urls.length === 1 ? '' : 's'} ·
                   Expires in {formik.values.expiryDays} day
-                  {formik.values.expiryDays !== 1 ? 's' : ''}
+                  {formik.values.expiryDays === 1 ? '' : 's'}
                   {formik.values.votingEnabled ? ' · Voting enabled' : ''}
                 </span>
               </div>
@@ -287,10 +287,10 @@ export function CreateSession() {
               </FormItem>
 
               <div className="space-y-1.5">
-                <FormLabel className="flex items-center gap-1">
+                <p className="text-sm font-medium leading-none text-zinc-700 dark:text-zinc-300 flex items-center gap-1">
                   <Clock className="h-3.5 w-3.5" />
                   Session expiry
-                </FormLabel>
+                </p>
                 <div className="grid grid-cols-4 gap-2">
                   {EXPIRY_OPTIONS.map((opt) => (
                     <button

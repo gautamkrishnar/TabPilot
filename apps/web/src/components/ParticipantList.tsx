@@ -6,10 +6,10 @@ import { cn, getDiceBearUrl } from '@/lib/utils';
 import { ParticipantAvatar } from './ParticipantAvatar';
 
 interface ParticipantItemProps {
-  participant: Participant;
-  onKick?: (participantId: string) => void;
-  hasVoted?: boolean;
-  revealedVote?: string;
+  readonly participant: Participant;
+  readonly onKick?: (participantId: string) => void;
+  readonly hasVoted?: boolean;
+  readonly revealedVote?: string;
 }
 
 function ParticipantItem({ participant, onKick, hasVoted, revealedVote }: ParticipantItemProps) {
@@ -36,34 +36,42 @@ function ParticipantItem({ participant, onKick, hasVoted, revealedVote }: Partic
       </div>
 
       <div className="flex items-center gap-2 flex-shrink-0">
-        {/* Revealed vote badge */}
-        {revealedVote !== undefined ? (
-          <motion.span
-            initial={{ scale: 0.6, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="min-w-[28px] h-7 px-1.5 flex items-center justify-center rounded-lg bg-indigo-500 text-white text-xs font-bold shadow-glow-indigo"
-          >
-            {revealedVote}
-          </motion.span>
-        ) : hasVoted ? (
-          /* Voted indicator — shows they've voted but hides the value */
-          <motion.span
-            initial={{ scale: 0.6, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="h-5 w-5 flex items-center justify-center rounded-full bg-green-500/20 border border-green-500/40"
-            title="Voted"
-          >
-            <span className="h-2 w-2 rounded-full bg-green-500" />
-          </motion.span>
-        ) : /* Online indicator */
-        participant.isOnline ? (
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-          </span>
-        ) : (
-          <span className="h-2 w-2 rounded-full bg-zinc-600" />
-        )}
+        {/* Vote / online indicator */}
+        {(() => {
+          if (revealedVote !== undefined) {
+            return (
+              <motion.span
+                initial={{ scale: 0.6, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="min-w-[28px] h-7 px-1.5 flex items-center justify-center rounded-lg bg-indigo-500 text-white text-xs font-bold shadow-glow-indigo"
+              >
+                {revealedVote}
+              </motion.span>
+            );
+          }
+          if (hasVoted) {
+            return (
+              /* Voted indicator — shows they've voted but hides the value */
+              <motion.span
+                initial={{ scale: 0.6, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="h-5 w-5 flex items-center justify-center rounded-full bg-green-500/20 border border-green-500/40"
+                title="Voted"
+              >
+                <span className="h-2 w-2 rounded-full bg-green-500" />
+              </motion.span>
+            );
+          }
+          /* Online indicator */
+          return participant.isOnline ? (
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+            </span>
+          ) : (
+            <span className="h-2 w-2 rounded-full bg-zinc-600" />
+          );
+        })()}
 
         {/* Kick button — host only, appears on hover */}
         {onKick && (
@@ -86,7 +94,7 @@ function ParticipantItem({ participant, onKick, hasVoted, revealedVote }: Partic
   );
 }
 
-function HostItem({ session }: { session: Session }) {
+function HostItem({ session }: Readonly<{ session: Session }>) {
   const initials = session.hostName
     .split(' ')
     .map((n) => n[0])
@@ -130,7 +138,7 @@ function HostItem({ session }: { session: Session }) {
   );
 }
 
-function CoHostItem({ coHost }: { coHost: CoHost }) {
+function CoHostItem({ coHost }: Readonly<{ coHost: CoHost }>) {
   const initials = coHost.name
     .split(' ')
     .map((n) => n[0])
@@ -166,15 +174,15 @@ function CoHostItem({ coHost }: { coHost: CoHost }) {
 }
 
 interface ParticipantListProps {
-  participants: Participant[];
-  onKick?: (participantId: string) => void;
-  className?: string;
+  readonly participants: Participant[];
+  readonly onKick?: (participantId: string) => void;
+  readonly className?: string;
   /** IDs of participants who have voted this round (value hidden until revealed) */
-  votedParticipantIds?: string[];
+  readonly votedParticipantIds?: string[];
   /** Revealed vote values keyed by participant ID */
-  revealedVotes?: Record<string, string> | null;
+  readonly revealedVotes?: Record<string, string> | null;
   /** Session object — if provided, renders the host at the top of the list */
-  session?: Session | null;
+  readonly session?: Session | null;
 }
 
 export function ParticipantList({

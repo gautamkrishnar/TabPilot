@@ -2,6 +2,7 @@ import type { Session } from '@tabpilot/shared';
 import { WS_EVENTS } from '@tabpilot/shared';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import toast from 'react-hot-toast';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useSessionStore } from '@/store/sessionStore';
 import { HostDashboard } from './HostDashboard';
@@ -140,5 +141,72 @@ describe('HostDashboard — end session modal', () => {
     await userEvent.click(screen.getByRole('button', { name: /close/i }));
 
     expect(screen.queryByText('End session?')).not.toBeInTheDocument();
+  });
+});
+
+describe('HostDashboard — add URL validation', () => {
+  beforeEach(() => {
+    useSessionStore.setState(useSessionStore.getInitialState?.() ?? {});
+    mockEmit.mockClear();
+    seedHostState();
+  });
+
+  it('shows error toast for invalid URL', async () => {
+    render(<HostDashboard />);
+
+    const input = screen.getByPlaceholderText(/paste a url/i);
+    await userEvent.type(input, 'not-a-url');
+    // Trigger add via the + button
+    await userEvent.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect((toast as any).error).toHaveBeenCalledWith('Please enter a valid http/https URL');
+    });
+    expect(mockEmit).not.toHaveBeenCalledWith(WS_EVENTS.HOST_ADD_URL, expect.anything());
+  });
+
+  it('emits HOST_ADD_URL for a valid URL', async () => {
+    render(<HostDashboard />);
+
+    const input = screen.getByPlaceholderText(/paste a url/i);
+    await userEvent.type(input, 'https://example.com/ticket');
+    await userEvent.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(mockEmit).toHaveBeenCalledWith(WS_EVENTS.HOST_ADD_URL, {
+        sessionId: 'session-1',
+        hostKey: 'host-key-123',
+        url: 'https://example.com/ticket',
+      });
+    });
+  });
+});
+
+describe('HostDashboard — vote reveal display', () => {
+  beforeEach(() => {
+    useSessionStore.setState(useSessionStore.getInitialState?.() ?? {});
+    mockEmit.mockClear();
+    seedHostState();
+  });
+
+  it('shows revealed votes panel with average when votes exist', () => {
+    const store = useSessionStore.getState();
+    store.setSession(makeSession({ votingEnabled: true }));
+    store.setRevealedVotes({ p1: '3', p2: '5' });
+
+    render(<HostDashboard />);
+
+    expect(screen.getByText('Votes Revealed')).toBeInTheDocument();
+    expect(screen.getByText(/avg 4/)).toBeInTheDocument();
+  });
+
+  it('shows Reveal button when participants have voted but not revealed', () => {
+    const store = useSessionStore.getState();
+    store.setSession(makeSession({ votingEnabled: true }));
+    store.setVotedParticipantIds(['p1']);
+
+    render(<HostDashboard />);
+
+    expect(screen.getAllByRole('button', { name: /reveal/i }).length).toBeGreaterThan(0);
   });
 });

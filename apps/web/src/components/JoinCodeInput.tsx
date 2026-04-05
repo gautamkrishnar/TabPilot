@@ -2,11 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 interface JoinCodeInputProps {
-  value?: string;
-  onComplete: (code: string) => void;
-  onChange?: (code: string) => void;
-  disabled?: boolean;
-  className?: string;
+  readonly value?: string;
+  readonly onComplete: (code: string) => void;
+  readonly onChange?: (code: string) => void;
+  readonly disabled?: boolean;
+  readonly className?: string;
 }
 
 const CODE_LENGTH = 6;
@@ -24,7 +24,7 @@ export function JoinCodeInput({
       while (vals.length < CODE_LENGTH) vals.push('');
       return vals;
     }
-    return Array(CODE_LENGTH).fill('');
+    return new Array(CODE_LENGTH).fill('');
   });
 
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
@@ -62,7 +62,7 @@ export function JoinCodeInput({
     (index: number, rawValue: string) => {
       // Normalize to alphanumeric uppercase
       const normalized = rawValue
-        .replace(/[^a-zA-Z0-9]/g, '')
+        .replaceAll(/[^a-zA-Z0-9]/g, '')
         .toUpperCase()
         .slice(-1); // Take last char (handles composition)
 
@@ -117,7 +117,7 @@ export function JoinCodeInput({
       e.preventDefault();
       const pasted = e.clipboardData
         .getData('text')
-        .replace(/[^a-zA-Z0-9]/g, '')
+        .replaceAll(/[^a-zA-Z0-9]/g, '')
         .toUpperCase()
         .slice(0, CODE_LENGTH);
 
@@ -144,7 +144,7 @@ export function JoinCodeInput({
     <div className={cn('flex items-center gap-2.5 justify-center', className)}>
       {Array.from({ length: CODE_LENGTH }).map((_, index) => (
         <input
-          key={index}
+          key={`pos-${index}`}
           ref={(el) => {
             inputsRef.current[index] = el;
           }}

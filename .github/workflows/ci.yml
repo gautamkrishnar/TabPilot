@@ -177,7 +177,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: coverage
-          path: .
+          path: apps  # upload-artifact strips the common 'apps/' prefix; restoring it here
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v6

@@ -5,11 +5,10 @@ import { useTabSync } from '@/hooks/useTabSync';
 import { cn } from '@/lib/utils';
 
 interface TabSyncToggleProps {
-  onNavigate?: (url: string) => void;
   className?: string;
 }
 
-export function TabSyncToggle({ className }: TabSyncToggleProps) {
+export function TabSyncToggle({ className }: Readonly<TabSyncToggleProps>) {
   const { enableSync, isEnabled } = useTabSync();
 
   if (isEnabled) {

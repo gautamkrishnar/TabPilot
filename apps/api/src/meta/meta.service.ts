@@ -63,18 +63,18 @@ export class MetaService {
   }
 
   private extractTitle(html: string): string | null {
-    const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const match = /<title[^>]*>([^<]+)<\/title>/i.exec(html);
     if (!match) return null;
     return (
       match[1]
         .trim()
-        .replace(/\s+/g, ' ') // collapse whitespace
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .replace(/&nbsp;/g, ' ') || null
+        .replaceAll(/\s+/g, ' ') // collapse whitespace
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'")
+        .replaceAll('&nbsp;', ' ') || null
     );
   }
 }

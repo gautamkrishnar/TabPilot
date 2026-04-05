@@ -20,12 +20,15 @@ FormItem.displayName = 'FormItem';
 // ─── FormLabel ────────────────────────────────────────────────────────────────
 
 export const FormLabel = forwardRef<HTMLLabelElement, LabelHTMLAttributes<HTMLLabelElement>>(
-  ({ className, ...props }, ref) => (
+  ({ className, htmlFor, children, ...props }, ref) => (
     <label
       ref={ref}
+      htmlFor={htmlFor}
       className={cn('text-sm font-medium leading-none text-zinc-700 dark:text-zinc-300', className)}
       {...props}
-    />
+    >
+      {children}
+    </label>
   ),
 );
 FormLabel.displayName = 'FormLabel';
@@ -38,7 +41,7 @@ interface FormMessageProps extends HTMLAttributes<HTMLParagraphElement> {
   message?: string;
 }
 
-export function FormMessage({ message, className, ...props }: FormMessageProps) {
+export function FormMessage({ message, className, ...props }: Readonly<FormMessageProps>) {
   return (
     <p
       className={cn(

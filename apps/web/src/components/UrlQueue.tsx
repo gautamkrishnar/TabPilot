@@ -20,9 +20,9 @@ import { cn, formatUrl, getFaviconUrl, truncateUrl } from '@/lib/utils';
 // ─── Title enrichment ─────────────────────────────────────────────────────────
 
 interface UrlTitleProps {
-  url: string;
-  isCurrent: boolean;
-  isPast: boolean;
+  readonly url: string;
+  readonly isCurrent: boolean;
+  readonly isPast: boolean;
 }
 
 function UrlTitle({ url, isCurrent, isPast }: UrlTitleProps) {
@@ -66,15 +66,15 @@ function UrlTitle({ url, isCurrent, isPast }: UrlTitleProps) {
 // ─── Sortable row ─────────────────────────────────────────────────────────────
 
 interface RowProps {
-  id: string;
-  url: string;
-  index: number;
-  currentIndex: number;
-  isHost: boolean;
-  onJumpTo?: (index: number) => void;
-  onDelete?: (index: number) => void;
-  isDragOverlay?: boolean;
-  savedVote?: string;
+  readonly id: string;
+  readonly url: string;
+  readonly index: number;
+  readonly currentIndex: number;
+  readonly isHost: boolean;
+  readonly onJumpTo?: (index: number) => void;
+  readonly onDelete?: (index: number) => void;
+  readonly isDragOverlay?: boolean;
+  readonly savedVote?: string;
 }
 
 function UrlRow({
@@ -108,60 +108,48 @@ function UrlRow({
 
   const isClickable = isHost && !!onJumpTo && !isCurrent;
 
-  return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: dnd-kit requires a div as the drag ref; keyboard accessibility is provided by dnd-kit's own aria layer
-    <div
-      ref={setNodeRef}
-      style={style}
-      role={isClickable ? 'button' : undefined}
-      tabIndex={isClickable ? 0 : undefined}
-      className={cn(
-        'flex items-center gap-3 px-3 py-3 rounded-lg border transition-all duration-150 group relative overflow-hidden',
-        isCurrent && 'bg-indigo-500/10 border-indigo-500/50 border-l-2 border-l-indigo-500',
-        isPast && 'bg-transparent border-zinc-200/50 dark:border-zinc-800/50 opacity-50',
-        isFuture &&
-          'bg-transparent border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-100/30 dark:hover:bg-zinc-800/30',
-        isHost && !isCurrent && 'cursor-pointer',
-        isDragging && 'opacity-40',
-        isDragOverlay && 'shadow-xl opacity-100 cursor-grabbing',
-      )}
-      onClick={() => {
-        if (isClickable) onJumpTo(index);
-      }}
-      onKeyDown={(e) => {
-        if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
-          e.preventDefault();
-          onJumpTo(index);
-        }
-      }}
-    >
+  const rowClassName = cn(
+    'flex items-center gap-3 px-3 py-3 rounded-lg border transition-all duration-150 group relative overflow-hidden w-full text-left',
+    isCurrent && 'bg-indigo-500/10 border-indigo-500/50 border-l-2 border-l-indigo-500',
+    isPast && 'bg-transparent border-zinc-200/50 dark:border-zinc-800/50 opacity-50',
+    isFuture &&
+      'bg-transparent border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-100/30 dark:hover:bg-zinc-800/30',
+    isHost && !isCurrent && 'cursor-pointer',
+    isDragging && 'opacity-40',
+    isDragOverlay && 'shadow-xl opacity-100 cursor-grabbing',
+  );
+
+  const dragHandle =
+    isHost &&
+    (isLocked ? (
+      <span className="flex-shrink-0 p-0.5 text-zinc-600 dark:text-zinc-700" aria-hidden="true">
+        <Lock className="h-3 w-3" />
+      </span>
+    ) : (
+      <button
+        type="button"
+        className={cn(
+          'flex-shrink-0 p-0.5 rounded text-zinc-500 dark:text-zinc-600 cursor-grab active:cursor-grabbing',
+          'opacity-0 group-hover:opacity-100 transition-opacity',
+          isDragOverlay && 'opacity-100',
+        )}
+        aria-label="Drag to reorder"
+        onClick={(e) => e.stopPropagation()}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-3.5 w-3.5" />
+      </button>
+    ));
+
+  const rowContent = (
+    <>
       {isCurrent && (
         <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-transparent pointer-events-none" />
       )}
 
       {/* Drag handle or lock indicator — host only */}
-      {isHost &&
-        (isLocked ? (
-          // Completed rows show a lock — not draggable
-          <span className="flex-shrink-0 p-0.5 text-zinc-600 dark:text-zinc-700" aria-hidden="true">
-            <Lock className="h-3 w-3" />
-          </span>
-        ) : (
-          <button
-            type="button"
-            className={cn(
-              'flex-shrink-0 p-0.5 rounded text-zinc-500 dark:text-zinc-600 cursor-grab active:cursor-grabbing',
-              'opacity-0 group-hover:opacity-100 transition-opacity',
-              isDragOverlay && 'opacity-100',
-            )}
-            aria-label="Drag to reorder"
-            onClick={(e) => e.stopPropagation()}
-            {...attributes}
-            {...listeners}
-          >
-            <GripVertical className="h-3.5 w-3.5" />
-          </button>
-        ))}
+      {dragHandle}
 
       {/* Index badge */}
       <span
@@ -208,13 +196,11 @@ function UrlRow({
 
       {/* Action buttons (host only) */}
       {isHost && (
-        // biome-ignore lint/a11y/noStaticElementInteractions: stopPropagation wrapper only, not an interactive control
         <div
-          role="presentation"
           className="flex items-center gap-1 flex-shrink-0"
           onClick={(e) => e.stopPropagation()}
+          aria-hidden="true"
         >
-          {/* Open link */}
           {isFuture && (
             <a
               href={url}
@@ -226,7 +212,6 @@ function UrlRow({
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
           )}
-          {/* Delete */}
           {onDelete && (
             <button
               type="button"
@@ -239,6 +224,28 @@ function UrlRow({
           )}
         </div>
       )}
+    </>
+  );
+
+  return isClickable ? (
+    <button
+      ref={setNodeRef as React.Ref<HTMLButtonElement>}
+      type="button"
+      style={style}
+      className={rowClassName}
+      onClick={() => onJumpTo(index)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onJumpTo(index);
+        }
+      }}
+    >
+      {rowContent}
+    </button>
+  ) : (
+    <div ref={setNodeRef} style={style} className={rowClassName}>
+      {rowContent}
     </div>
   );
 }
@@ -246,15 +253,15 @@ function UrlRow({
 // ─── UrlQueue ─────────────────────────────────────────────────────────────────
 
 export interface UrlQueueProps {
-  urls: string[];
-  currentIndex: number;
-  isHost?: boolean;
-  onJumpTo?: (index: number) => void;
-  onDelete?: (index: number) => void;
-  onReorder?: (fromIndex: number, toIndex: number) => void;
-  className?: string;
+  readonly urls: string[];
+  readonly currentIndex: number;
+  readonly isHost?: boolean;
+  readonly onJumpTo?: (index: number) => void;
+  readonly onDelete?: (index: number) => void;
+  readonly onReorder?: (fromIndex: number, toIndex: number) => void;
+  readonly className?: string;
   /** Average vote per URL index — shown as a badge on past tickets */
-  savedVotes?: Record<number, string>;
+  readonly savedVotes?: Record<number, string>;
 }
 
 export function UrlQueue({
@@ -353,8 +360,7 @@ export function UrlQueue({
       <DragOverlay dropAnimation={{ duration: 150, easing: 'ease' }}>
         {activeUrl !== null && activeIndex !== -1 ? (
           <UrlRow
-            // biome-ignore lint/style/noNonNullAssertion: guarded by activeUrl !== null && activeIndex !== -1 above
-            id={activeId!}
+            id={activeId as string}
             url={activeUrl}
             index={activeIndex}
             currentIndex={currentIndex}
