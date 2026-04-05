@@ -156,3 +156,67 @@ jobs:
             echo "podman pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
             echo '```'
           } >> $GITHUB_STEP_SUMMARY
+
+  # ── Prune old SHA-tagged versions from GHCR ─────────────────────────────────
+  # Keeps: latest, all semver tags (v*), and the 3 most recent sha- tags.
+  # Deletes everything older to prevent unbounded GHCR growth.
+  prune:
+    name: Prune old images from GHCR
+    runs-on: ubuntu-latest
+    needs: publish
+    if: needs.publish.result == 'success'
+
+    permissions:
+      packages: write
+
+    steps:
+      - name: Delete old SHA-tagged versions
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner.toLowerCase();
+            const packageName = context.repo.repo.toLowerCase();
+
+            // Fetch all versions (up to 100)
+            const { data: versions } = await github.rest.packages.getAllPackageVersionsForPackageOwnedByAuthenticatedUser({
+              package_type: 'container',
+              package_name: packageName,
+              per_page: 100,
+            });
+
+            // Separate sha- tagged versions from protected ones
+            const SHA_KEEP = 1;
+            const shaVersions = [];
+            const toDelete = [];
+
+            for (const v of versions) {
+              const tags = v.metadata?.container?.tags ?? [];
+              const hasSemver = tags.some(t => /^v\d+/.test(t));
+              const hasLatest = tags.includes('latest');
+              const hasSha = tags.some(t => t.startsWith('sha-'));
+              const isUntagged = tags.length === 0;
+
+              if (hasSemver || hasLatest) continue;   // always keep
+              if (hasSha) { shaVersions.push(v); continue; }
+              if (isUntagged) toDelete.push(v);       // orphaned layers
+            }
+
+            // Sort sha versions newest-first, mark old ones for deletion
+            shaVersions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            toDelete.push(...shaVersions.slice(SHA_KEEP));
+
+            if (toDelete.length === 0) {
+              console.log('Nothing to prune.');
+              return;
+            }
+
+            for (const v of toDelete) {
+              const tags = v.metadata?.container?.tags ?? [];
+              console.log(`Deleting version ${v.id} (tags: ${tags.join(', ') || 'untagged'})`);
+              await github.rest.packages.deletePackageVersionForAuthenticatedUser({
+                package_type: 'container',
+                package_name: packageName,
+                package_version_id: v.id,
+              });
+            }
+            console.log(`Pruned ${toDelete.length} version(s).`);
