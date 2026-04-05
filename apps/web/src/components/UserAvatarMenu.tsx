@@ -137,17 +137,7 @@ export function UserAvatarMenu() {
 
             {/* Body */}
             <div className="p-4">
-              {!editing ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start gap-2"
-                  onClick={startEditing}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                  Edit profile
-                </Button>
-              ) : (
+              {editing ? (
                 <div className="space-y-3">
                   <div>
                     <label
@@ -208,6 +198,16 @@ export function UserAvatarMenu() {
                     </Button>
                   </div>
                 </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                  onClick={startEditing}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit profile
+                </Button>
               )}
             </div>
           </motion.div>

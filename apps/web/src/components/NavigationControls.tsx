@@ -3,14 +3,14 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface NavigationControlsProps {
-  currentIndex: number;
-  total: number;
-  onPrevious: () => void;
-  onNext: () => void;
-  onComplete: () => void;
-  completed?: boolean;
-  disabled?: boolean;
-  className?: string;
+  readonly currentIndex: number;
+  readonly total: number;
+  readonly onPrevious: () => void;
+  readonly onNext: () => void;
+  readonly onComplete: () => void;
+  readonly completed?: boolean;
+  readonly disabled?: boolean;
+  readonly className?: string;
 }
 
 export function NavigationControls({
@@ -88,13 +88,29 @@ export function NavigationControls({
           <div className="text-xs text-zinc-500">of {total}</div>
         </div>
 
-        {isLast ? (
-          completed ? (
-            <div className="flex-1 h-11 flex items-center justify-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-semibold">
-              <CheckCircle className="h-4 w-4" />
-              Completed
-            </div>
-          ) : (
+        {(() => {
+          if (!isLast) {
+            return (
+              <Button
+                variant="glow"
+                className={cn('flex-1 h-11 gap-2', 'disabled:opacity-30 disabled:shadow-none')}
+                onClick={onNext}
+                disabled={disabled}
+              >
+                Next
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            );
+          }
+          if (completed) {
+            return (
+              <div className="flex-1 h-11 flex items-center justify-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-semibold">
+                <CheckCircle className="h-4 w-4" />
+                Completed
+              </div>
+            );
+          }
+          return (
             <Button
               variant="glow"
               className="flex-1 h-11 gap-2 disabled:opacity-30 disabled:shadow-none"
@@ -104,18 +120,8 @@ export function NavigationControls({
               <CheckCircle className="h-5 w-5" />
               Complete
             </Button>
-          )
-        ) : (
-          <Button
-            variant="glow"
-            className={cn('flex-1 h-11 gap-2', 'disabled:opacity-30 disabled:shadow-none')}
-            onClick={onNext}
-            disabled={disabled}
-          >
-            Next
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-        )}
+          );
+        })()}
       </div>
     </div>
   );

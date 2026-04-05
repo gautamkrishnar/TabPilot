@@ -36,13 +36,14 @@ export async function copyToClipboard(text: string): Promise<void> {
     document.body.appendChild(textarea);
     textarea.focus();
     textarea.select();
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
     document.execCommand('copy');
-    document.body.removeChild(textarea);
+    textarea.remove();
   }
 }
 
 export function getJoinUrl(joinCode: string): string {
-  const base = window.location.origin;
+  const base = globalThis.location.origin;
   return `${base}/join?code=${joinCode}`;
 }
 

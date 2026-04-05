@@ -49,19 +49,19 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @WebSocketServer()
   server: Server;
 
-  private socketMeta = new Map<string, SocketMeta>();
+  private readonly socketMeta = new Map<string, SocketMeta>();
 
   /** Current-round votes: sessionId → { participantId → value }. Hidden until revealed. */
-  private votes = new Map<string, Map<string, string>>();
+  private readonly votes = new Map<string, Map<string, string>>();
 
   /** Whether the host has revealed votes for the current ticket. */
-  private revealed = new Map<string, boolean>();
+  private readonly revealed = new Map<string, boolean>();
 
   /**
    * Saved average vote per URL index: sessionId → { urlIndex → averageString }.
    * Persists across navigation within the session lifetime.
    */
-  private savedVotes = new Map<string, Map<number, string>>();
+  private readonly savedVotes = new Map<string, Map<number, string>>();
 
   constructor(
     private readonly sessionsService: SessionsService,
@@ -139,6 +139,66 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
     }
   }
 
+  /** Validate host/participant access on join; returns isHost or emits error and returns null. */
+  private async validateJoin(
+    client: Socket,
+    sessionId: string,
+    hostKey: string | undefined,
+    participantId: string | undefined,
+    isLocked: boolean,
+  ): Promise<boolean | null> {
+    const isHost = !!hostKey && (await this.sessionsService.validateHostKey(sessionId, hostKey));
+
+    if (hostKey && !isHost) {
+      client.emit(WS_EVENTS.ERROR, {
+        message: 'Invalid host key',
+        code: 'INVALID_HOST_KEY',
+      } satisfies WsErrorPayload);
+      return null;
+    }
+
+    if (!isHost && isLocked && !participantId) {
+      client.emit(WS_EVENTS.ERROR, {
+        message: 'This session is locked. The host is not accepting new participants.',
+        code: 'SESSION_LOCKED',
+      } satisfies WsErrorPayload);
+      return null;
+    }
+
+    return isHost;
+  }
+
+  /** Resolve and update an existing participant on reconnect; returns { doc, wasOffline }. */
+  private async resolveReconnectingParticipant(
+    participantId: string,
+    sessionId: string,
+    clientId: string,
+  ) {
+    const found = await this.participantsService.findById(participantId);
+    if (!found || found.sessionId !== sessionId) return { doc: null, wasOffline: false };
+
+    const wasOffline = !found.isOnline;
+    await this.participantsService.updateSocketId(participantId, clientId);
+    await this.participantsService.updateOnlineStatus(participantId, true);
+    return { doc: found, wasOffline };
+  }
+
+  /** Emit the current navigation URL to a newly joined client if the session is active. */
+  private emitCurrentNav(
+    client: Socket,
+    sessionDoc: { state: string; urls: string[]; currentIndex: number },
+  ) {
+    if (sessionDoc.state !== 'active' || sessionDoc.urls.length === 0) return;
+    const url = sessionDoc.urls[sessionDoc.currentIndex];
+    if (!url) return;
+    const navPayload: NavigateToPayload = {
+      url,
+      index: sessionDoc.currentIndex,
+      total: sessionDoc.urls.length,
+    };
+    client.emit(WS_EVENTS.NAVIGATE_TO, navPayload);
+  }
+
   @SubscribeMessage(WS_EVENTS.JOIN_SESSION)
   async handleJoinSession(
     @ConnectedSocket() client: Socket,
@@ -155,25 +215,14 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       return;
     }
 
-    const isHost = !!hostKey && (await this.sessionsService.validateHostKey(sessionId, hostKey));
-
-    if (hostKey && !isHost) {
-      client.emit(WS_EVENTS.ERROR, {
-        message: 'Invalid host key',
-        code: 'INVALID_HOST_KEY',
-      } satisfies WsErrorPayload);
-      return;
-    }
-
-    // Block new participants from joining a locked session.
-    // Reconnecting with an existing participantId is still allowed.
-    if (!isHost && sessionDoc.isLocked && !participantId) {
-      client.emit(WS_EVENTS.ERROR, {
-        message: 'This session is locked. The host is not accepting new participants.',
-        code: 'SESSION_LOCKED',
-      } satisfies WsErrorPayload);
-      return;
-    }
+    const isHost = await this.validateJoin(
+      client,
+      sessionId,
+      hostKey,
+      participantId,
+      sessionDoc.isLocked,
+    );
+    if (isHost === null) return;
 
     this.socketMeta.set(client.id, {
       sessionId,
@@ -187,13 +236,9 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
     let resolvedParticipantDoc = null;
     let wasOffline = false;
     if (!isHost && participantId) {
-      const found = await this.participantsService.findById(participantId);
-      if (found && found.sessionId === sessionId) {
-        resolvedParticipantDoc = found;
-        wasOffline = !resolvedParticipantDoc.isOnline;
-        await this.participantsService.updateSocketId(participantId, client.id);
-        await this.participantsService.updateOnlineStatus(participantId, true);
-      }
+      const result = await this.resolveReconnectingParticipant(participantId, sessionId, client.id);
+      resolvedParticipantDoc = result.doc;
+      wasOffline = result.wasOffline;
     }
 
     const participants = await this.participantsService.findBySession(sessionId);
@@ -207,31 +252,18 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
     if (!isHost && participantId && resolvedParticipantDoc) {
       if (wasOffline) {
-        // Broadcast full joined info so the room refreshes its participant list
         const participant = this.participantsService.toParticipantDto(resolvedParticipantDoc);
-        const joinedPayload: ParticipantJoinedPayload = { participant };
-        client.to(sessionId).emit(WS_EVENTS.PARTICIPANT_JOINED, joinedPayload);
+        client
+          .to(sessionId)
+          .emit(WS_EVENTS.PARTICIPANT_JOINED, { participant } satisfies ParticipantJoinedPayload);
       }
-
-      const onlinePayload: ParticipantOnlinePayload = {
+      this.server.to(sessionId).emit(WS_EVENTS.PARTICIPANT_ONLINE, {
         participantId,
         isOnline: true,
-      };
-      this.server.to(sessionId).emit(WS_EVENTS.PARTICIPANT_ONLINE, onlinePayload);
+      } satisfies ParticipantOnlinePayload);
     }
 
-    if (sessionDoc.state === 'active' && sessionDoc.urls.length > 0) {
-      const idx = sessionDoc.currentIndex;
-      const url = sessionDoc.urls[idx];
-      if (url) {
-        const navPayload: NavigateToPayload = {
-          url,
-          index: idx,
-          total: sessionDoc.urls.length,
-        };
-        client.emit(WS_EVENTS.NAVIGATE_TO, navPayload);
-      }
-    }
+    this.emitCurrentNav(client, sessionDoc);
   }
 
   @SubscribeMessage(WS_EVENTS.HOST_START_SESSION)
@@ -427,7 +459,7 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
     try {
       const parsed = new URL(url);
-      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error();
+      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Invalid URL protocol');
     } catch {
       client.emit(WS_EVENTS.ERROR, {
         message: 'Invalid URL',

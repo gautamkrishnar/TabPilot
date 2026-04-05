@@ -5,10 +5,10 @@ import { Button } from '@/components/ui/button';
 import { cn, copyToClipboard, getJoinUrl } from '@/lib/utils';
 
 interface JoinCodeDisplayProps {
-  joinCode: string;
-  className?: string;
+  readonly joinCode: string;
+  readonly className?: string;
   /** Show only the code characters + copy button, without the share-link section */
-  codeOnly?: boolean;
+  readonly codeOnly?: boolean;
 }
 
 export function JoinCodeDisplay({ joinCode, className, codeOnly = false }: JoinCodeDisplayProps) {
@@ -41,7 +41,7 @@ export function JoinCodeDisplay({ joinCode, className, codeOnly = false }: JoinC
         <div className="flex items-center gap-2">
           {chars.map((char, i) => (
             <div
-              key={i}
+              key={`pos-${i}`}
               className={cn(
                 'w-12 h-14 flex items-center justify-center',
                 'rounded-lg border-2 border-zinc-300 dark:border-zinc-700',

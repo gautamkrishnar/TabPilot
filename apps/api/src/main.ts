@@ -13,7 +13,7 @@ import { AppModule } from './app.module';
 const TLS_CERT = process.env.TLS_CERT ?? '';
 const TLS_KEY = process.env.TLS_KEY ?? '';
 const hasTLS = !!TLS_CERT && !!TLS_KEY && existsSync(TLS_CERT) && existsSync(TLS_KEY);
-const HTTPS_PORT = process.env.HTTPS_PORT ? parseInt(process.env.HTTPS_PORT, 10) : 8443;
+const HTTPS_PORT = process.env.HTTPS_PORT ? Number.parseInt(process.env.HTTPS_PORT, 10) : 8443;
 
 async function bootstrap() {
   // When OpenShift service-serving certs are present, serve HTTPS on port 8443
@@ -92,7 +92,14 @@ async function bootstrap() {
     });
   }
 
-  const port = hasTLS ? HTTPS_PORT : process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+  let port: number;
+  if (hasTLS) {
+    port = HTTPS_PORT;
+  } else if (process.env.PORT) {
+    port = Number.parseInt(process.env.PORT, 10);
+  } else {
+    port = 3000;
+  }
   await app.listen(port, '0.0.0.0');
 }
 

@@ -28,13 +28,27 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { UrlQueue } from '@/components/UrlQueue';
 import { UserAvatarMenu } from '@/components/UserAvatarMenu';
 import { Button } from '@/components/ui/button';
-import { useJiraIssue } from '@/hooks/useJiraIssue';
+import { useCurrentTitle } from '@/hooks/useCurrentTitle';
 import { useSocket } from '@/hooks/useSocket';
-import { useUrlTitle } from '@/hooks/useUrlTitle';
-import { formatJiraTitle, parseJiraUrl } from '@/lib/jira';
 import { getSocket } from '@/lib/socket';
-import { cn, formatUrl, getFaviconUrl, truncateUrl } from '@/lib/utils';
+import { cn, getFaviconUrl, truncateUrl } from '@/lib/utils';
 import { useSessionStore } from '@/store/sessionStore';
+
+function isValidHttpUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return ['http:', 'https:'].includes(parsed.protocol);
+  } catch {
+    return false;
+  }
+}
+
+function computeVoteAverage(votes: Record<string, string>): number | null {
+  const nums = Object.values(votes)
+    .map(Number)
+    .filter((n) => !Number.isNaN(n));
+  return nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
+}
 
 export function HostDashboard() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -175,10 +189,7 @@ export function HostDashboard() {
   const handleAddUrl = useCallback(() => {
     const trimmed = newUrl.trim();
     if (!trimmed || !sessionId || !hostKey) return;
-    try {
-      const parsed = new URL(trimmed);
-      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error();
-    } catch {
+    if (!isValidHttpUrl(trimmed)) {
       toast.error('Please enter a valid http/https URL');
       return;
     }
@@ -202,7 +213,7 @@ export function HostDashboard() {
       toast.error('Host invite key not found.');
       return;
     }
-    const link = `${window.location.origin}/host/join/${sessionId}?key=${inviteKey}`;
+    const link = `${globalThis.location.origin}/host/join/${sessionId}?key=${inviteKey}`;
     navigator.clipboard
       .writeText(link)
       .then(() => {
@@ -217,13 +228,7 @@ export function HostDashboard() {
   const onlineCount = participants.filter((p) => p.isOnline).length;
 
   // Enrich current URL — Jira first, then generic page title, then domain
-  const { data: currentJiraIssue } = useJiraIssue(currentUrl ?? '');
-  const { data: currentPageTitle } = useUrlTitle(currentUrl ?? '');
-  const currentTitle = currentUrl
-    ? currentJiraIssue
-      ? formatJiraTitle(currentJiraIssue)
-      : (currentPageTitle ?? parseJiraUrl(currentUrl)?.key ?? formatUrl(currentUrl))
-    : '';
+  const currentTitle = useCurrentTitle(currentUrl);
 
   if (!session) {
     return (
@@ -457,16 +462,12 @@ export function HostDashboard() {
                     </p>
                     {Object.keys(revealedVotes).length > 0 &&
                       (() => {
-                        const nums = Object.values(revealedVotes)
-                          .map(Number)
-                          .filter((n) => !Number.isNaN(n));
-                        const avg =
-                          nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
-                        return avg !== null ? (
+                        const avg = computeVoteAverage(revealedVotes);
+                        return avg === null ? null : (
                           <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                             avg {avg % 1 === 0 ? avg : avg.toFixed(1)}
                           </span>
-                        ) : null;
+                        );
                       })()}
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -579,9 +580,12 @@ export function HostDashboard() {
                 Ready to start?
               </h2>
               <p className="text-zinc-400 text-sm mb-3 leading-relaxed">
-                {participants.length > 0
-                  ? `${onlineCount} participant${onlineCount !== 1 ? 's' : ''} online and waiting.`
-                  : 'Waiting for participants to join...'}
+                {(() => {
+                  const plural = onlineCount === 1 ? '' : 's';
+                  return participants.length > 0
+                    ? `${onlineCount} participant${plural} online and waiting.`
+                    : 'Waiting for participants to join...';
+                })()}
               </p>
 
               <div className="flex justify-center mb-6">
@@ -625,7 +629,7 @@ export function HostDashboard() {
               </h2>
               <p className="text-zinc-400 text-sm mb-6">
                 Great work! Your team groomed {session.urls.length} ticket
-                {session.urls.length !== 1 ? 's' : ''}.
+                {session.urls.length === 1 ? '' : 's'}.
               </p>
               <Button variant="glow" size="lg" className="w-full" onClick={() => navigate('/')}>
                 Back to Home

@@ -10,11 +10,9 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { TabSyncToggle } from '@/components/TabSyncToggle';
 import { UserAvatarMenu } from '@/components/UserAvatarMenu';
 import { Button } from '@/components/ui/button';
-import { useJiraIssue } from '@/hooks/useJiraIssue';
+import { useCurrentTitle } from '@/hooks/useCurrentTitle';
 import { useSocket } from '@/hooks/useSocket';
 import { useTabSync } from '@/hooks/useTabSync';
-import { useUrlTitle } from '@/hooks/useUrlTitle';
-import { formatJiraTitle, parseJiraUrl } from '@/lib/jira';
 import { getSocket } from '@/lib/socket';
 import { cn, formatUrl, getFaviconUrl, truncateUrl } from '@/lib/utils';
 import { useSessionStore } from '@/store/sessionStore';
@@ -134,13 +132,7 @@ export function ParticipantView() {
   const currentUrl = session?.urls[session.currentIndex];
   const onlineCount = participants.filter((p) => p.isOnline).length;
 
-  const { data: currentJiraIssue } = useJiraIssue(currentUrl ?? '');
-  const { data: currentPageTitle } = useUrlTitle(currentUrl ?? '');
-  const currentTitle = currentUrl
-    ? currentJiraIssue
-      ? formatJiraTitle(currentJiraIssue)
-      : (currentPageTitle ?? parseJiraUrl(currentUrl)?.key ?? formatUrl(currentUrl))
-    : '';
+  const currentTitle = useCurrentTitle(currentUrl);
 
   if (!session) {
     return (
@@ -236,7 +228,7 @@ export function ParticipantView() {
                 </div>
                 {participants.length > 0 && (
                   <p className="text-xs text-zinc-600 mt-3">
-                    {onlineCount} participant{onlineCount !== 1 ? 's' : ''} connected
+                    {onlineCount} participant{onlineCount === 1 ? '' : 's'} connected
                   </p>
                 )}
               </motion.div>
@@ -352,11 +344,11 @@ export function ParticipantView() {
                           .filter((n) => !Number.isNaN(n));
                         const avg =
                           nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
-                        return avg !== null ? (
+                        return avg === null ? null : (
                           <span className="text-sm font-bold px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                             avg {avg % 1 === 0 ? avg : avg.toFixed(1)}
                           </span>
-                        ) : null;
+                        );
                       })()}
                     </div>
                     <div className="flex flex-wrap gap-2">

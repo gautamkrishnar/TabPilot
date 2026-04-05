@@ -7,7 +7,7 @@ export function getSocket(): Socket {
   // Checking .connected would create a duplicate while the first is still CONNECTING,
   // which causes the "WebSocket closed before established" browser warning.
   if (!socket) {
-    const url = import.meta.env.VITE_API_URL || window.location.origin;
+    const url = import.meta.env.VITE_API_URL || globalThis.location.origin;
 
     socket = io(url, {
       transports: ['websocket', 'polling'],

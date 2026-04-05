@@ -4,11 +4,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { cn } from '@/lib/utils';
 
 interface ParticipantAvatarProps {
-  participant: Participant;
-  size?: 'sm' | 'md' | 'lg';
-  showOnlineIndicator?: boolean;
-  showTooltip?: boolean;
-  className?: string;
+  readonly participant: Participant;
+  readonly size?: 'sm' | 'md' | 'lg';
+  readonly showOnlineIndicator?: boolean;
+  readonly showTooltip?: boolean;
+  readonly className?: string;
 }
 
 const sizeMap = {
