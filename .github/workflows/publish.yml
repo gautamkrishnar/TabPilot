@@ -204,7 +204,8 @@ jobs:
 
             for (const v of versions) {
               const tags = v.metadata?.container?.tags ?? [];
-              const hasSemver = tags.some(t => /^v\d+/.test(t));
+              // metadata-action emits semver tags without 'v' prefix (e.g. "1.0.0", "1.0", "1")
+              const hasSemver = tags.some(t => /^v?\d+(\.\d+)*$/.test(t));
               const hasLatest = tags.includes('latest') || tags.includes('master');
               const hasSha = tags.some(t => t.startsWith('sha-'));
               const isUntagged = tags.length === 0;
