@@ -23,11 +23,42 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          ui: ['framer-motion', 'lucide-react'],
-          query: ['@tanstack/react-query', 'axios'],
-          socket: ['socket.io-client'],
+        // Function form is required because the object form only matches exact
+        // package entry points — it misses subpath exports like react-dom/client
+        // and transitive internals like scheduler (react-dom's scheduler dep).
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+          // Extract the exact package name (handles scoped packages too)
+          const m = id.match(/node_modules\/((?:@[^/]+\/)?[^/]+)/);
+          if (!m) return;
+          const pkg = m[1];
+
+          // React runtime — exact package names only (avoids matching
+          // @floating-ui/react-dom or react-hot-toast via substring checks)
+          if (
+            ['react', 'react-dom', 'scheduler', 'react-router', 'react-router-dom'].includes(pkg)
+          ) {
+            return 'react';
+          }
+          // Animation
+          if (['framer-motion', 'motion-dom', 'motion-utils'].includes(pkg)) return 'motion';
+          // Icons
+          if (pkg === 'lucide-react') return 'icons';
+          // Data fetching
+          if (['@tanstack/react-query', '@tanstack/query-core', 'axios'].includes(pkg))
+            return 'query';
+          // WebSocket
+          if (
+            [
+              'socket.io-client',
+              'engine.io-client',
+              'engine.io-parser',
+              '@socket.io/component-emitter',
+              'socket.io-parser',
+            ].includes(pkg)
+          ) {
+            return 'socket';
+          }
         },
       },
     },
