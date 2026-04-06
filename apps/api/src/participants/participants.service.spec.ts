@@ -11,6 +11,10 @@ import { ParticipantsService } from './participants.service';
 // ---------------------------------------------------------------------------
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Use real UUID-format session IDs so findBySession's UUID guard accepts them
+const SESSION_1 = '00000000-0000-0000-0000-000000000001';
+const SESSION_2 = '00000000-0000-0000-0000-000000000002';
+
 // ---------------------------------------------------------------------------
 // Test Suite
 // ---------------------------------------------------------------------------
@@ -54,18 +58,18 @@ describe('ParticipantsService', () => {
   // -------------------------------------------------------------------------
   describe('create()', () => {
     it('should create a participant with a UUID participantId', async () => {
-      const participant = await service.create('session-1', 'Alice');
+      const participant = await service.create(SESSION_1, 'Alice');
       expect(participant.id).toMatch(UUID_REGEX);
     });
 
     it('should generate a DiceBear avatar URL containing the participantId as seed', async () => {
-      const participant = await service.create('session-1', 'Alice');
+      const participant = await service.create(SESSION_1, 'Alice');
       expect(participant.avatarUrl).toContain(participant.id);
       expect(participant.avatarUrl).toContain('dicebear.com');
     });
 
     it('should set isOnline to false initially', async () => {
-      const participant = await service.create('session-1', 'Alice');
+      const participant = await service.create(SESSION_1, 'Alice');
       expect(participant.isOnline).toBe(false);
     });
 
@@ -75,12 +79,12 @@ describe('ParticipantsService', () => {
     });
 
     it('should store the name', async () => {
-      const participant = await service.create('session-1', 'Alice');
+      const participant = await service.create(SESSION_1, 'Alice');
       expect(participant.name).toBe('Alice');
     });
 
     it('should store optional email when provided', async () => {
-      const participant = await service.create('session-1', 'Alice', 'alice@example.com');
+      const participant = await service.create(SESSION_1, 'Alice', 'alice@example.com');
       expect(participant.email).toBe('alice@example.com');
     });
   });
@@ -90,7 +94,7 @@ describe('ParticipantsService', () => {
   // -------------------------------------------------------------------------
   describe('findById()', () => {
     it('should find a participant by participantId', async () => {
-      const created = await service.create('session-1', 'Alice');
+      const created = await service.create(SESSION_1, 'Alice');
       const found = await service.findById(created.id);
       expect(found).not.toBeNull();
       expect(found?.participantId).toBe(created.id);
@@ -100,6 +104,11 @@ describe('ParticipantsService', () => {
       const found = await service.findById('00000000-0000-0000-0000-000000000000');
       expect(found).toBeNull();
     });
+
+    it('should return null for a non-UUID participantId', async () => {
+      const found = await service.findById('not-a-uuid');
+      expect(found).toBeNull();
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -107,22 +116,27 @@ describe('ParticipantsService', () => {
   // -------------------------------------------------------------------------
   describe('findBySession()', () => {
     it('should return all participants for a session', async () => {
-      await service.create('session-1', 'Alice');
-      await service.create('session-1', 'Bob');
-      const participants = await service.findBySession('session-1');
+      await service.create(SESSION_1, 'Alice');
+      await service.create(SESSION_1, 'Bob');
+      const participants = await service.findBySession(SESSION_1);
       expect(participants).toHaveLength(2);
     });
 
     it('should not return participants from a different session', async () => {
-      await service.create('session-1', 'Alice');
-      await service.create('session-2', 'Bob');
-      const participants = await service.findBySession('session-1');
+      await service.create(SESSION_1, 'Alice');
+      await service.create(SESSION_2, 'Bob');
+      const participants = await service.findBySession(SESSION_1);
       expect(participants).toHaveLength(1);
       expect(participants[0].name).toBe('Alice');
     });
 
     it('should return an empty array for a session with no participants', async () => {
-      const participants = await service.findBySession('session-no-one');
+      const participants = await service.findBySession('00000000-0000-0000-0000-000000000099');
+      expect(participants).toHaveLength(0);
+    });
+
+    it('should return an empty array for a non-UUID sessionId', async () => {
+      const participants = await service.findBySession('not-a-uuid');
       expect(participants).toHaveLength(0);
     });
   });
@@ -132,13 +146,13 @@ describe('ParticipantsService', () => {
   // -------------------------------------------------------------------------
   describe('updateOnlineStatus()', () => {
     it('should set isOnline to true', async () => {
-      const created = await service.create('session-1', 'Alice');
+      const created = await service.create(SESSION_1, 'Alice');
       const updated = await service.updateOnlineStatus(created.id, true);
       expect(updated.isOnline).toBe(true);
     });
 
     it('should set isOnline to false', async () => {
-      const created = await service.create('session-1', 'Alice');
+      const created = await service.create(SESSION_1, 'Alice');
       await service.updateOnlineStatus(created.id, true);
       const updated = await service.updateOnlineStatus(created.id, false);
       expect(updated.isOnline).toBe(false);
@@ -150,7 +164,7 @@ describe('ParticipantsService', () => {
   // -------------------------------------------------------------------------
   describe('updateSocketId()', () => {
     it('should update the socketId field', async () => {
-      const created = await service.create('session-1', 'Alice');
+      const created = await service.create(SESSION_1, 'Alice');
       const updated = await service.updateSocketId(created.id, 'socket-xyz');
       expect(updated.socketId).toBe('socket-xyz');
     });
@@ -161,19 +175,19 @@ describe('ParticipantsService', () => {
   // -------------------------------------------------------------------------
   describe('updateProfile()', () => {
     it('should update the name', async () => {
-      const created = await service.create('session-1', 'Alice');
+      const created = await service.create(SESSION_1, 'Alice');
       const updated = await service.updateProfile(created.id, 'Alicia');
       expect(updated.name).toBe('Alicia');
     });
 
     it('should set email when provided', async () => {
-      const created = await service.create('session-1', 'Alice');
+      const created = await service.create(SESSION_1, 'Alice');
       const updated = await service.updateProfile(created.id, 'Alice', 'alice@example.com');
       expect(updated.email).toBe('alice@example.com');
     });
 
     it('should clear email when empty string is passed', async () => {
-      const created = await service.create('session-1', 'Alice', 'alice@example.com');
+      const created = await service.create(SESSION_1, 'Alice', 'alice@example.com');
       const updated = await service.updateProfile(created.id, 'Alice', '');
       expect(updated.email).toBeNull();
     });
@@ -190,17 +204,17 @@ describe('ParticipantsService', () => {
   // -------------------------------------------------------------------------
   describe('deleteParticipant()', () => {
     it('should remove the participant so findById returns null afterwards', async () => {
-      const created = await service.create('session-1', 'Alice');
+      const created = await service.create(SESSION_1, 'Alice');
       await service.deleteParticipant(created.id);
       const found = await service.findById(created.id);
       expect(found).toBeNull();
     });
 
     it('should remove only the targeted participant, leaving others intact', async () => {
-      const alice = await service.create('session-1', 'Alice');
-      const bob = await service.create('session-1', 'Bob');
+      const alice = await service.create(SESSION_1, 'Alice');
+      const bob = await service.create(SESSION_1, 'Bob');
       await service.deleteParticipant(alice.id);
-      const remaining = await service.findBySession('session-1');
+      const remaining = await service.findBySession(SESSION_1);
       expect(remaining).toHaveLength(1);
       expect(remaining[0].id).toBe(bob.id);
     });

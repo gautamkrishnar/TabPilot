@@ -1,4 +1,14 @@
-import { Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+
+// Jira issue keys are strictly PROJECT-NUMBER (e.g. CONNCERT-2771).
+// Validating before interpolation prevents path traversal / SSRF.
+const ISSUE_KEY_RE = /^[A-Z][A-Z0-9_]*-\d+$/i;
 
 export interface JiraIssue {
   key: string;
@@ -28,6 +38,9 @@ export class JiraService {
   }
 
   async getIssue(issueKey: string): Promise<JiraIssue> {
+    if (!ISSUE_KEY_RE.test(issueKey)) {
+      throw new BadRequestException('Invalid Jira issue key.');
+    }
     if (!this.isConfigured) {
       throw new ServiceUnavailableException(
         'Jira integration is not configured. Set JIRA_BASE_URL, JIRA_USER_EMAIL and JIRA_API_TOKEN.',

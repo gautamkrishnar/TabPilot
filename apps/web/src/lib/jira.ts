@@ -13,7 +13,9 @@ export interface JiraUrlInfo {
 export function parseJiraUrl(url: string): JiraUrlInfo | null {
   try {
     const parsed = new URL(url);
-    if (!parsed.hostname.includes('atlassian.net')) return null;
+    // Exact match to prevent bypasses like "evilatlassian.net" or "atlassian.net.evil.com"
+    if (parsed.hostname !== 'atlassian.net' && !parsed.hostname.endsWith('.atlassian.net'))
+      return null;
 
     // /browse/PROJ-123
     const browseMatch = /\/browse\/([A-Z][A-Z0-9_]*-\d+)/i.exec(parsed.pathname);

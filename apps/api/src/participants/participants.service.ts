@@ -29,10 +29,19 @@ export class ParticipantsService {
   }
 
   async findById(participantId: string): Promise<ParticipantDocument | null> {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(participantId)) {
+      return null;
+    }
     return this.participantModel.findOne({ participantId }).exec();
   }
 
   async findBySession(sessionId: string): Promise<Participant[]> {
+    // Validate sessionId is a UUID before querying to prevent NoSQL injection.
+    // Mongoose parameterises queries, but the explicit guard satisfies static analysis
+    // and adds defence-in-depth against unexpected operator injection (e.g. {$gt:""}).
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sessionId)) {
+      return [];
+    }
     const docs = await this.participantModel.find({ sessionId }).exec();
     return docs.map((doc) => this.toParticipantDto(doc));
   }
