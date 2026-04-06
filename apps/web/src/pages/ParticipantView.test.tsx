@@ -152,4 +152,26 @@ describe('ParticipantView — grooming complete', () => {
 
     expect(mockOnGroomingComplete).toBeTypeOf('function');
   });
+
+  it('hides completion banner when a new URL is added after grooming complete', () => {
+    render(<ParticipantView />);
+
+    act(() => {
+      mockOnGroomingComplete?.();
+    });
+
+    expect(screen.getByText('All tickets groomed!')).toBeInTheDocument();
+
+    // Simulate server pushing SESSION_STATE with an extra URL added
+    act(() => {
+      useSessionStore.getState().setSession(
+        makeSession({
+          urls: ['https://example.com/issue/1', 'https://example.com/issue/2'],
+          currentIndex: 0,
+        }),
+      );
+    });
+
+    expect(screen.queryByText('All tickets groomed!')).not.toBeInTheDocument();
+  });
 });

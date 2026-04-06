@@ -128,6 +128,13 @@ export function HostDashboard() {
     [sessionId, hostKey],
   );
 
+  // Reset completion banner when a new URL is added (current index is no longer last)
+  useEffect(() => {
+    if (isGroomingComplete && session && session.currentIndex < session.urls.length - 1) {
+      setIsGroomingComplete(false);
+    }
+  }, [isGroomingComplete, session]);
+
   const handleComplete = useCallback(() => {
     setIsGroomingComplete(true);
     confetti({

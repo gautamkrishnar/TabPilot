@@ -143,6 +143,13 @@ export function ParticipantView() {
     votedRef.current = false;
   }, [currentNavigateUrl]);
 
+  // Reset completion banner when a new URL is added (current index is no longer last)
+  useEffect(() => {
+    if (groomingComplete && session && session.currentIndex < session.urls.length - 1) {
+      setGroomingComplete(false);
+    }
+  }, [groomingComplete, session]);
+
   const currentUrl = session?.urls[session.currentIndex];
   const onlineCount = participants.filter((p) => p.isOnline).length;
 

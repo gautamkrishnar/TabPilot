@@ -1,6 +1,6 @@
 import type { Session } from '@tabpilot/shared';
 import { WS_EVENTS } from '@tabpilot/shared';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import toast from 'react-hot-toast';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -319,6 +319,30 @@ describe('HostDashboard — grooming complete', () => {
 
     await waitFor(() => {
       expect(screen.getByText('All tickets groomed!')).toBeInTheDocument();
+    });
+  });
+
+  it('hides completion banner when a new URL is added after completing', async () => {
+    render(<HostDashboard />);
+
+    await userEvent.click(screen.getByRole('button', { name: /complete/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('All tickets groomed!')).toBeInTheDocument();
+    });
+
+    // Simulate server pushing SESSION_STATE with an extra URL added
+    act(() => {
+      useSessionStore.getState().setSession(
+        makeSession({
+          urls: ['https://example.com/1', 'https://example.com/2', 'https://example.com/3'],
+          currentIndex: 1,
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText('All tickets groomed!')).not.toBeInTheDocument();
     });
   });
 });
