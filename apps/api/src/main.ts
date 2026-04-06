@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
@@ -74,6 +74,21 @@ async function bootstrap() {
       root: webDistPath,
       prefix: '/',
       wildcard: false,
+      setHeaders(res: { setHeader: (k: string, v: string) => void }, filePath: string) {
+        if (filePath.includes(`${sep}assets${sep}`)) {
+          // Vite content-hashes every file under /assets/ — safe to cache forever.
+          // Changing a file produces a new hash → new URL → no stale-cache risk.
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        } else if (filePath.endsWith('.html')) {
+          // HTML must revalidate on every visit so the browser picks up the
+          // latest asset URLs after a deploy.
+          res.setHeader('Cache-Control', 'no-cache');
+        } else {
+          // Root-level static files (logo.svg, favicons, manifests, robots.txt …)
+          // have no content hash, so use a short-lived cache + revalidation.
+          res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
+        }
+      },
     });
 
     // SPA fallback — intercept 404s for non-API routes and serve index.html.

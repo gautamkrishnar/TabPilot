@@ -13,8 +13,12 @@ import {
   Users,
   Zap,
 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import atharvaAvatar from '@/assets/avatars/atharva-upadhye.webp';
+import ayushiAvatar from '@/assets/avatars/ayushi-midha.webp';
+import kevinAvatar from '@/assets/avatars/kevin-greenwood.webp';
+import radhikaAvatar from '@/assets/avatars/radhika-nargotra.webp';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { deleteSession, getSessionByCode } from '@/lib/api';
@@ -112,33 +116,44 @@ const testimonials = [
       "Tab Pilot is a very useful tool for collaboration within agile teams. It's an excellent way to queue up items for the team to review together and estimate size and complexity.",
     name: 'Kevin Greenwood',
     title: 'Principal Product Manager, Red Hat',
-    avatar: '/kevin-greenwood.jpg',
+    avatar: kevinAvatar,
   },
   {
     quote:
       "As a project manager, keeping everyone focused during grooming is half the battle. Tab Pilot solves that instantly: one host, one ticket, zero confusion. It's become a staple in our sprint rituals.",
     name: 'Radhika Nargotra',
     title: 'Project Manager, Red Hat',
-    avatar: '/radhika-nargotra.png',
+    avatar: radhikaAvatar,
   },
   {
     quote:
       "Tab Pilot has completely changed how we run our grooming sessions. No more screen sharing lag or people losing track of which ticket we're on. Everyone is always in sync.",
     name: 'Ayushi Midha',
     title: 'Software Engineer, Red Hat',
-    avatar: '/ayushi-midha.jpg',
+    avatar: ayushiAvatar,
   },
   {
     quote:
       "The tab sync feature is genuinely clever. Watching everyone's browser follow along in real time without any plugins or setup makes remote grooming feel as natural as being in the same room.",
     name: 'Atharva Upadhye',
     title: 'Software Engineer, Red Hat',
-    avatar: '/atharva-upadhye.jpg',
+    avatar: atharvaAvatar,
   },
 ];
 
 function TestimonialCarousel() {
   const [index, setIndex] = useState(0);
+  const preloadedRef = useRef(false);
+
+  // Preload all avatar images once on mount so switching is instant
+  useEffect(() => {
+    if (preloadedRef.current) return;
+    preloadedRef.current = true;
+    for (const t of testimonials) {
+      const img = new Image();
+      img.src = t.avatar;
+    }
+  }, []);
 
   useEffect(() => {
     const id = setInterval(() => {
