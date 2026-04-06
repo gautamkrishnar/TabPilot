@@ -140,9 +140,11 @@ jobs:
         if: steps.push.outputs.digest != ''
         env:
           COSIGN_EXPERIMENTAL: "1"
+          IMAGE_REF: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}"
         run: |
-          cosign sign --yes \
-            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}"
+          # GHCR requires lowercase image names; github.repository preserves the
+          # original casing (e.g. gautamkrishnar/TabPilot) which cosign rejects.
+          cosign sign --yes "${IMAGE_REF,,}"
 
       # ── Job summary ──────────────────────────────────────────────────────────
       - name: Summary

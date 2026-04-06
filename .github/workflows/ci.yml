@@ -77,10 +77,18 @@ jobs:
         run: yarn workspace @tabpilot/shared build
 
       - name: Type-check API
-        run: yarn workspace @tabpilot/api tsc --noEmit
+        id: typecheck_api
+        continue-on-error: true
+        run: yarn workspace @tabpilot/api typecheck
 
       - name: Type-check Web
-        run: yarn workspace @tabpilot/web tsc --noEmit
+        id: typecheck_web
+        continue-on-error: true
+        run: yarn workspace @tabpilot/web typecheck
+
+      - name: Fail if any typecheck failed
+        if: steps.typecheck_api.outcome == 'failure' || steps.typecheck_web.outcome == 'failure'
+        run: exit 1
 
   # ── Unit tests ────────────────────────────────────────────────────────────
   test:
@@ -134,15 +142,23 @@ jobs:
         run: yarn workspace @tabpilot/shared build
 
       - name: API tests
+        id: test_api
+        continue-on-error: true
         run: yarn test:api:cov
         env:
           MONGODB_URI: mongodb://localhost:27017/tabpilot_test
           NODE_ENV: test
 
       - name: Web tests
+        id: test_web
+        continue-on-error: true
         run: yarn test:web:cov
         env:
           NODE_ENV: test
+
+      - name: Fail if any tests failed
+        if: steps.test_api.outcome == 'failure' || steps.test_web.outcome == 'failure'
+        run: exit 1
 
       - name: Upload coverage reports
         uses: actions/upload-artifact@v4
