@@ -157,6 +157,11 @@ export interface WsErrorPayload {
   code: string;
 }
 
+export interface HostGroomingCompletePayload {
+  sessionId: string;
+  hostKey: string;
+}
+
 // ─── Event name constants ─────────────────────────────────────────────────────
 
 export const WS_EVENTS = {
@@ -176,6 +181,8 @@ export const WS_EVENTS = {
   LEAVE_SESSION: 'leave_session',
   UPDATE_PARTICIPANT_PROFILE: 'update_participant_profile',
   UPDATE_HOST_PROFILE: 'update_host_profile',
+
+  GROOMING_COMPLETE: 'grooming_complete',
 
   // Server → Client
   SESSION_STATE: 'session_state',

@@ -22,9 +22,16 @@ interface UseSocketOptions {
   participantId?: string | null;
   hostKey?: string | null;
   onNavigate?: (url: string, index: number) => void;
+  onGroomingComplete?: () => void;
 }
 
-export function useSocket({ sessionId, participantId, hostKey, onNavigate }: UseSocketOptions) {
+export function useSocket({
+  sessionId,
+  participantId,
+  hostKey,
+  onNavigate,
+  onGroomingComplete,
+}: UseSocketOptions) {
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   // Keyed by sessionId so navigating between sessions re-joins correctly,
@@ -35,6 +42,11 @@ export function useSocket({ sessionId, participantId, hostKey, onNavigate }: Use
   useEffect(() => {
     onNavigateRef.current = onNavigate;
   }, [onNavigate]);
+
+  const onGroomingCompleteRef = useRef(onGroomingComplete);
+  useEffect(() => {
+    onGroomingCompleteRef.current = onGroomingComplete;
+  }, [onGroomingComplete]);
 
   const navigate = useNavigate();
 
@@ -155,6 +167,10 @@ export function useSocket({ sessionId, participantId, hostKey, onNavigate }: Use
       navigate('/', { replace: true });
     };
 
+    const handleGroomingComplete = () => {
+      onGroomingCompleteRef.current?.();
+    };
+
     const handleError = (payload: WsErrorPayload) => {
       toast.error(payload.message || 'Something went wrong', {
         duration: 5000,
@@ -174,6 +190,7 @@ export function useSocket({ sessionId, participantId, hostKey, onNavigate }: Use
     socket.on(WS_EVENTS.VOTE_UPDATE, handleVoteUpdate);
     socket.on(WS_EVENTS.VOTES_REVEALED, handleVotesRevealed);
     socket.on(WS_EVENTS.SESSION_ENDED, handleSessionEnded);
+    socket.on(WS_EVENTS.GROOMING_COMPLETE, handleGroomingComplete);
     socket.on(WS_EVENTS.ERROR, handleError);
 
     if (socket.connected) {
@@ -193,6 +210,7 @@ export function useSocket({ sessionId, participantId, hostKey, onNavigate }: Use
       socket.off(WS_EVENTS.VOTE_UPDATE, handleVoteUpdate);
       socket.off(WS_EVENTS.VOTES_REVEALED, handleVotesRevealed);
       socket.off(WS_EVENTS.SESSION_ENDED, handleSessionEnded);
+      socket.off(WS_EVENTS.GROOMING_COMPLETE, handleGroomingComplete);
       socket.off(WS_EVENTS.KICKED, handleKicked);
       socket.off(WS_EVENTS.ERROR, handleError);
       // Do NOT reset joinedSessionRef here — StrictMode's intermediate cleanup

@@ -136,7 +136,11 @@ export function HostDashboard() {
       origin: { y: 0.7 },
       colors: ['#6366f1', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b'],
     });
-  }, []);
+    if (sessionId && hostKey) {
+      const socket = getSocket();
+      socket.emit(WS_EVENTS.GROOMING_COMPLETE, { sessionId, hostKey });
+    }
+  }, [sessionId, hostKey]);
 
   const handleJumpTo = useCallback(
     (index: number) => {

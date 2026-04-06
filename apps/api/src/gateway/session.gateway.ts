@@ -10,6 +10,7 @@ import {
 import {
   type HostAddUrlPayload,
   type HostEndSessionPayload,
+  type HostGroomingCompletePayload,
   type HostKickParticipantPayload,
   type HostNavigatePayload,
   type HostOpenUrlPayload,
@@ -442,6 +443,26 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
     this.revealed.delete(sessionId);
     this.savedVotes.delete(sessionId);
     this.server.to(sessionId).emit(WS_EVENTS.SESSION_ENDED, {});
+  }
+
+  @SubscribeMessage(WS_EVENTS.GROOMING_COMPLETE)
+  async handleGroomingComplete(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: HostGroomingCompletePayload,
+  ) {
+    const { sessionId, hostKey } = payload;
+
+    const isValid = await this.sessionsService.validateHostKey(sessionId, hostKey);
+    if (!isValid) {
+      client.emit(WS_EVENTS.ERROR, {
+        message: 'Invalid host key',
+        code: 'INVALID_HOST_KEY',
+      } satisfies WsErrorPayload);
+      return;
+    }
+
+    // Broadcast to all participants except the host who triggered it
+    client.to(sessionId).emit(WS_EVENTS.GROOMING_COMPLETE, {});
   }
 
   @SubscribeMessage(WS_EVENTS.HOST_ADD_URL)

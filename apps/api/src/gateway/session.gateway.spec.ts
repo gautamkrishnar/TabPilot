@@ -1590,4 +1590,52 @@ describe('SessionGateway', () => {
       );
     });
   });
+
+  // -------------------------------------------------------------------------
+  // handleGroomingComplete()
+  // -------------------------------------------------------------------------
+  describe('handleGroomingComplete()', () => {
+    it('should emit error when host key is invalid', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(false);
+
+      await gateway.handleGroomingComplete(client, {
+        sessionId: 'session-1',
+        hostKey: 'wrong-key',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'INVALID_HOST_KEY' }),
+      );
+    });
+
+    it('should broadcast GROOMING_COMPLETE to the room excluding the sender', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+
+      await gateway.handleGroomingComplete(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid-key',
+      });
+
+      expect(client.to).toHaveBeenCalledWith('session-1');
+      expect(client.emit).toHaveBeenCalledWith(WS_EVENTS.GROOMING_COMPLETE, {});
+    });
+
+    it('should not use the global server broadcast (only room minus sender)', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+
+      await gateway.handleGroomingComplete(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid-key',
+      });
+
+      expect(mockServer.emit).not.toHaveBeenCalledWith(
+        WS_EVENTS.GROOMING_COMPLETE,
+        expect.anything(),
+      );
+    });
+  });
 });

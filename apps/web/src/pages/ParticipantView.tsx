@@ -1,6 +1,7 @@
 import { WS_EVENTS } from '@tabpilot/shared';
+import confetti from 'canvas-confetti';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ExternalLink, Users, Wifi, WifiOff } from 'lucide-react';
+import { CheckCircle, ExternalLink, Users, Wifi, WifiOff } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -44,6 +45,7 @@ export function ParticipantView() {
   const navigate = useNavigate();
   const [showParticipants, setShowParticipants] = useState(false);
   const [selectedVote, setSelectedVote] = useState<string | null>(null);
+  const [groomingComplete, setGroomingComplete] = useState(false);
   const votedRef = useRef(false);
 
   const {
@@ -85,10 +87,22 @@ export function ParticipantView() {
     [tabSyncEnabled, navigateTo],
   );
 
+  const handleGroomingComplete = useCallback(() => {
+    setGroomingComplete(true);
+    confetti({
+      particleCount: 160,
+      spread: 80,
+      origin: { y: 0.7 },
+      colors: ['#6366f1', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b'],
+    });
+    toast.success('All tickets groomed!', { icon: '🎉', duration: 5000 });
+  }, []);
+
   const { isConnected } = useSocket({
     sessionId,
     participantId,
     onNavigate: handleNavigate,
+    onGroomingComplete: handleGroomingComplete,
   });
 
   // Navigate to current URL on mount if session is active and sync enabled
@@ -387,6 +401,21 @@ export function ParticipantView() {
                   </div>
                 )}
               </div>
+            )}
+
+            {/* Grooming complete banner */}
+            {groomingComplete && session.state === 'active' && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30"
+              >
+                <CheckCircle className="h-5 w-5 text-emerald-400 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-emerald-400">All tickets groomed!</p>
+                  <p className="text-xs text-zinc-500">The host has completed grooming.</p>
+                </div>
+              </motion.div>
             )}
 
             {/* Session ended */}

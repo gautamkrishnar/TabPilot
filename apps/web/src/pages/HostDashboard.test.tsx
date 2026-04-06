@@ -268,3 +268,57 @@ describe('HostDashboard — session state overlays', () => {
     expect(screen.getByText(/groomed 1 ticket\./i)).toBeInTheDocument();
   });
 });
+
+describe('HostDashboard — grooming complete', () => {
+  beforeEach(() => {
+    useSessionStore.setState(useSessionStore.getInitialState?.() ?? {});
+    mockEmit.mockClear();
+    // Seed with a two-URL session positioned on the last ticket
+    const store = useSessionStore.getState();
+    store.setSession(
+      makeSession({
+        urls: ['https://example.com/1', 'https://example.com/2'],
+        currentIndex: 1,
+      }),
+    );
+    store.setIsHost(true);
+    store.setHostKey('host-key-123');
+    store.saveHostKey('session-1', 'host-key-123');
+  });
+
+  it('emits GROOMING_COMPLETE when Complete is clicked on the last ticket', async () => {
+    render(<HostDashboard />);
+
+    await userEvent.click(screen.getByRole('button', { name: /complete/i }));
+
+    await waitFor(() => {
+      expect(mockEmit).toHaveBeenCalledWith(WS_EVENTS.GROOMING_COMPLETE, {
+        sessionId: 'session-1',
+        hostKey: 'host-key-123',
+      });
+    });
+  });
+
+  it('fires confetti when Complete is clicked', async () => {
+    const confettiMock = vi.mocked((await import('canvas-confetti')).default);
+    confettiMock.mockClear();
+
+    render(<HostDashboard />);
+
+    await userEvent.click(screen.getByRole('button', { name: /complete/i }));
+
+    await waitFor(() => {
+      expect(confettiMock).toHaveBeenCalled();
+    });
+  });
+
+  it('shows Completed badge after Complete is clicked', async () => {
+    render(<HostDashboard />);
+
+    await userEvent.click(screen.getByRole('button', { name: /complete/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('All tickets groomed!')).toBeInTheDocument();
+    });
+  });
+});
