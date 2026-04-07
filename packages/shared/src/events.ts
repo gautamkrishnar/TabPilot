@@ -126,6 +126,14 @@ export interface NavigateToPayload {
   total: number;
   /** Average vote per URL index — updated after each navigation */
   savedVotes?: Record<number, string>;
+  /**
+   * Present only on initial join / page reload — restores who has voted this round.
+   * When absent the client treats this as a real navigation and clears voting state.
+   */
+  hasVoted?: string[];
+  /** Present when the host had already revealed votes before the client reconnected. */
+  revealedVotes?: Record<string, string>;
+  revealedAverage?: string;
 }
 
 export interface OpenTabPayload {
@@ -162,6 +170,28 @@ export interface HostGroomingCompletePayload {
   hostKey: string;
 }
 
+export interface HostResetVotesPayload {
+  sessionId: string;
+  hostKey: string;
+}
+
+export interface HostSetSavedVotePayload {
+  sessionId: string;
+  hostKey: string;
+  urlIndex: number;
+  value: string;
+}
+
+export interface HostResetSavedVotePayload {
+  sessionId: string;
+  hostKey: string;
+  urlIndex: number;
+}
+
+export interface SavedVotesUpdatedPayload {
+  savedVotes: Record<number, string>;
+}
+
 // ─── Event name constants ─────────────────────────────────────────────────────
 
 export const WS_EVENTS = {
@@ -183,6 +213,9 @@ export const WS_EVENTS = {
   UPDATE_HOST_PROFILE: 'update_host_profile',
 
   GROOMING_COMPLETE: 'grooming_complete',
+  HOST_SET_SAVED_VOTE: 'host_set_saved_vote',
+  HOST_RESET_SAVED_VOTE: 'host_reset_saved_vote',
+  HOST_RESET_VOTES: 'host_reset_votes',
 
   // Server → Client
   SESSION_STATE: 'session_state',
@@ -197,5 +230,6 @@ export const WS_EVENTS = {
   KICKED: 'kicked',
   VOTE_UPDATE: 'vote_update',
   VOTES_REVEALED: 'votes_revealed',
+  SAVED_VOTES_UPDATED: 'saved_votes_updated',
   ERROR: 'error',
 } as const;

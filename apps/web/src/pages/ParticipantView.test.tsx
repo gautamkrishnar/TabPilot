@@ -1,5 +1,6 @@
 import type { Session } from '@tabpilot/shared';
 import { act, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useSessionStore } from '@/store/sessionStore';
 import { ParticipantView } from './ParticipantView';
@@ -94,6 +95,102 @@ function seedParticipantState() {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+const mockEmit = vi.fn();
+vi.mock('@/lib/socket', () => ({ getSocket: () => ({ emit: mockEmit }) }));
+
+describe('ParticipantView — voting UI', () => {
+  beforeEach(() => {
+    useSessionStore.getState().reset();
+    localStorage.clear();
+    mockEmit.mockClear();
+    const store = useSessionStore.getState();
+    store.setSession({
+      ...makeSession({ votingEnabled: true }),
+    });
+    store.setParticipantId('p-1');
+    localStorage.setItem('tabpilot_participant_session-1', 'p-1');
+  });
+
+  it('shows vote buttons when voting is enabled and votes are not revealed', () => {
+    render(<ParticipantView />);
+    expect(screen.getByRole('button', { name: '5' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '8' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '?' })).toBeInTheDocument();
+  });
+
+  it('does not show vote buttons when voting is disabled', () => {
+    useSessionStore.getState().setSession(makeSession({ votingEnabled: false }));
+    render(<ParticipantView />);
+    expect(screen.queryByRole('button', { name: '5' })).not.toBeInTheDocument();
+  });
+
+  it('emits SUBMIT_VOTE with the selected value when a vote button is clicked', async () => {
+    render(<ParticipantView />);
+    await userEvent.click(screen.getByRole('button', { name: '5' }));
+    expect(mockEmit).toHaveBeenCalledWith(
+      'submit_vote',
+      expect.objectContaining({ sessionId: 'session-1', participantId: 'p-1', value: '5' }),
+    );
+  });
+
+  it('shows "You voted" badge after voting', async () => {
+    render(<ParticipantView />);
+    await userEvent.click(screen.getByRole('button', { name: '8' }));
+    expect(screen.getByText(/you voted: 8/i)).toBeInTheDocument();
+  });
+
+  it('hides vote buttons and shows revealed results when votes are revealed', () => {
+    useSessionStore.getState().setRevealedVotes({ 'p-1': '5', 'p-2': '8' });
+    render(<ParticipantView />);
+    expect(screen.queryByRole('button', { name: '5' })).not.toBeInTheDocument();
+    expect(screen.getByText('Results')).toBeInTheDocument();
+  });
+
+  it('shows "Already voted" badge when navigating back to a ticket already voted on', () => {
+    useSessionStore.getState().setVotedParticipantIds(['p-1']);
+    render(<ParticipantView />);
+    expect(screen.getByText('Already voted')).toBeInTheDocument();
+  });
+});
+
+describe('ParticipantView — revealed votes display', () => {
+  beforeEach(() => {
+    useSessionStore.getState().reset();
+    localStorage.clear();
+    const store = useSessionStore.getState();
+    store.setSession(makeSession({ votingEnabled: true }));
+    store.setParticipantId('p-1');
+    localStorage.setItem('tabpilot_participant_session-1', 'p-1');
+  });
+
+  it('shows the results section with participant votes', () => {
+    useSessionStore.getState().setRevealedVotes({ 'p-1': '5', 'p-2': '8' });
+    render(<ParticipantView />);
+    expect(screen.getByText('Results')).toBeInTheDocument();
+  });
+
+  it('shows the computed average when numeric votes exist', () => {
+    useSessionStore.getState().setRevealedVotes({ 'p-1': '4', 'p-2': '8' });
+    render(<ParticipantView />);
+    // average of 4 and 8 is 6
+    expect(screen.getByText(/avg.*6/i)).toBeInTheDocument();
+  });
+
+  it('shows the session state header with current URL info', () => {
+    render(<ParticipantView />);
+    expect(screen.getByText('Test Ticket Title')).toBeInTheDocument();
+  });
+
+  it('shows the current ticket position when session is active', () => {
+    useSessionStore
+      .getState()
+      .setSession(makeSession({ urls: ['https://a.com', 'https://b.com'], currentIndex: 0 }));
+    render(<ParticipantView />);
+    // ParticipantView shows "Current ticket — 1 / 2"
+    expect(screen.getByText(/current ticket/i)).toBeInTheDocument();
+  });
+});
 
 describe('ParticipantView — grooming complete', () => {
   beforeEach(() => {

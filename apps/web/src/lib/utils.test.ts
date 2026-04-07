@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   cn,
+  copyToClipboard,
   formatTimeAgo,
   formatUrl,
   getDiceBearUrl,
@@ -185,5 +186,26 @@ describe('formatTimeAgo()', () => {
   it('returns days ago', () => {
     const date = new Date('2026-03-29T12:00:00Z').toISOString();
     expect(formatTimeAgo(date)).toBe('3d ago');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// copyToClipboard()
+// ---------------------------------------------------------------------------
+describe('copyToClipboard()', () => {
+  it('uses navigator.clipboard.writeText when available', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    await copyToClipboard('hello');
+    expect(writeText).toHaveBeenCalledWith('hello');
+  });
+
+  it('resolves without throwing when clipboard API is unavailable', async () => {
+    Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+    // happy-dom doesn't implement execCommand — just verify no unhandled error
+    await expect(copyToClipboard('fallback text')).resolves.toBeUndefined();
   });
 });

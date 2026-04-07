@@ -28,6 +28,9 @@ function makeSessionDoc(
     state: 'waiting' as const,
     votingEnabled: false,
     isLocked: false,
+    votes: [],
+    revealedIndices: [],
+    storyPoints: new Map(),
     expiresAt: new Date(Date.now() + 86_400_000),
     ...overrides,
   };
@@ -114,6 +117,11 @@ function makeMockSessionsService(): jest.Mocked<SessionsService> {
     removeUrl: jest.fn(),
     reorderUrls: jest.fn(),
     updateHostProfile: jest.fn(),
+    setTicketVote: jest.fn().mockResolvedValue(undefined),
+    clearTicketVotes: jest.fn().mockResolvedValue(undefined),
+    setTicketRevealed: jest.fn().mockResolvedValue(undefined),
+    setStoryPoint: jest.fn().mockResolvedValue(undefined),
+    clearStoryPoint: jest.fn().mockResolvedValue(undefined),
   } as unknown as jest.Mocked<SessionsService>;
 }
 
@@ -1081,7 +1089,8 @@ describe('SessionGateway', () => {
   describe('handleRevealVotes()', () => {
     it('should emit error if host key is invalid', async () => {
       const client = makeMockSocket();
-      sessionsService.validateHostKey.mockResolvedValue(false);
+      sessionsService.findById.mockResolvedValue(makeSessionDoc({ hostKeyHash: 'bad-hash' }));
+      sessionsService.validateHostKeyForDoc.mockReturnValue(false);
 
       await gateway.handleRevealVotes(client, {
         sessionId: 'session-1',
@@ -1096,7 +1105,8 @@ describe('SessionGateway', () => {
 
     it('should emit NO_VOTES error if there are no votes to reveal', async () => {
       const client = makeMockSocket();
-      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.findById.mockResolvedValue(makeSessionDoc({ currentIndex: 0 }));
+      sessionsService.validateHostKeyForDoc.mockReturnValue(true);
 
       await gateway.handleRevealVotes(client, {
         sessionId: 'session-1',
@@ -1278,10 +1288,17 @@ describe('SessionGateway', () => {
         direction: 'next',
       });
 
-      expect(mockServer.emit).toHaveBeenCalledWith(WS_EVENTS.VOTE_UPDATE, { hasVoted: [] });
+      // Votes persist across navigation — NAVIGATE_TO carries the new ticket's state
+      const emitCalls = (mockServer.emit as jest.Mock).mock.calls;
+      const navCall = emitCalls.find(([event]: [string]) => event === WS_EVENTS.NAVIGATE_TO);
+      expect(navCall).toBeDefined();
+      // New ticket (index 1) has no votes yet
+      expect(navCall[1].hasVoted).toEqual([]);
+      // Old ticket (index 0) vote is preserved — no VOTE_UPDATE wipe broadcast
+      expect(mockServer.emit).not.toHaveBeenCalledWith(WS_EVENTS.VOTE_UPDATE, { hasVoted: [] });
     });
 
-    it('should save average vote in savedVotes before clearing', async () => {
+    it('should save average vote in savedVotes before navigating', async () => {
       const client1 = makeMockSocket('socket-1');
       const client2 = makeMockSocket('socket-2');
       (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta.set('socket-1', {
@@ -1636,6 +1653,178 @@ describe('SessionGateway', () => {
         WS_EVENTS.GROOMING_COMPLETE,
         expect.anything(),
       );
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // handleSetSavedVote()
+  // -------------------------------------------------------------------------
+  describe('handleSetSavedVote()', () => {
+    it('should emit INVALID_HOST_KEY error if host key is invalid', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(false);
+
+      await gateway.handleSetSavedVote(client, {
+        sessionId: 'session-1',
+        hostKey: 'bad',
+        urlIndex: 0,
+        value: '5',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'INVALID_HOST_KEY' }),
+      );
+      expect(mockServer.emit).not.toHaveBeenCalledWith(
+        WS_EVENTS.SAVED_VOTES_UPDATED,
+        expect.anything(),
+      );
+    });
+
+    it('should set a story point and broadcast SAVED_VOTES_UPDATED to the room', async () => {
+      const client = makeMockSocket();
+      sessionsService.findById.mockResolvedValue(makeSessionDoc());
+      sessionsService.validateHostKeyForDoc.mockReturnValue(true);
+
+      await gateway.handleSetSavedVote(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        urlIndex: 2,
+        value: '8',
+      });
+
+      expect(mockServer.to).toHaveBeenCalledWith('session-1');
+      expect(mockServer.emit).toHaveBeenCalledWith(WS_EVENTS.SAVED_VOTES_UPDATED, {
+        savedVotes: { 2: '8' },
+      });
+    });
+
+    it('should override an existing saved vote', async () => {
+      const client = makeMockSocket();
+      sessionsService.findById.mockResolvedValue(makeSessionDoc());
+      sessionsService.validateHostKeyForDoc.mockReturnValue(true);
+
+      await gateway.handleSetSavedVote(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        urlIndex: 0,
+        value: '5',
+      });
+      (mockServer.emit as jest.Mock).mockClear();
+
+      await gateway.handleSetSavedVote(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        urlIndex: 0,
+        value: '13',
+      });
+
+      expect(mockServer.emit).toHaveBeenCalledWith(WS_EVENTS.SAVED_VOTES_UPDATED, {
+        savedVotes: { 0: '13' },
+      });
+    });
+
+    it('should prevent navigate from overwriting a manually set story point', async () => {
+      const client = makeMockSocket();
+      (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta.set('socket-1', {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        isHost: false,
+      });
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      const activeDoc = makeSessionDoc({ votingEnabled: true, state: 'active', currentIndex: 0 });
+      sessionsService.findById.mockResolvedValue(activeDoc);
+      sessionsService.updateCurrentIndex.mockResolvedValue(makeSessionDoc({ currentIndex: 1 }));
+
+      // Manually set story point for index 0
+      await gateway.handleSetSavedVote(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        urlIndex: 0,
+        value: '13',
+      });
+
+      // Seed a vote (average would be 5)
+      await gateway.handleSubmitVote(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        value: '5',
+      });
+      (mockServer.emit as jest.Mock).mockClear();
+
+      // Navigate away — should NOT overwrite the manually set 13
+      await gateway.handleNavigate(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        direction: 'next',
+      });
+
+      const emitCalls = (mockServer.emit as jest.Mock).mock.calls;
+      const navCall = emitCalls.find(([event]: [string]) => event === WS_EVENTS.NAVIGATE_TO);
+      expect(navCall[1].savedVotes).toEqual({ 0: '13' });
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // handleResetSavedVote()
+  // -------------------------------------------------------------------------
+  describe('handleResetSavedVote()', () => {
+    it('should emit INVALID_HOST_KEY error if host key is invalid', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(false);
+
+      await gateway.handleResetSavedVote(client, {
+        sessionId: 'session-1',
+        hostKey: 'bad',
+        urlIndex: 0,
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'INVALID_HOST_KEY' }),
+      );
+    });
+
+    it('should remove a saved vote and broadcast SAVED_VOTES_UPDATED', async () => {
+      const client = makeMockSocket();
+      sessionsService.findById.mockResolvedValue(makeSessionDoc());
+      sessionsService.validateHostKeyForDoc.mockReturnValue(true);
+
+      // Set a vote first
+      await gateway.handleSetSavedVote(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        urlIndex: 1,
+        value: '5',
+      });
+      (mockServer.emit as jest.Mock).mockClear();
+
+      await gateway.handleResetSavedVote(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        urlIndex: 1,
+      });
+
+      expect(mockServer.to).toHaveBeenCalledWith('session-1');
+      expect(mockServer.emit).toHaveBeenCalledWith(WS_EVENTS.SAVED_VOTES_UPDATED, {
+        savedVotes: {},
+      });
+    });
+
+    it('should be a no-op (no error) when resetting an index with no saved vote', async () => {
+      const client = makeMockSocket();
+      sessionsService.findById.mockResolvedValue(makeSessionDoc());
+      sessionsService.validateHostKeyForDoc.mockReturnValue(true);
+
+      await gateway.handleResetSavedVote(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        urlIndex: 99,
+      });
+
+      expect(mockServer.emit).toHaveBeenCalledWith(WS_EVENTS.SAVED_VOTES_UPDATED, {
+        savedVotes: {},
+      });
     });
   });
 });

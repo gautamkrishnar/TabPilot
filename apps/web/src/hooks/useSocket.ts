@@ -4,6 +4,7 @@ import type {
   ParticipantLeftPayload,
   ParticipantOnlinePayload,
   ParticipantUpdatedPayload,
+  SavedVotesUpdatedPayload,
   SessionStatePayload,
   VotesRevealedPayload,
   VoteUpdatePayload,
@@ -60,7 +61,6 @@ export function useSocket({
     setVotedParticipantIds,
     setRevealedVotes,
     setSavedVotesMap,
-    clearVotingRound,
     reset,
   } = useSessionStore();
 
@@ -132,6 +132,10 @@ export function useSocket({
 
     const handleVoteUpdate = (payload: VoteUpdatePayload) => {
       setVotedParticipantIds(payload.hasVoted);
+      // If the host reset votes, the list will be empty — also clear revealed state
+      if (payload.hasVoted.length === 0) {
+        setRevealedVotes(null);
+      }
     };
 
     const handleVotesRevealed = (payload: VotesRevealedPayload) => {
@@ -144,9 +148,13 @@ export function useSocket({
       if (currentSession) {
         setSession({ ...currentSession, currentIndex: payload.index });
       }
-      // Clear voting state for the new ticket
-      clearVotingRound();
       if (payload.savedVotes) setSavedVotesMap(payload.savedVotes);
+
+      // Votes persist per ticket index — always restore from payload.
+      // hasVoted is always present (empty = no votes yet for this ticket).
+      setVotedParticipantIds(payload.hasVoted ?? []);
+      setRevealedVotes(payload.revealedVotes ?? null);
+
       if (onNavigateRef.current) {
         onNavigateRef.current(payload.url, payload.index);
       }
@@ -171,6 +179,10 @@ export function useSocket({
       onGroomingCompleteRef.current?.();
     };
 
+    const handleSavedVotesUpdated = (payload: SavedVotesUpdatedPayload) => {
+      setSavedVotesMap(payload.savedVotes);
+    };
+
     const handleError = (payload: WsErrorPayload) => {
       toast.error(payload.message || 'Something went wrong', {
         duration: 5000,
@@ -189,6 +201,7 @@ export function useSocket({
     socket.on(WS_EVENTS.NAVIGATE_TO, handleNavigateTo);
     socket.on(WS_EVENTS.VOTE_UPDATE, handleVoteUpdate);
     socket.on(WS_EVENTS.VOTES_REVEALED, handleVotesRevealed);
+    socket.on(WS_EVENTS.SAVED_VOTES_UPDATED, handleSavedVotesUpdated);
     socket.on(WS_EVENTS.SESSION_ENDED, handleSessionEnded);
     socket.on(WS_EVENTS.GROOMING_COMPLETE, handleGroomingComplete);
     socket.on(WS_EVENTS.ERROR, handleError);
@@ -209,6 +222,7 @@ export function useSocket({
       socket.off(WS_EVENTS.NAVIGATE_TO, handleNavigateTo);
       socket.off(WS_EVENTS.VOTE_UPDATE, handleVoteUpdate);
       socket.off(WS_EVENTS.VOTES_REVEALED, handleVotesRevealed);
+      socket.off(WS_EVENTS.SAVED_VOTES_UPDATED, handleSavedVotesUpdated);
       socket.off(WS_EVENTS.SESSION_ENDED, handleSessionEnded);
       socket.off(WS_EVENTS.GROOMING_COMPLETE, handleGroomingComplete);
       socket.off(WS_EVENTS.KICKED, handleKicked);
@@ -229,7 +243,6 @@ export function useSocket({
     setVotedParticipantIds,
     setRevealedVotes,
     setSavedVotesMap,
-    clearVotingRound,
     reset,
     navigate,
   ]);

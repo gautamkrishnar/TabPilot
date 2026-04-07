@@ -437,4 +437,106 @@ describe('SessionsService', () => {
       expect(result).toBeNull();
     });
   });
+
+  // ── Vote persistence ────────────────────────────────────────────────────────
+
+  describe('setTicketVote()', () => {
+    it('stores a vote for a given url index and participant', async () => {
+      const { session } = await service.create(defaultDto);
+      await service.setTicketVote(session.id, 0, 'p-1', '5');
+      const doc = await service.findById(session.id);
+      expect(doc?.votes).toContainEqual(
+        expect.objectContaining({ urlIndex: 0, participantId: 'p-1', value: '5' }),
+      );
+    });
+
+    it('updates an existing vote for the same participant and index', async () => {
+      const { session } = await service.create(defaultDto);
+      await service.setTicketVote(session.id, 0, 'p-1', '5');
+      await service.setTicketVote(session.id, 0, 'p-1', '8');
+      const doc = await service.findById(session.id);
+      const vote = doc?.votes.find((v) => v.participantId === 'p-1' && v.urlIndex === 0);
+      expect(vote?.value).toBe('8');
+      expect(doc?.votes.filter((v) => v.participantId === 'p-1' && v.urlIndex === 0)).toHaveLength(
+        1,
+      );
+    });
+
+    it('stores votes for different participants independently', async () => {
+      const { session } = await service.create(defaultDto);
+      await service.setTicketVote(session.id, 0, 'p-1', '3');
+      await service.setTicketVote(session.id, 0, 'p-2', '8');
+      const doc = await service.findById(session.id);
+      expect(doc?.votes).toHaveLength(2);
+    });
+  });
+
+  describe('clearTicketVotes()', () => {
+    it('removes all votes for a specific url index', async () => {
+      const { session } = await service.create(defaultDto);
+      await service.setTicketVote(session.id, 0, 'p-1', '5');
+      await service.setTicketVote(session.id, 1, 'p-1', '8');
+      await service.clearTicketVotes(session.id, 0);
+      const doc = await service.findById(session.id);
+      expect(doc?.votes.filter((v) => v.urlIndex === 0)).toHaveLength(0);
+      expect(doc?.votes.filter((v) => v.urlIndex === 1)).toHaveLength(1);
+    });
+  });
+
+  describe('setTicketRevealed()', () => {
+    it('adds a url index to revealedIndices', async () => {
+      const { session } = await service.create(defaultDto);
+      await service.setTicketRevealed(session.id, 0, true);
+      const doc = await service.findById(session.id);
+      expect(doc?.revealedIndices).toContain(0);
+    });
+
+    it('removes a url index from revealedIndices when revealed=false', async () => {
+      const { session } = await service.create(defaultDto);
+      await service.setTicketRevealed(session.id, 0, true);
+      await service.setTicketRevealed(session.id, 0, false);
+      const doc = await service.findById(session.id);
+      expect(doc?.revealedIndices).not.toContain(0);
+    });
+
+    it('does not duplicate an index when added twice', async () => {
+      const { session } = await service.create(defaultDto);
+      await service.setTicketRevealed(session.id, 0, true);
+      await service.setTicketRevealed(session.id, 0, true);
+      const doc = await service.findById(session.id);
+      expect(doc?.revealedIndices.filter((i) => i === 0)).toHaveLength(1);
+    });
+  });
+
+  describe('setStoryPoint()', () => {
+    it('stores a story point by url key', async () => {
+      const { session } = await service.create(defaultDto);
+      await service.setStoryPoint(session.id, 'abc123', '5');
+      const doc = await service.findById(session.id);
+      expect(doc?.storyPoints.get('abc123')).toBe('5');
+    });
+
+    it('overwrites an existing story point for the same key', async () => {
+      const { session } = await service.create(defaultDto);
+      await service.setStoryPoint(session.id, 'abc123', '5');
+      await service.setStoryPoint(session.id, 'abc123', '13');
+      const doc = await service.findById(session.id);
+      expect(doc?.storyPoints.get('abc123')).toBe('13');
+    });
+  });
+
+  describe('clearStoryPoint()', () => {
+    it('removes a story point by url key', async () => {
+      const { session } = await service.create(defaultDto);
+      await service.setStoryPoint(session.id, 'abc123', '5');
+      await service.clearStoryPoint(session.id, 'abc123');
+      const doc = await service.findById(session.id);
+      expect(doc?.storyPoints.has('abc123')).toBe(false);
+    });
+
+    it('is a no-op for a key that does not exist', async () => {
+      const { session } = await service.create(defaultDto);
+      await expect(service.clearStoryPoint(session.id, 'nonexistent')).resolves.not.toThrow();
+    });
+  });
 });

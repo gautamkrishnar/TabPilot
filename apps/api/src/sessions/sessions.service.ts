@@ -239,4 +239,59 @@ export class SessionsService {
 
     return this.sessionModel.findOneAndUpdate({ sessionId }, { urls }, { new: true }).exec();
   }
+
+  // ── Per-ticket vote persistence ───────────────────────────────────────────
+
+  /** Upsert a participant's vote for a specific URL index. */
+  async setTicketVote(
+    sessionId: string,
+    urlIndex: number,
+    participantId: string,
+    value: string,
+  ): Promise<void> {
+    // Pull any existing vote for this participant+index, then push the new one
+    await this.sessionModel
+      .findOneAndUpdate({ sessionId }, { $pull: { votes: { urlIndex, participantId } } })
+      .exec();
+    await this.sessionModel
+      .findOneAndUpdate(
+        { sessionId },
+        { $push: { votes: { urlIndex, participantId, value } } },
+        { new: true },
+      )
+      .exec();
+  }
+
+  /** Clear all votes for a specific URL index (host reset). */
+  async clearTicketVotes(sessionId: string, urlIndex: number): Promise<void> {
+    await this.sessionModel
+      .findOneAndUpdate({ sessionId }, { $pull: { votes: { urlIndex } } })
+      .exec();
+  }
+
+  /** Persist a story point value keyed by the URL's SHA-256 hash. */
+  async setStoryPoint(sessionId: string, urlKey: string, value: string): Promise<void> {
+    await this.sessionModel
+      .findOneAndUpdate(
+        { sessionId },
+        { $set: { [`storyPoints.${urlKey}`]: value } },
+        { new: true },
+      )
+      .exec();
+  }
+
+  /** Clear the story point keyed by the URL's SHA-256 hash. */
+  async clearStoryPoint(sessionId: string, urlKey: string): Promise<void> {
+    await this.sessionModel
+      .findOneAndUpdate({ sessionId }, { $unset: { [`storyPoints.${urlKey}`]: '' } })
+      .exec();
+  }
+
+  /** Mark or unmark a URL index as revealed. */
+  async setTicketRevealed(sessionId: string, urlIndex: number, revealed: boolean): Promise<void> {
+    const op = revealed
+      ? { $addToSet: { revealedIndices: urlIndex } }
+      : { $pull: { revealedIndices: urlIndex } };
+    await this.sessionModel.findOneAndUpdate({ sessionId }, op).exec();
+  }
 }

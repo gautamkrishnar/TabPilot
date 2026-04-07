@@ -10,12 +10,39 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { motion } from 'framer-motion';
-import { Check, ExternalLink, GripVertical, Loader2, Lock, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import {
+  Check,
+  ExternalLink,
+  GripVertical,
+  Loader2,
+  Lock,
+  Pencil,
+  Send,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import * as Yup from 'yup';
 import { useJiraIssue } from '@/hooks/useJiraIssue';
 import { useUrlTitle } from '@/hooks/useUrlTitle';
-import { formatJiraTitle, parseJiraUrl } from '@/lib/jira';
+import { formatJiraTitle, isStoryPointConfigured, parseJiraUrl } from '@/lib/jira';
 import { cn, formatUrl, getFaviconUrl, truncateUrl } from '@/lib/utils';
+
+// ─── Story point validation ───────────────────────────────────────────────────
+
+const storyPointSchema = Yup.number()
+  .typeError('Must be a positive number')
+  .positive('Must be a positive number')
+  .required('Required');
+
+function validateStoryPoint(value: string): string {
+  try {
+    storyPointSchema.validateSync(value === '' ? undefined : Number(value));
+    return '';
+  } catch (e) {
+    return e instanceof Yup.ValidationError ? e.message : 'Invalid';
+  }
+}
 
 // ─── Title enrichment ─────────────────────────────────────────────────────────
 
@@ -75,6 +102,11 @@ interface RowProps {
   readonly onDelete?: (index: number) => void;
   readonly isDragOverlay?: boolean;
   readonly savedVote?: string;
+  readonly onSetVote?: (index: number, value: string) => void;
+  readonly onResetVote?: (index: number) => void;
+  readonly onCopyToJira?: (index: number) => void;
+  /** Project keys that have story-points configured — used to gate the Jira send button */
+  readonly storyPointProjects?: string[];
 }
 
 function UrlRow({
@@ -87,10 +119,39 @@ function UrlRow({
   onDelete,
   isDragOverlay,
   savedVote,
+  onSetVote,
+  onResetVote,
+  onCopyToJira,
+  storyPointProjects,
 }: RowProps) {
   const isCurrent = index === currentIndex;
   const isPast = index < currentIndex;
   const isFuture = index > currentIndex;
+
+  const [isEditingVote, setIsEditingVote] = useState(false);
+  const [editVoteValue, setEditVoteValue] = useState('');
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  const isJiraSpConfigured = isStoryPointConfigured(url, storyPointProjects ?? []);
+
+  function startEditVote(e: React.MouseEvent) {
+    e.stopPropagation();
+    setEditVoteValue(savedVote ?? '');
+    setIsEditingVote(true);
+    setTimeout(() => editInputRef.current?.select(), 0);
+  }
+
+  function confirmEditVote(e?: React.MouseEvent) {
+    e?.stopPropagation();
+    const trimmed = editVoteValue.trim();
+    if (trimmed && !validateStoryPoint(trimmed) && onSetVote) onSetVote(index, trimmed);
+    setIsEditingVote(false);
+  }
+
+  function cancelEditVote(e?: React.MouseEvent) {
+    e?.stopPropagation();
+    setIsEditingVote(false);
+  }
 
   // Completed AND current items are locked — only future items can be reordered.
   // Locking current prevents dragging the ticket being actively discussed.
@@ -184,11 +245,104 @@ function UrlRow({
         </span>
       )}
 
-      {/* Saved average vote badge for past tickets */}
-      {isPast && savedVote !== undefined && (
+      {/* Saved story point badge for past tickets (host: editable + reset + copy-to-Jira) */}
+      {isPast && isHost && (
+        <div
+          className="flex items-center gap-1 flex-shrink-0"
+          onClick={(e) => e.stopPropagation()}
+          aria-hidden="true"
+        >
+          {isEditingVote ? (
+            <>
+              <input
+                ref={editInputRef}
+                type="number"
+                min="0"
+                step="any"
+                value={editVoteValue}
+                onChange={(e) => setEditVoteValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') confirmEditVote();
+                  if (e.key === 'Escape') cancelEditVote();
+                }}
+                className={cn(
+                  'w-14 h-6 px-1.5 rounded-md bg-zinc-800 text-zinc-100 text-xs font-bold border outline-none text-center',
+                  editVoteValue.trim() && validateStoryPoint(editVoteValue.trim())
+                    ? 'border-red-500/70'
+                    : 'border-indigo-500/60',
+                )}
+                aria-label="Edit story point"
+                title={validateStoryPoint(editVoteValue.trim()) || undefined}
+              />
+              <button
+                type="button"
+                onClick={confirmEditVote}
+                disabled={!!validateStoryPoint(editVoteValue.trim())}
+                className="p-0.5 rounded text-green-400 hover:text-green-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                aria-label="Confirm story point"
+              >
+                <Check className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
+                onClick={cancelEditVote}
+                className="p-0.5 rounded text-zinc-500 hover:text-zinc-300 transition-colors"
+                aria-label="Cancel edit"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </>
+          ) : (
+            <>
+              {savedVote !== undefined && (
+                <span
+                  className="min-w-[28px] h-6 px-1.5 flex items-center justify-center rounded-md bg-zinc-700/60 text-zinc-300 text-xs font-bold border border-zinc-600/50"
+                  title={`Story point: ${savedVote}`}
+                >
+                  {savedVote}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={startEditVote}
+                className="p-0.5 rounded text-zinc-500 dark:text-zinc-600 hover:text-zinc-300 opacity-0 group-hover:opacity-100 transition-all"
+                aria-label="Edit story point"
+                title="Set story point"
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
+              {savedVote !== undefined && onResetVote && (
+                <button
+                  type="button"
+                  onClick={() => onResetVote(index)}
+                  className="p-0.5 rounded text-zinc-500 dark:text-zinc-600 hover:text-red-400 hover:bg-red-400/10 opacity-0 group-hover:opacity-100 transition-all"
+                  aria-label="Reset story point"
+                  title="Reset story point"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+              {savedVote !== undefined && isJiraSpConfigured && onCopyToJira && (
+                <button
+                  type="button"
+                  onClick={() => onCopyToJira(index)}
+                  className="p-0.5 rounded text-zinc-500 dark:text-zinc-600 hover:text-indigo-400 hover:bg-indigo-400/10 opacity-0 group-hover:opacity-100 transition-all"
+                  aria-label="Copy story point to Jira"
+                  title="Copy story point to Jira"
+                >
+                  <Send className="h-3 w-3" />
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Saved average vote badge for past tickets (non-host view) */}
+      {isPast && !isHost && savedVote !== undefined && (
         <span
           className="flex-shrink-0 min-w-[28px] h-6 px-1.5 flex items-center justify-center rounded-md bg-zinc-700/60 text-zinc-300 text-xs font-bold border border-zinc-600/50"
-          title={`Average vote: ${savedVote}`}
+          title={`Story point: ${savedVote}`}
         >
           {savedVote}
         </span>
@@ -262,6 +416,14 @@ export interface UrlQueueProps {
   readonly className?: string;
   /** Average vote per URL index — shown as a badge on past tickets */
   readonly savedVotes?: Record<number, string>;
+  /** Host: override saved story point for a URL index */
+  readonly onSetVote?: (index: number, value: string) => void;
+  /** Host: clear saved story point for a URL index */
+  readonly onResetVote?: (index: number) => void;
+  /** Host: push saved story point to Jira for a URL index */
+  readonly onCopyToJira?: (index: number) => void;
+  /** Project keys with story-points configured — gates the Jira send button per row */
+  readonly storyPointProjects?: string[];
 }
 
 export function UrlQueue({
@@ -273,6 +435,10 @@ export function UrlQueue({
   onReorder,
   className,
   savedVotes,
+  onSetVote,
+  onResetVote,
+  onCopyToJira,
+  storyPointProjects,
 }: UrlQueueProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   // Optimistic local copy — updated immediately on drop so there's no
@@ -350,6 +516,10 @@ export function UrlQueue({
                 onJumpTo={onJumpTo}
                 onDelete={onDelete}
                 savedVote={savedVotes?.[index]}
+                onSetVote={onSetVote}
+                onResetVote={onResetVote}
+                onCopyToJira={onCopyToJira}
+                storyPointProjects={storyPointProjects}
               />
             </motion.div>
           ))}

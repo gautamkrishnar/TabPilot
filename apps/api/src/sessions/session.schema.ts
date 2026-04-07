@@ -66,6 +66,33 @@ export class SessionDoc {
   @Prop({ default: false })
   isLocked: boolean;
 
+  /**
+   * Votes for all tickets: { urlIndex, participantId, value }.
+   * Stored per URL index so navigating back restores previous votes.
+   */
+  @Prop({
+    type: [
+      {
+        urlIndex: { type: Number, required: true },
+        participantId: { type: String, required: true },
+        value: { type: String, required: true },
+      },
+    ],
+    default: [],
+  })
+  votes: Array<{ urlIndex: number; participantId: string; value: string }>;
+
+  /** URL indices where the host has revealed votes. */
+  @Prop({ type: [Number], default: [] })
+  revealedIndices: number[];
+
+  /**
+   * Saved story point per URL index: key = urlIndex string, value = story point string.
+   * Includes both auto-computed averages (on navigation) and manual host overrides.
+   */
+  @Prop({ type: Map, of: String, default: {} })
+  storyPoints: Map<string, string>;
+
   @Prop({ required: true })
   expiresAt: Date;
 }

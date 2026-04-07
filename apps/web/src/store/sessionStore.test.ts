@@ -274,3 +274,68 @@ describe('voting state', () => {
     expect(useSessionStore.getState().savedVotesMap).toEqual({});
   });
 });
+
+describe('sessionStore — saved sessions', () => {
+  const session = {
+    id: 'sess-1',
+    name: 'Test',
+    joinCode: 'ABC123',
+    hostName: 'Host',
+    coHosts: [],
+    urls: ['https://example.com'],
+    currentIndex: 0,
+    state: 'active' as const,
+    votingEnabled: false,
+    isLocked: false,
+    createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    useSessionStore.getState().reset();
+  });
+
+  it('saveHostSession stores the session and hostKey', () => {
+    useSessionStore.getState().saveHostSession(session, 'host-key-abc');
+    const saved = useSessionStore.getState().getSavedSessions();
+    expect(saved).toHaveLength(1);
+    expect(saved[0].sessionId).toBe('sess-1');
+    expect(saved[0].role).toBe('host');
+    expect(useSessionStore.getState().loadHostKey('sess-1')).toBe('host-key-abc');
+  });
+
+  it('saveHostSession also stores the hostInviteKey when provided', () => {
+    useSessionStore.getState().saveHostSession(session, 'host-key', 'invite-key');
+    expect(useSessionStore.getState().loadHostInviteKey('sess-1')).toBe('invite-key');
+  });
+
+  it('saveParticipantSession stores the session and participantId', () => {
+    useSessionStore.getState().saveParticipantSession(session, 'p-1');
+    const saved = useSessionStore.getState().getSavedSessions();
+    expect(saved).toHaveLength(1);
+    expect(saved[0].role).toBe('participant');
+    expect(saved[0].participantId).toBe('p-1');
+    expect(useSessionStore.getState().loadParticipantId('sess-1')).toBe('p-1');
+  });
+
+  it('removeSavedSession removes it from the list and localStorage', () => {
+    useSessionStore.getState().saveHostSession(session, 'host-key');
+    expect(useSessionStore.getState().getSavedSessions()).toHaveLength(1);
+    useSessionStore.getState().removeSavedSession('sess-1');
+    expect(useSessionStore.getState().getSavedSessions()).toHaveLength(0);
+    expect(useSessionStore.getState().loadHostKey('sess-1')).toBeNull();
+  });
+
+  it('getSavedSessions filters out expired sessions', () => {
+    const expired = { ...session, expiresAt: new Date(Date.now() - 1000).toISOString() };
+    useSessionStore.getState().saveHostSession(expired, 'key');
+    expect(useSessionStore.getState().getSavedSessions()).toHaveLength(0);
+  });
+
+  it('saveHostSession deduplicates by sessionId', () => {
+    useSessionStore.getState().saveHostSession(session, 'key1');
+    useSessionStore.getState().saveHostSession(session, 'key2');
+    expect(useSessionStore.getState().getSavedSessions()).toHaveLength(1);
+  });
+});

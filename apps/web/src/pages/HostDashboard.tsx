@@ -12,6 +12,8 @@ import {
   Play,
   Plus,
   Power,
+  RefreshCw,
+  Send,
   UserPlus,
   Users,
   Wifi,
@@ -21,6 +23,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate, useParams } from 'react-router-dom';
+import * as Yup from 'yup';
 import { JoinCodeDisplay } from '@/components/JoinCodeDisplay';
 import { NavigationControls } from '@/components/NavigationControls';
 import { ParticipantList } from '@/components/ParticipantList';
@@ -29,7 +32,9 @@ import { UrlQueue } from '@/components/UrlQueue';
 import { UserAvatarMenu } from '@/components/UserAvatarMenu';
 import { Button } from '@/components/ui/button';
 import { useCurrentTitle } from '@/hooks/useCurrentTitle';
+import { useJiraStatus } from '@/hooks/useJiraStatus';
 import { useSocket } from '@/hooks/useSocket';
+import { isStoryPointConfigured, parseJiraUrl, updateJiraStoryPoints } from '@/lib/jira';
 import { getSocket } from '@/lib/socket';
 import { cn, getFaviconUrl, truncateUrl } from '@/lib/utils';
 import { useSessionStore } from '@/store/sessionStore';
@@ -50,6 +55,20 @@ function computeVoteAverage(votes: Record<string, string>): number | null {
   return nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
 }
 
+const storyPointSchema = Yup.number()
+  .typeError('Must be a positive number')
+  .positive('Must be a positive number')
+  .required('Required');
+
+function validateStoryPoint(value: string): string {
+  try {
+    storyPointSchema.validateSync(value === '' ? undefined : Number(value));
+    return '';
+  } catch (e) {
+    return e instanceof Yup.ValidationError ? e.message : 'Invalid';
+  }
+}
+
 export function HostDashboard() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
@@ -58,6 +77,7 @@ export function HostDashboard() {
   const [newUrl, setNewUrl] = useState('');
   const [showMobileParticipants, setShowMobileParticipants] = useState(false);
   const [isGroomingComplete, setIsGroomingComplete] = useState(false);
+  const [storyPointOverride, setStoryPointOverride] = useState('');
 
   const {
     session,
@@ -96,6 +116,9 @@ export function HostDashboard() {
     sessionId,
     hostKey: hostKey || undefined,
   });
+
+  const { data: jiraStatus } = useJiraStatus();
+  const storyPointProjects = jiraStatus?.storyPointProjects ?? [];
 
   // Update page title
   useEffect(() => {
@@ -235,6 +258,54 @@ export function HostDashboard() {
       });
   }, [sessionId, loadHostInviteKey]);
 
+  // Sync the story-point override input with the computed average whenever votes are revealed
+  useEffect(() => {
+    if (!revealedVotes) return;
+    const avg = computeVoteAverage(revealedVotes);
+    setStoryPointOverride(avg === null ? '' : String(avg % 1 === 0 ? avg : avg.toFixed(1)));
+  }, [revealedVotes]);
+
+  const handleSetSavedVote = useCallback(
+    (urlIndex: number, value: string) => {
+      if (!sessionId || !hostKey) return;
+      getSocket().emit(WS_EVENTS.HOST_SET_SAVED_VOTE, { sessionId, hostKey, urlIndex, value });
+    },
+    [sessionId, hostKey],
+  );
+
+  const handleResetSavedVote = useCallback(
+    (urlIndex: number) => {
+      if (!sessionId || !hostKey) return;
+      getSocket().emit(WS_EVENTS.HOST_RESET_SAVED_VOTE, { sessionId, hostKey, urlIndex });
+    },
+    [sessionId, hostKey],
+  );
+
+  const handleResetVotes = useCallback(() => {
+    if (!sessionId || !hostKey) return;
+    getSocket().emit(WS_EVENTS.HOST_RESET_VOTES, { sessionId, hostKey });
+  }, [sessionId, hostKey]);
+
+  const handleCopyToJira = useCallback(
+    async (urlIndex: number) => {
+      const url = session?.urls[urlIndex];
+      const jiraInfo =
+        url && isStoryPointConfigured(url, storyPointProjects) ? parseJiraUrl(url) : null;
+      const points = savedVotesMap[urlIndex];
+      if (!jiraInfo || points === undefined || Number.isNaN(Number(points))) {
+        toast.error('No numeric story point to copy, or not a Jira URL.');
+        return;
+      }
+      try {
+        await updateJiraStoryPoints(jiraInfo.key, Number(points));
+        toast.success(`Story point ${points} saved to ${jiraInfo.key}`);
+      } catch {
+        toast.error('Failed to update Jira story point. Check Jira integration settings.');
+      }
+    },
+    [session, savedVotesMap, storyPointProjects],
+  );
+
   const currentUrl = session?.urls[session.currentIndex];
   const onlineCount = participants.filter((p) => p.isOnline).length;
 
@@ -319,6 +390,19 @@ export function HostDashboard() {
               </Button>
             )}
 
+            {session.votingEnabled && (votedParticipantIds.length > 0 || revealedVotes) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleResetVotes}
+                className="gap-1.5 border-zinc-300 dark:border-zinc-700 text-zinc-400 hover:text-red-400 hover:border-red-400/50"
+                title="Reset votes — clear all votes and start a new round"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Reset
+              </Button>
+            )}
+
             <Button
               variant="outline"
               size="sm"
@@ -379,6 +463,18 @@ export function HostDashboard() {
             >
               <Eye className="h-4 w-4" />
               Reveal ({votedParticipantIds.length})
+            </Button>
+          )}
+
+          {session.votingEnabled && (votedParticipantIds.length > 0 || revealedVotes) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetVotes}
+              className="gap-1.5 border-zinc-300 dark:border-zinc-700 text-zinc-400 hover:text-red-400 hover:border-red-400/50"
+              title="Reset votes"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
             </Button>
           )}
 
@@ -497,6 +593,103 @@ export function HostDashboard() {
                       );
                     })}
                   </div>
+
+                  {/* Story point override + save + copy-to-Jira */}
+                  {(() => {
+                    const spError = validateStoryPoint(storyPointOverride.trim());
+                    const spDirty = storyPointOverride.trim().length > 0;
+                    const spValid = spDirty && !spError;
+                    const jiraInfo =
+                      currentUrl && isStoryPointConfigured(currentUrl, storyPointProjects)
+                        ? parseJiraUrl(currentUrl)
+                        : null;
+                    return (
+                      <div className="flex items-start gap-2 mt-3 pt-3 border-t border-indigo-500/20">
+                        <span className="text-xs text-zinc-400 flex-shrink-0 mt-1.5">
+                          Story Point:
+                        </span>
+                        <div className="flex flex-col gap-0.5">
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            value={storyPointOverride}
+                            onChange={(e) => setStoryPointOverride(e.target.value)}
+                            onKeyDown={async (e) => {
+                              if (e.key === 'Enter' && spValid && session) {
+                                const val = storyPointOverride.trim();
+                                handleSetSavedVote(session.currentIndex, val);
+                                if (jiraInfo) {
+                                  try {
+                                    await updateJiraStoryPoints(jiraInfo.key, Number(val));
+                                    toast.success(`Story point ${val} saved to ${jiraInfo.key}`);
+                                  } catch {
+                                    toast.error(
+                                      'Failed to update Jira story point. Check Jira integration settings.',
+                                    );
+                                  }
+                                } else {
+                                  toast.success('Story point saved.');
+                                }
+                              }
+                            }}
+                            className={cn(
+                              'w-16 h-7 px-2 rounded-md bg-zinc-800 text-zinc-100 text-xs font-bold border outline-none text-center',
+                              spDirty && spError
+                                ? 'border-red-500/70 focus:border-red-500'
+                                : 'border-indigo-500/40 focus:border-indigo-500',
+                            )}
+                            aria-label="Story point override"
+                            aria-invalid={spDirty && !!spError}
+                            aria-describedby={spDirty && spError ? 'sp-error' : undefined}
+                            placeholder="—"
+                          />
+                          {spDirty && spError && (
+                            <span id="sp-error" className="text-[10px] text-red-400 leading-none">
+                              {spError}
+                            </span>
+                          )}
+                        </div>
+                        {jiraInfo ? (
+                          <button
+                            type="button"
+                            disabled={!spValid}
+                            onClick={async () => {
+                              if (!spValid || !session) return;
+                              const val = storyPointOverride.trim();
+                              handleSetSavedVote(session.currentIndex, val);
+                              try {
+                                await updateJiraStoryPoints(jiraInfo.key, Number(val));
+                                toast.success(`Story point ${val} saved to ${jiraInfo.key}`);
+                              } catch {
+                                toast.error(
+                                  'Failed to update Jira story point. Check Jira integration settings.',
+                                );
+                              }
+                            }}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-500/20 text-indigo-300 text-xs font-semibold border border-indigo-500/30 hover:bg-indigo-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <Send className="h-3 w-3" />
+                            Save to Jira
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={!spValid}
+                            onClick={() => {
+                              if (spValid && session) {
+                                handleSetSavedVote(session.currentIndex, storyPointOverride.trim());
+                                toast.success('Story point saved.');
+                              }
+                            }}
+                            className="px-2.5 py-1 rounded-md bg-indigo-500/20 text-indigo-300 text-xs font-semibold border border-indigo-500/30 hover:bg-indigo-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Save
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </motion.div>
               )}
             </div>
@@ -520,6 +713,10 @@ export function HostDashboard() {
               onDelete={handleDeleteUrl}
               onReorder={handleReorderUrls}
               savedVotes={session.votingEnabled ? savedVotesMap : undefined}
+              onSetVote={session.votingEnabled ? handleSetSavedVote : undefined}
+              onResetVote={session.votingEnabled ? handleResetSavedVote : undefined}
+              onCopyToJira={session.votingEnabled ? handleCopyToJira : undefined}
+              storyPointProjects={storyPointProjects}
             />
 
             {/* Add URL input */}

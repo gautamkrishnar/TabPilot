@@ -28,17 +28,21 @@ export async function copyToClipboard(text: string): Promise<void> {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);
   } else {
-    // Fallback for older browsers
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-    // eslint-disable-next-line @typescript-eslint/no-deprecated
-    document.execCommand('copy');
-    textarea.remove();
+    // Fallback for older browsers — execCommand is deprecated but still widely supported
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
+      document.execCommand?.('copy');
+      textarea.remove();
+    } catch {
+      // Silent — clipboard copy failure is non-critical
+    }
   }
 }
 

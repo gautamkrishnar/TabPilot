@@ -1,5 +1,21 @@
-import { describe, expect, it } from 'vitest';
-import { formatJiraTitle, parseJiraUrl } from './jira';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  fetchJiraIssue,
+  fetchJiraStatus,
+  formatJiraTitle,
+  isStoryPointConfigured,
+  parseJiraUrl,
+  updateJiraStoryPoints,
+} from './jira';
+
+const { mockGet, mockPatch } = vi.hoisted(() => ({
+  mockGet: vi.fn(),
+  mockPatch: vi.fn(),
+}));
+
+vi.mock('./api', () => ({
+  default: { get: (...a: unknown[]) => mockGet(...a), patch: (...a: unknown[]) => mockPatch(...a) },
+}));
 
 describe('parseJiraUrl', () => {
   it('returns null for non-Jira URLs', () => {
@@ -38,5 +54,83 @@ describe('formatJiraTitle', () => {
         issueType: 'Bug',
       }),
     ).toBe('Fix login bug (PROJ-1)');
+  });
+});
+
+describe('fetchJiraIssue', () => {
+  beforeEach(() => mockGet.mockReset());
+
+  it('calls the correct endpoint and returns data', async () => {
+    const issue = { key: 'PROJ-1', summary: 'Test', status: 'Open', issueType: 'Bug' };
+    mockGet.mockResolvedValue({ data: issue });
+    const result = await fetchJiraIssue('PROJ-1');
+    expect(mockGet).toHaveBeenCalledWith('/jira/issue/PROJ-1');
+    expect(result).toEqual(issue);
+  });
+});
+
+describe('fetchJiraStatus', () => {
+  beforeEach(() => mockGet.mockReset());
+
+  it('calls /jira/status and returns configured status', async () => {
+    mockGet.mockResolvedValue({ data: { configured: true, storyPointProjects: ['CONNCERT'] } });
+    const result = await fetchJiraStatus();
+    expect(mockGet).toHaveBeenCalledWith('/jira/status');
+    expect(result.configured).toBe(true);
+    expect(result.storyPointProjects).toEqual(['CONNCERT']);
+  });
+
+  it('returns unconfigured status when Jira is not set up', async () => {
+    mockGet.mockResolvedValue({ data: { configured: false, storyPointProjects: [] } });
+    const result = await fetchJiraStatus();
+    expect(result.configured).toBe(false);
+    expect(result.storyPointProjects).toEqual([]);
+  });
+});
+
+describe('isStoryPointConfigured', () => {
+  it('returns true when the project key is in the list', () => {
+    expect(
+      isStoryPointConfigured('https://myorg.atlassian.net/browse/CONNCERT-123', [
+        'CONNCERT',
+        'PAD',
+      ]),
+    ).toBe(true);
+  });
+
+  it('returns false when the project key is not in the list', () => {
+    expect(isStoryPointConfigured('https://myorg.atlassian.net/browse/PFS-99', ['CONNCERT'])).toBe(
+      false,
+    );
+  });
+
+  it('returns false for non-Jira URLs', () => {
+    expect(isStoryPointConfigured('https://github.com/org/repo', ['CONNCERT'])).toBe(false);
+  });
+
+  it('is case-insensitive for the project key', () => {
+    expect(
+      isStoryPointConfigured('https://myorg.atlassian.net/browse/conncert-1', ['CONNCERT']),
+    ).toBe(true);
+  });
+
+  it('returns false when storyPointProjects is empty', () => {
+    expect(isStoryPointConfigured('https://myorg.atlassian.net/browse/CONNCERT-1', [])).toBe(false);
+  });
+});
+
+describe('updateJiraStoryPoints', () => {
+  beforeEach(() => mockPatch.mockReset());
+
+  it('calls PATCH with the correct endpoint and body', async () => {
+    mockPatch.mockResolvedValue({ data: null });
+    await updateJiraStoryPoints('CONNCERT-123', 5);
+    expect(mockPatch).toHaveBeenCalledWith('/jira/issue/CONNCERT-123/story-points', { points: 5 });
+  });
+
+  it('passes the correct body to the API', async () => {
+    mockPatch.mockResolvedValue({ data: null });
+    await updateJiraStoryPoints('CONNCERT-1', 3);
+    expect(mockPatch).toHaveBeenCalledWith('/jira/issue/CONNCERT-1/story-points', { points: 3 });
   });
 });

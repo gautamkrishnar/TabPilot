@@ -41,6 +41,20 @@ vi.mock('@/hooks/useTabSync', () => ({
 
 vi.mock('canvas-confetti', () => ({ default: vi.fn() }));
 
+const mockUpdateJiraStoryPoints = vi.fn();
+vi.mock('@/lib/jira', () => ({
+  parseJiraUrl: (url: string) =>
+    url.includes('atlassian.net') ? { key: url.split('/').pop() } : null,
+  isStoryPointConfigured: (url: string) => url.includes('atlassian.net'),
+  updateJiraStoryPoints: (...args: unknown[]) => mockUpdateJiraStoryPoints(...args),
+}));
+
+vi.mock('@/hooks/useJiraStatus', () => ({
+  useJiraStatus: () => ({
+    data: { configured: true, storyPointProjects: ['FAKE'] },
+  }),
+}));
+
 vi.mock('react-hot-toast', () => ({
   default: { error: vi.fn(), success: vi.fn() },
 }));
@@ -343,6 +357,223 @@ describe('HostDashboard — grooming complete', () => {
 
     await waitFor(() => {
       expect(screen.queryByText('All tickets groomed!')).not.toBeInTheDocument();
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+describe('HostDashboard — navigation controls', () => {
+  beforeEach(() => {
+    useSessionStore.setState(useSessionStore.getInitialState?.() ?? {});
+    mockEmit.mockClear();
+    seedHostState();
+  });
+
+  it('emits HOST_NAVIGATE next when Next is clicked', async () => {
+    const store = useSessionStore.getState();
+    store.setSession(makeSession({ urls: ['https://a.com', 'https://b.com'], currentIndex: 0 }));
+    render(<HostDashboard />);
+    await userEvent.click(screen.getByRole('button', { name: /next/i }));
+    expect(mockEmit).toHaveBeenCalledWith(
+      'host_navigate',
+      expect.objectContaining({ direction: 'next' }),
+    );
+  });
+
+  it('emits HOST_NAVIGATE prev when Previous is clicked', async () => {
+    const store = useSessionStore.getState();
+    store.setSession(makeSession({ urls: ['https://a.com', 'https://b.com'], currentIndex: 1 }));
+    render(<HostDashboard />);
+    await userEvent.click(screen.getByRole('button', { name: /previous/i }));
+    expect(mockEmit).toHaveBeenCalledWith(
+      'host_navigate',
+      expect.objectContaining({ direction: 'prev' }),
+    );
+  });
+
+  it('emits HOST_ADD_URL when a valid URL is submitted', async () => {
+    render(<HostDashboard />);
+    const input = screen.getByPlaceholderText(/paste a url/i);
+    await userEvent.type(input, 'https://new.example.com{Enter}');
+    expect(mockEmit).toHaveBeenCalledWith(
+      'host_add_url',
+      expect.objectContaining({ url: 'https://new.example.com' }),
+    );
+  });
+
+  it('opens the share modal when the join code button is clicked', async () => {
+    render(<HostDashboard />);
+    const codeBtn = screen.getAllByText('ABC123')[0].closest('button');
+    if (codeBtn) await userEvent.click(codeBtn);
+    expect(screen.getByText('Share Session')).toBeInTheDocument();
+  });
+
+  it('shows the join code and co-host section inside the share modal', async () => {
+    render(<HostDashboard />);
+    const codeBtn = screen.getAllByText('ABC123')[0].closest('button');
+    if (codeBtn) await userEvent.click(codeBtn);
+    expect(screen.getByText('Invite Co-Hosts')).toBeInTheDocument();
+    expect(screen.getByText(/Copy Co-Host Invite Link/i)).toBeInTheDocument();
+  });
+
+  it('shows the Reveal button when votingEnabled and participants have voted', () => {
+    const store = useSessionStore.getState();
+    store.setSession(makeSession({ votingEnabled: true }));
+    store.setVotedParticipantIds(['p-1', 'p-2']);
+    render(<HostDashboard />);
+    expect(screen.getAllByRole('button', { name: /reveal/i })).not.toHaveLength(0);
+  });
+});
+
+describe('HostDashboard — story point management', () => {
+  beforeEach(() => {
+    useSessionStore.setState(useSessionStore.getInitialState?.() ?? {});
+    mockEmit.mockClear();
+    mockNavigate.mockClear();
+    mockUpdateJiraStoryPoints.mockClear();
+    seedHostState();
+  });
+
+  it('shows the story point row when votes are revealed (votingEnabled session)', async () => {
+    const store = useSessionStore.getState();
+    store.setSession(makeSession({ votingEnabled: true }));
+    store.setRevealedVotes({ 'p-1': '5', 'p-2': '8' });
+
+    render(<HostDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Story point override')).toBeInTheDocument();
+    });
+    // Input should be pre-filled with the rounded average (6 or 7 depending on rounding)
+    const input = screen.getByLabelText('Story point override') as HTMLInputElement;
+    expect(input.value).toMatch(/\d/);
+  });
+
+  it('emits HOST_SET_SAVED_VOTE when Save is clicked', async () => {
+    const store = useSessionStore.getState();
+    store.setSession(makeSession({ votingEnabled: true }));
+    store.setRevealedVotes({ 'p-1': '5' });
+
+    render(<HostDashboard />);
+
+    const input = await screen.findByLabelText('Story point override');
+    await userEvent.clear(input);
+    await userEvent.type(input, '8');
+
+    const saveBtn = screen.getByRole('button', { name: /^save$/i });
+    await userEvent.click(saveBtn);
+
+    expect(mockEmit).toHaveBeenCalledWith(WS_EVENTS.HOST_SET_SAVED_VOTE, {
+      sessionId: 'session-1',
+      hostKey: 'host-key-123',
+      urlIndex: 0,
+      value: '8',
+    });
+  });
+
+  it('emits HOST_RESET_SAVED_VOTE when reset button is clicked in UrlQueue', async () => {
+    const store = useSessionStore.getState();
+    store.setSession(
+      makeSession({
+        votingEnabled: true,
+        urls: ['https://example.com/past', 'https://example.com/current'],
+        currentIndex: 1,
+      }),
+    );
+    store.setSavedVotesMap({ 0: '5' });
+
+    render(<HostDashboard />);
+
+    const resetBtn = await screen.findByTitle('Reset story point');
+    await userEvent.click(resetBtn);
+
+    expect(mockEmit).toHaveBeenCalledWith(WS_EVENTS.HOST_RESET_SAVED_VOTE, {
+      sessionId: 'session-1',
+      hostKey: 'host-key-123',
+      urlIndex: 0,
+    });
+  });
+
+  it('shows Jira button in revealed votes panel only for Jira URLs', async () => {
+    const store = useSessionStore.getState();
+    store.setSession(
+      makeSession({
+        votingEnabled: true,
+        urls: ['https://example.atlassian.net/browse/FAKE-123'],
+      }),
+    );
+    store.setRevealedVotes({ 'p-1': '5' });
+
+    render(<HostDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /save to jira/i })).toBeInTheDocument();
+    });
+  });
+
+  it('emits HOST_RESET_VOTES when Reset button is clicked after voting', async () => {
+    const store = useSessionStore.getState();
+    store.setSession(makeSession({ votingEnabled: true }));
+    store.setVotedParticipantIds(['p-1']);
+
+    render(<HostDashboard />);
+
+    // Desktop + mobile both render the button — click the first
+    const [resetBtn] = await screen.findAllByRole('button', { name: /reset/i });
+    await userEvent.click(resetBtn);
+
+    expect(mockEmit).toHaveBeenCalledWith('host_reset_votes', {
+      sessionId: 'session-1',
+      hostKey: 'host-key-123',
+    });
+  });
+
+  it('shows Reset button when votes are revealed', async () => {
+    const store = useSessionStore.getState();
+    store.setSession(makeSession({ votingEnabled: true }));
+    store.setRevealedVotes({ 'p-1': '5' });
+
+    render(<HostDashboard />);
+
+    await screen.findByText('Votes Revealed');
+    const resetBtns = screen.getAllByRole('button', { name: /reset/i });
+    expect(resetBtns.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('does not show Jira button for non-Jira URLs', async () => {
+    const store = useSessionStore.getState();
+    store.setSession(makeSession({ votingEnabled: true })); // uses https://example.com/issue/1
+    store.setRevealedVotes({ 'p-1': '5' });
+
+    render(<HostDashboard />);
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /save to jira/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it('calls updateJiraStoryPoints with the correct key and points', async () => {
+    mockUpdateJiraStoryPoints.mockResolvedValue(undefined);
+    const store = useSessionStore.getState();
+    store.setSession(
+      makeSession({
+        votingEnabled: true,
+        urls: ['https://example.atlassian.net/browse/FAKE-123'],
+      }),
+    );
+    store.setRevealedVotes({ 'p-1': '8' });
+
+    render(<HostDashboard />);
+
+    const input = await screen.findByLabelText('Story point override');
+    await userEvent.clear(input);
+    await userEvent.type(input, '8');
+
+    const jiraBtn = screen.getByRole('button', { name: /save to jira/i });
+    await userEvent.click(jiraBtn);
+
+    await waitFor(() => {
+      expect(mockUpdateJiraStoryPoints).toHaveBeenCalledWith('FAKE-123', 8);
     });
   });
 });

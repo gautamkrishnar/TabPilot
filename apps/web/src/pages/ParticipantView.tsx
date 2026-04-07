@@ -341,6 +341,14 @@ export function ParticipantView() {
                       You voted: {selectedVote}
                     </span>
                   )}
+                  {!selectedVote &&
+                    participantId &&
+                    votedParticipantIds.includes(participantId) &&
+                    !revealedVotes && (
+                      <span className="px-2 py-0.5 rounded-full bg-zinc-700/60 text-zinc-400 text-xs border border-zinc-600/50">
+                        Already voted
+                      </span>
+                    )}
                   {votedParticipantIds.length > 0 && !revealedVotes && (
                     <span className="text-xs text-zinc-500">
                       {votedParticipantIds.length} voted

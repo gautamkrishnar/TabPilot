@@ -45,9 +45,23 @@ export async function fetchJiraIssue(key: string): Promise<JiraIssue> {
   return res.data;
 }
 
-export async function fetchJiraStatus(): Promise<{ configured: boolean }> {
-  const res = await apiClient.get<{ configured: boolean }>('/jira/status');
+export interface JiraStatus {
+  configured: boolean;
+  /** Project keys that have a story-points field configured, e.g. ["CONNCERT"] */
+  storyPointProjects: string[];
+}
+
+export async function fetchJiraStatus(): Promise<JiraStatus> {
+  const res = await apiClient.get<JiraStatus>('/jira/status');
   return res.data;
+}
+
+/** Returns true when the Jira URL's project has a story-points field configured. */
+export function isStoryPointConfigured(url: string, storyPointProjects: string[]): boolean {
+  const info = parseJiraUrl(url);
+  if (!info) return false;
+  const projectKey = info.key.split('-')[0].toUpperCase();
+  return storyPointProjects.includes(projectKey);
 }
 
 // ─── Display formatting ───────────────────────────────────────────────────────
@@ -55,4 +69,8 @@ export async function fetchJiraStatus(): Promise<{ configured: boolean }> {
 /** Formats a Jira issue for display: "Fix login bug (CONNCERT-2771)" */
 export function formatJiraTitle(issue: JiraIssue): string {
   return `${issue.summary} (${issue.key})`;
+}
+
+export async function updateJiraStoryPoints(key: string, points: number): Promise<void> {
+  await apiClient.patch(`/jira/issue/${key}/story-points`, { points });
 }
