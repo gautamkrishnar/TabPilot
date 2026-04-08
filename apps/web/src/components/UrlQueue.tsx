@@ -90,6 +90,137 @@ function UrlTitle({ url, isCurrent, isPast }: UrlTitleProps) {
   );
 }
 
+// ─── Story point controls (host past-ticket view) ────────────────────────────
+
+interface StoryPointControlsProps {
+  readonly index: number;
+  readonly savedVote?: string;
+  readonly isJiraConfigured: boolean;
+  readonly onSetVote?: (index: number, value: string) => void;
+  readonly onResetVote?: (index: number) => void;
+  readonly onCopyToJira?: (index: number) => void;
+}
+
+function StoryPointControls({
+  index,
+  savedVote,
+  isJiraConfigured,
+  onSetVote,
+  onResetVote,
+  onCopyToJira,
+}: StoryPointControlsProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function startEdit(e: React.MouseEvent) {
+    e.stopPropagation();
+    setEditValue(savedVote ?? '');
+    setIsEditing(true);
+    setTimeout(() => inputRef.current?.select(), 0);
+  }
+
+  function confirm(e?: React.MouseEvent) {
+    e?.stopPropagation();
+    const trimmed = editValue.trim();
+    if (trimmed && !validateStoryPoint(trimmed) && onSetVote) onSetVote(index, trimmed);
+    setIsEditing(false);
+  }
+
+  function cancel(e?: React.MouseEvent) {
+    e?.stopPropagation();
+    setIsEditing(false);
+  }
+
+  if (isEditing) {
+    return (
+      <>
+        <input
+          ref={inputRef}
+          type="number"
+          min="0"
+          step="any"
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') confirm();
+            if (e.key === 'Escape') cancel();
+          }}
+          className={cn(
+            'w-14 h-6 px-1.5 rounded-md bg-zinc-800 text-zinc-100 text-xs font-bold border outline-none text-center',
+            editValue.trim() && validateStoryPoint(editValue.trim())
+              ? 'border-red-500/70'
+              : 'border-indigo-500/60',
+          )}
+          aria-label="Edit story point"
+          title={validateStoryPoint(editValue.trim()) || undefined}
+        />
+        <button
+          type="button"
+          onClick={confirm}
+          disabled={!!validateStoryPoint(editValue.trim())}
+          className="p-0.5 rounded text-green-400 hover:text-green-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          aria-label="Confirm story point"
+        >
+          <Check className="h-3 w-3" />
+        </button>
+        <button
+          type="button"
+          onClick={cancel}
+          className="p-0.5 rounded text-zinc-500 hover:text-zinc-300 transition-colors"
+          aria-label="Cancel edit"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </>
+    );
+  }
+
+  return (
+    <>
+      {savedVote !== undefined && (
+        <span
+          className="min-w-[28px] h-6 px-1.5 flex items-center justify-center rounded-md bg-zinc-700/60 text-zinc-300 text-xs font-bold border border-zinc-600/50"
+          title={`Story point: ${savedVote}`}
+        >
+          {savedVote}
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={startEdit}
+        className="p-0.5 rounded text-zinc-500 dark:text-zinc-600 hover:text-zinc-300 opacity-0 group-hover:opacity-100 transition-all"
+        aria-label="Edit story point"
+        title="Set story point"
+      >
+        <Pencil className="h-3 w-3" />
+      </button>
+      {savedVote !== undefined && onResetVote && (
+        <button
+          type="button"
+          onClick={() => onResetVote(index)}
+          className="p-0.5 rounded text-zinc-500 dark:text-zinc-600 hover:text-red-400 hover:bg-red-400/10 opacity-0 group-hover:opacity-100 transition-all"
+          aria-label="Reset story point"
+          title="Reset story point"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+      {savedVote !== undefined && isJiraConfigured && onCopyToJira && (
+        <button
+          type="button"
+          onClick={() => onCopyToJira(index)}
+          className="p-0.5 rounded text-zinc-500 dark:text-zinc-600 hover:text-indigo-400 hover:bg-indigo-400/10 opacity-0 group-hover:opacity-100 transition-all"
+          aria-label="Copy story point to Jira"
+          title="Copy story point to Jira"
+        >
+          <Send className="h-3 w-3" />
+        </button>
+      )}
+    </>
+  );
+}
+
 // ─── Sortable row ─────────────────────────────────────────────────────────────
 
 interface RowProps {
@@ -107,6 +238,26 @@ interface RowProps {
   readonly onCopyToJira?: (index: number) => void;
   /** Project keys that have story-points configured — used to gate the Jira send button */
   readonly storyPointProjects?: string[];
+}
+
+function buildRowClassName(
+  isCurrent: boolean,
+  isPast: boolean,
+  isFuture: boolean,
+  isHost: boolean,
+  isDragging: boolean,
+  isDragOverlay: boolean,
+) {
+  return cn(
+    'flex items-center gap-3 px-3 py-3 rounded-lg border transition-all duration-150 group relative overflow-hidden w-full text-left',
+    isCurrent && 'bg-indigo-500/10 border-indigo-500/50 border-l-2 border-l-indigo-500',
+    isPast && 'bg-transparent border-zinc-200/50 dark:border-zinc-800/50 opacity-50',
+    isFuture &&
+      'bg-transparent border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-100/30 dark:hover:bg-zinc-800/30',
+    isHost && !isCurrent && 'cursor-pointer',
+    isDragging && 'opacity-40',
+    isDragOverlay && 'shadow-xl opacity-100 cursor-grabbing',
+  );
 }
 
 function UrlRow({
@@ -128,30 +279,7 @@ function UrlRow({
   const isPast = index < currentIndex;
   const isFuture = index > currentIndex;
 
-  const [isEditingVote, setIsEditingVote] = useState(false);
-  const [editVoteValue, setEditVoteValue] = useState('');
-  const editInputRef = useRef<HTMLInputElement>(null);
-
   const isJiraSpConfigured = isStoryPointConfigured(url, storyPointProjects ?? []);
-
-  function startEditVote(e: React.MouseEvent) {
-    e.stopPropagation();
-    setEditVoteValue(savedVote ?? '');
-    setIsEditingVote(true);
-    setTimeout(() => editInputRef.current?.select(), 0);
-  }
-
-  function confirmEditVote(e?: React.MouseEvent) {
-    e?.stopPropagation();
-    const trimmed = editVoteValue.trim();
-    if (trimmed && !validateStoryPoint(trimmed) && onSetVote) onSetVote(index, trimmed);
-    setIsEditingVote(false);
-  }
-
-  function cancelEditVote(e?: React.MouseEvent) {
-    e?.stopPropagation();
-    setIsEditingVote(false);
-  }
 
   // Completed AND current items are locked — only future items can be reordered.
   // Locking current prevents dragging the ticket being actively discussed.
@@ -169,15 +297,13 @@ function UrlRow({
 
   const isClickable = isHost && !!onJumpTo && !isCurrent;
 
-  const rowClassName = cn(
-    'flex items-center gap-3 px-3 py-3 rounded-lg border transition-all duration-150 group relative overflow-hidden w-full text-left',
-    isCurrent && 'bg-indigo-500/10 border-indigo-500/50 border-l-2 border-l-indigo-500',
-    isPast && 'bg-transparent border-zinc-200/50 dark:border-zinc-800/50 opacity-50',
-    isFuture &&
-      'bg-transparent border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-100/30 dark:hover:bg-zinc-800/30',
-    isHost && !isCurrent && 'cursor-pointer',
-    isDragging && 'opacity-40',
-    isDragOverlay && 'shadow-xl opacity-100 cursor-grabbing',
+  const rowClassName = buildRowClassName(
+    isCurrent,
+    isPast,
+    isFuture,
+    isHost,
+    isDragging,
+    isDragOverlay ?? false,
   );
 
   const dragHandle =
@@ -252,89 +378,14 @@ function UrlRow({
           onClick={(e) => e.stopPropagation()}
           aria-hidden="true"
         >
-          {isEditingVote ? (
-            <>
-              <input
-                ref={editInputRef}
-                type="number"
-                min="0"
-                step="any"
-                value={editVoteValue}
-                onChange={(e) => setEditVoteValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') confirmEditVote();
-                  if (e.key === 'Escape') cancelEditVote();
-                }}
-                className={cn(
-                  'w-14 h-6 px-1.5 rounded-md bg-zinc-800 text-zinc-100 text-xs font-bold border outline-none text-center',
-                  editVoteValue.trim() && validateStoryPoint(editVoteValue.trim())
-                    ? 'border-red-500/70'
-                    : 'border-indigo-500/60',
-                )}
-                aria-label="Edit story point"
-                title={validateStoryPoint(editVoteValue.trim()) || undefined}
-              />
-              <button
-                type="button"
-                onClick={confirmEditVote}
-                disabled={!!validateStoryPoint(editVoteValue.trim())}
-                className="p-0.5 rounded text-green-400 hover:text-green-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                aria-label="Confirm story point"
-              >
-                <Check className="h-3 w-3" />
-              </button>
-              <button
-                type="button"
-                onClick={cancelEditVote}
-                className="p-0.5 rounded text-zinc-500 hover:text-zinc-300 transition-colors"
-                aria-label="Cancel edit"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </>
-          ) : (
-            <>
-              {savedVote !== undefined && (
-                <span
-                  className="min-w-[28px] h-6 px-1.5 flex items-center justify-center rounded-md bg-zinc-700/60 text-zinc-300 text-xs font-bold border border-zinc-600/50"
-                  title={`Story point: ${savedVote}`}
-                >
-                  {savedVote}
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={startEditVote}
-                className="p-0.5 rounded text-zinc-500 dark:text-zinc-600 hover:text-zinc-300 opacity-0 group-hover:opacity-100 transition-all"
-                aria-label="Edit story point"
-                title="Set story point"
-              >
-                <Pencil className="h-3 w-3" />
-              </button>
-              {savedVote !== undefined && onResetVote && (
-                <button
-                  type="button"
-                  onClick={() => onResetVote(index)}
-                  className="p-0.5 rounded text-zinc-500 dark:text-zinc-600 hover:text-red-400 hover:bg-red-400/10 opacity-0 group-hover:opacity-100 transition-all"
-                  aria-label="Reset story point"
-                  title="Reset story point"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-              {savedVote !== undefined && isJiraSpConfigured && onCopyToJira && (
-                <button
-                  type="button"
-                  onClick={() => onCopyToJira(index)}
-                  className="p-0.5 rounded text-zinc-500 dark:text-zinc-600 hover:text-indigo-400 hover:bg-indigo-400/10 opacity-0 group-hover:opacity-100 transition-all"
-                  aria-label="Copy story point to Jira"
-                  title="Copy story point to Jira"
-                >
-                  <Send className="h-3 w-3" />
-                </button>
-              )}
-            </>
-          )}
+          <StoryPointControls
+            index={index}
+            savedVote={savedVote}
+            isJiraConfigured={isJiraSpConfigured}
+            onSetVote={onSetVote}
+            onResetVote={onResetVote}
+            onCopyToJira={onCopyToJira}
+          />
         </div>
       )}
 
@@ -381,24 +432,29 @@ function UrlRow({
     </>
   );
 
-  return isClickable ? (
-    <button
-      ref={setNodeRef as React.Ref<HTMLButtonElement>}
-      type="button"
+  // Use a <div> even when clickable to avoid nesting <button> inside <button>
+  // (the row contains drag-handle and delete buttons that are always rendered for hosts).
+  // role and tabIndex are set conditionally alongside the handlers.
+  return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: role='button' is set when interactive
+    <div
+      ref={setNodeRef}
       style={style}
       className={rowClassName}
-      onClick={() => onJumpTo(index)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onJumpTo(index);
-        }
-      }}
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onClick={isClickable ? () => onJumpTo(index) : undefined}
+      onKeyDown={
+        isClickable
+          ? (e) => {
+              if (['Enter', ' '].includes(e.key)) {
+                e.preventDefault();
+                onJumpTo(index);
+              }
+            }
+          : undefined
+      }
     >
-      {rowContent}
-    </button>
-  ) : (
-    <div ref={setNodeRef} style={style} className={rowClassName}>
       {rowContent}
     </div>
   );

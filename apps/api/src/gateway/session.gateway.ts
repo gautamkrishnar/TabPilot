@@ -118,11 +118,49 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       const parsed = new URL(normalised);
       parsed.hash = '';
       // Lowercase scheme and host; path is kept as-is (case-significant in some systems)
-      normalised = `${parsed.protocol.toLowerCase()}//${parsed.host.toLowerCase()}${parsed.pathname.replace(/\/+$/, '')}${parsed.search}`;
+      let pathname = parsed.pathname;
+      while (pathname.endsWith('/')) pathname = pathname.slice(0, -1);
+      normalised = `${parsed.protocol.toLowerCase()}//${parsed.host.toLowerCase()}${pathname}${parsed.search}`;
     } catch {
-      normalised = url.trim().toLowerCase().replace(/\/+$/, '');
+      normalised = url.trim().toLowerCase();
+      while (normalised.endsWith('/')) normalised = normalised.slice(0, -1);
     }
     return createHash('sha256').update(normalised).digest('hex');
+  }
+
+  /**
+   * Seed in-memory vote/reveal/storyPoints caches from the persisted session document.
+   * Called on join so clients reconnecting after a server restart see the correct state.
+   */
+  private seedInMemoryFromDoc(
+    sessionId: string,
+    sessionDoc: {
+      votes: Array<{ urlIndex: number; participantId: string; value: string }>;
+      revealedIndices: number[];
+      storyPoints: Map<string, string>;
+      urls: string[];
+    },
+  ) {
+    if (!this.votes.has(sessionId) && sessionDoc.votes?.length > 0) {
+      const indexMap = new Map<number, Map<string, string>>();
+      for (const { urlIndex, participantId, value } of sessionDoc.votes) {
+        if (!indexMap.has(urlIndex)) indexMap.set(urlIndex, new Map());
+        // biome-ignore lint/style/noNonNullAssertion: set on the line above
+        indexMap.get(urlIndex)!.set(participantId, value);
+      }
+      this.votes.set(sessionId, indexMap);
+    }
+    if (!this.revealed.has(sessionId) && sessionDoc.revealedIndices?.length > 0) {
+      this.revealed.set(sessionId, new Set(sessionDoc.revealedIndices));
+    }
+    if (!this.savedVotes.has(sessionId) && sessionDoc.storyPoints?.size > 0) {
+      const spMap = new Map<number, string>();
+      sessionDoc.urls.forEach((url, idx) => {
+        const sp = sessionDoc.storyPoints.get(this.urlKey(url));
+        if (sp !== undefined) spMap.set(idx, sp);
+      });
+      if (spMap.size > 0) this.savedVotes.set(sessionId, spMap);
+    }
   }
 
   /** Get votes map for a specific URL index (empty Map if none). */
@@ -206,7 +244,7 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
     participantId: string | undefined,
     isLocked: boolean,
   ): Promise<boolean | null> {
-    const isHost = !!hostKey && (await this.sessionsService.validateHostKey(sessionId, hostKey));
+    const isHost = hostKey ? await this.sessionsService.validateHostKey(sessionId, hostKey) : false;
 
     if (hostKey && !isHost) {
       client.emit(WS_EVENTS.ERROR, {
@@ -234,7 +272,7 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
     clientId: string,
   ) {
     const found = await this.participantsService.findById(participantId);
-    if (!found || found.sessionId !== sessionId) return { doc: null, wasOffline: false };
+    if (found?.sessionId !== sessionId) return { doc: null, wasOffline: false };
 
     const wasOffline = !found.isOnline;
     await this.participantsService.updateSocketId(participantId, clientId);
@@ -306,27 +344,8 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       wasOffline = result.wasOffline;
     }
 
-    // Seed in-memory vote state from DB if server restarted since the session began
-    if (!this.votes.has(sessionId) && sessionDoc.votes?.length > 0) {
-      const indexMap = new Map<number, Map<string, string>>();
-      for (const { urlIndex, participantId, value } of sessionDoc.votes) {
-        if (!indexMap.has(urlIndex)) indexMap.set(urlIndex, new Map());
-        // biome-ignore lint/style/noNonNullAssertion: set on the line above
-        indexMap.get(urlIndex)!.set(participantId, value);
-      }
-      this.votes.set(sessionId, indexMap);
-    }
-    if (!this.revealed.has(sessionId) && sessionDoc.revealedIndices?.length > 0) {
-      this.revealed.set(sessionId, new Set(sessionDoc.revealedIndices));
-    }
-    if (!this.savedVotes.has(sessionId) && sessionDoc.storyPoints?.size > 0) {
-      const spMap = new Map<number, string>();
-      sessionDoc.urls.forEach((url, idx) => {
-        const sp = sessionDoc.storyPoints.get(this.urlKey(url));
-        if (sp !== undefined) spMap.set(idx, sp);
-      });
-      if (spMap.size > 0) this.savedVotes.set(sessionId, spMap);
-    }
+    // Seed in-memory state from DB if the server restarted since this session began
+    this.seedInMemoryFromDoc(sessionId, sessionDoc);
 
     const participants = await this.participantsService.findBySession(sessionId);
     const sessionStatePayload: SessionStatePayload = {

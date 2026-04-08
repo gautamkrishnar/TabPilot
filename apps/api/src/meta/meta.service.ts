@@ -1,6 +1,6 @@
+import * as dns from 'node:dns';
+import * as net from 'node:net';
 import { Injectable, Logger } from '@nestjs/common';
-import * as dns from 'dns';
-import * as net from 'net';
 
 @Injectable()
 export class MetaService {
@@ -88,7 +88,7 @@ export class MetaService {
     if (hostname === '::1' || hostname === '[::1]') return true;
 
     // Strip IPv6 brackets if present.
-    const host = hostname.replace(/^\[|\]$/g, '');
+    const host = hostname.replaceAll(/^\[|\]$/g, '');
 
     // If it's already a literal IP, check ranges directly.
     const ipVersion = net.isIP(host);
@@ -158,8 +158,8 @@ export class MetaService {
     };
     const decoded = match[1]
       .trim()
-      .replace(/\s+/g, ' ')
-      .replace(/&(?:[a-z]+|#\d+);/gi, (e) => entities[e] ?? e);
+      .replaceAll(/\s+/g, ' ')
+      .replaceAll(/&(?:[a-z]+|#\d+);/gi, (e) => entities[e] ?? e);
     return decoded || null;
   }
 }

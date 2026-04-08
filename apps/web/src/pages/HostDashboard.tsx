@@ -1,5 +1,3 @@
-import { WS_EVENTS } from '@tabpilot/shared';
-import confetti from 'canvas-confetti';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ClipboardCopy,
@@ -20,7 +18,7 @@ import {
   WifiOff,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate, useParams } from 'react-router-dom';
 import * as Yup from 'yup';
@@ -32,27 +30,156 @@ import { UrlQueue } from '@/components/UrlQueue';
 import { UserAvatarMenu } from '@/components/UserAvatarMenu';
 import { Button } from '@/components/ui/button';
 import { useCurrentTitle } from '@/hooks/useCurrentTitle';
+import { useHostActions } from '@/hooks/useHostActions';
 import { useJiraStatus } from '@/hooks/useJiraStatus';
 import { useSocket } from '@/hooks/useSocket';
+import { useStoryPointOverride } from '@/hooks/useStoryPointOverride';
 import { isStoryPointConfigured, parseJiraUrl, updateJiraStoryPoints } from '@/lib/jira';
-import { getSocket } from '@/lib/socket';
 import { cn, getFaviconUrl, truncateUrl } from '@/lib/utils';
 import { useSessionStore } from '@/store/sessionStore';
-
-function isValidHttpUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    return ['http:', 'https:'].includes(parsed.protocol);
-  } catch {
-    return false;
-  }
-}
 
 function computeVoteAverage(votes: Record<string, string>): number | null {
   const nums = Object.values(votes)
     .map(Number)
     .filter((n) => !Number.isNaN(n));
   return nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
+}
+
+interface RevealedVotesPanelProps {
+  readonly revealedVotes: Record<string, string>;
+  readonly participants: Array<{ id: string; name: string }>;
+  readonly currentUrl: string | undefined;
+  readonly storyPointProjects: string[];
+  readonly storyPointOverride: string;
+  readonly onStoryPointChange: (value: string) => void;
+  readonly onSaveVote: (val: string) => void;
+}
+
+function RevealedVotesPanel({
+  revealedVotes,
+  participants,
+  currentUrl,
+  storyPointProjects,
+  storyPointOverride,
+  onStoryPointChange,
+  onSaveVote,
+}: RevealedVotesPanelProps) {
+  const avg = Object.keys(revealedVotes).length > 0 ? computeVoteAverage(revealedVotes) : null;
+  const spError = validateStoryPoint(storyPointOverride.trim());
+  const spDirty = storyPointOverride.trim().length > 0;
+  const spValid = spDirty && !spError;
+  const jiraInfo =
+    currentUrl && isStoryPointConfigured(currentUrl, storyPointProjects)
+      ? parseJiraUrl(currentUrl)
+      : null;
+
+  async function saveToJira(val: string) {
+    if (!jiraInfo) return;
+    onSaveVote(val);
+    try {
+      await updateJiraStoryPoints(jiraInfo.key, Number(val));
+      toast.success(`Story point ${val} saved to ${jiraInfo.key}`);
+    } catch {
+      toast.error('Failed to update Jira story point. Check Jira integration settings.');
+    }
+  }
+
+  async function handleKeyDown(e: ReactKeyboardEvent<HTMLInputElement>) {
+    if (e.key !== 'Enter' || !spValid) return;
+    const val = storyPointOverride.trim();
+    if (jiraInfo) {
+      await saveToJira(val);
+    } else {
+      onSaveVote(val);
+      toast.success('Story point saved.');
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      className="mt-3 p-3 rounded-lg bg-indigo-500/5 border border-indigo-500/20"
+    >
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">
+          Votes Revealed
+        </p>
+        {avg !== null && (
+          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+            avg {avg % 1 === 0 ? avg : avg.toFixed(1)}
+          </span>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {Object.entries(revealedVotes).map(([pid, val]) => {
+          const participant = participants.find((p) => p.id === pid);
+          return (
+            <div
+              key={pid}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30"
+            >
+              <span className="text-xs text-zinc-400">{participant?.name ?? 'Unknown'}:</span>
+              <span className="text-xs font-bold text-indigo-300">{val}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Story point override + save + copy-to-Jira */}
+      <div className="flex items-start gap-2 mt-3 pt-3 border-t border-indigo-500/20">
+        <span className="text-xs text-zinc-400 flex-shrink-0 mt-1.5">Story Point:</span>
+        <div className="flex flex-col gap-0.5">
+          <input
+            type="number"
+            min="0"
+            step="any"
+            value={storyPointOverride}
+            onChange={(e) => onStoryPointChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className={cn(
+              'w-16 h-7 px-2 rounded-md bg-zinc-800 text-zinc-100 text-xs font-bold border outline-none text-center',
+              spDirty && spError
+                ? 'border-red-500/70 focus:border-red-500'
+                : 'border-indigo-500/40 focus:border-indigo-500',
+            )}
+            aria-label="Story point override"
+            aria-invalid={spDirty && !!spError}
+            aria-describedby={spDirty && spError ? 'sp-error' : undefined}
+            placeholder="—"
+          />
+          {spDirty && spError && (
+            <span id="sp-error" className="text-[10px] text-red-400 leading-none">
+              {spError}
+            </span>
+          )}
+        </div>
+        {jiraInfo ? (
+          <button
+            type="button"
+            disabled={!spValid}
+            onClick={() => saveToJira(storyPointOverride.trim())}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-500/20 text-indigo-300 text-xs font-semibold border border-indigo-500/30 hover:bg-indigo-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <Send className="h-3 w-3" />
+            Save to Jira
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={!spValid}
+            onClick={() => {
+              onSaveVote(storyPointOverride.trim());
+              toast.success('Story point saved.');
+            }}
+            className="px-2.5 py-1 rounded-md bg-indigo-500/20 text-indigo-300 text-xs font-semibold border border-indigo-500/30 hover:bg-indigo-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Save
+          </button>
+        )}
+      </div>
+    </motion.div>
+  );
 }
 
 const storyPointSchema = Yup.number()
@@ -77,7 +204,6 @@ export function HostDashboard() {
   const [newUrl, setNewUrl] = useState('');
   const [showMobileParticipants, setShowMobileParticipants] = useState(false);
   const [isGroomingComplete, setIsGroomingComplete] = useState(false);
-  const [storyPointOverride, setStoryPointOverride] = useState('');
 
   const {
     session,
@@ -92,6 +218,8 @@ export function HostDashboard() {
     revealedVotes,
     savedVotesMap,
   } = useSessionStore();
+
+  const { storyPointOverride, setStoryPointOverride } = useStoryPointOverride(revealedVotes);
 
   // Ref guard: React StrictMode double-invokes effects in dev, which would
   // show the "Host key not found" toast twice before navigation completes.
@@ -129,27 +257,36 @@ export function HostDashboard() {
     };
   }, [session?.name, session]);
 
-  const handleRevealVotes = useCallback(() => {
-    if (!sessionId || !hostKey) return;
-    const socket = getSocket();
-    socket.emit(WS_EVENTS.HOST_REVEAL_VOTES, { sessionId, hostKey });
-  }, [sessionId, hostKey]);
-
-  const handleStartSession = useCallback(() => {
-    if (!sessionId || !hostKey) return;
-    const socket = getSocket();
-    socket.emit(WS_EVENTS.HOST_START_SESSION, { sessionId, hostKey });
-  }, [sessionId, hostKey]);
-
-  const handleNavigate = useCallback(
-    (direction: 'next' | 'prev') => {
-      if (!sessionId || !hostKey) return;
-      if (direction === 'prev') setIsGroomingComplete(false);
-      const socket = getSocket();
-      socket.emit(WS_EVENTS.HOST_NAVIGATE, { sessionId, hostKey, direction });
-    },
-    [sessionId, hostKey],
-  );
+  const {
+    handleRevealVotes,
+    handleStartSession,
+    handleNavigate,
+    handleComplete,
+    handleJumpTo,
+    handleToggleLock,
+    handleKickParticipant,
+    handleDeleteUrl,
+    handleReorderUrls,
+    handleResetVotes,
+    handleSetSavedVote,
+    handleResetSavedVote,
+    handleAddUrl,
+    handleEndSession,
+    handleCopyCoHostInviteLink,
+    handleCopyToJira,
+  } = useHostActions({
+    sessionId,
+    hostKey,
+    session,
+    setIsGroomingComplete,
+    newUrl,
+    setNewUrl,
+    navigate,
+    reset,
+    loadHostInviteKey,
+    savedVotesMap,
+    storyPointProjects,
+  });
 
   // Reset completion banner when a new URL is added (current index is no longer last)
   useEffect(() => {
@@ -157,154 +294,6 @@ export function HostDashboard() {
       setIsGroomingComplete(false);
     }
   }, [isGroomingComplete, session]);
-
-  const handleComplete = useCallback(() => {
-    setIsGroomingComplete(true);
-    confetti({
-      particleCount: 160,
-      spread: 80,
-      origin: { y: 0.7 },
-      colors: ['#6366f1', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b'],
-    });
-    if (sessionId && hostKey) {
-      const socket = getSocket();
-      socket.emit(WS_EVENTS.GROOMING_COMPLETE, { sessionId, hostKey });
-    }
-  }, [sessionId, hostKey]);
-
-  const handleJumpTo = useCallback(
-    (index: number) => {
-      if (!sessionId || !hostKey) return;
-      const socket = getSocket();
-      socket.emit(WS_EVENTS.HOST_NAVIGATE, { sessionId, hostKey, index });
-    },
-    [sessionId, hostKey],
-  );
-
-  const handleToggleLock = useCallback(() => {
-    if (!sessionId || !hostKey || !session) return;
-    const locked = !session.isLocked;
-    const socket = getSocket();
-    socket.emit(WS_EVENTS.HOST_TOGGLE_LOCK, { sessionId, hostKey, locked });
-    toast(locked ? 'Session locked — no new participants can join.' : 'Session unlocked.', {
-      icon: locked ? '🔒' : '🔓',
-      duration: 3000,
-    });
-  }, [sessionId, hostKey, session]);
-
-  const handleKickParticipant = useCallback(
-    (participantId: string) => {
-      if (!sessionId || !hostKey) return;
-      const socket = getSocket();
-      socket.emit(WS_EVENTS.HOST_KICK_PARTICIPANT, { sessionId, hostKey, participantId });
-      toast(`Participant removed.`, { icon: '🚫', duration: 3000 });
-    },
-    [sessionId, hostKey],
-  );
-
-  const handleDeleteUrl = useCallback(
-    (index: number) => {
-      if (!sessionId || !hostKey) return;
-      const socket = getSocket();
-      socket.emit(WS_EVENTS.HOST_REMOVE_URL, { sessionId, hostKey, index });
-    },
-    [sessionId, hostKey],
-  );
-
-  const handleReorderUrls = useCallback(
-    (fromIndex: number, toIndex: number) => {
-      if (!sessionId || !hostKey) return;
-      const socket = getSocket();
-      socket.emit(WS_EVENTS.HOST_REORDER_URLS, { sessionId, hostKey, fromIndex, toIndex });
-    },
-    [sessionId, hostKey],
-  );
-
-  const handleAddUrl = useCallback(() => {
-    const trimmed = newUrl.trim();
-    if (!trimmed || !sessionId || !hostKey) return;
-    if (!isValidHttpUrl(trimmed)) {
-      toast.error('Please enter a valid http/https URL');
-      return;
-    }
-    const socket = getSocket();
-    socket.emit(WS_EVENTS.HOST_ADD_URL, { sessionId, hostKey, url: trimmed });
-    setNewUrl('');
-  }, [newUrl, sessionId, hostKey]);
-
-  const handleEndSession = useCallback(() => {
-    if (!sessionId || !hostKey) return;
-    const socket = getSocket();
-    socket.emit(WS_EVENTS.HOST_END_SESSION, { sessionId, hostKey });
-    reset();
-    navigate('/');
-  }, [sessionId, hostKey, navigate, reset]);
-
-  const handleCopyCoHostInviteLink = useCallback(() => {
-    if (!sessionId) return;
-    const inviteKey = loadHostInviteKey(sessionId);
-    if (!inviteKey) {
-      toast.error('Host invite key not found.');
-      return;
-    }
-    const link = `${globalThis.location.origin}/host/join/${sessionId}?key=${inviteKey}`;
-    navigator.clipboard
-      .writeText(link)
-      .then(() => {
-        toast.success('Co-host invite link copied to clipboard.', { icon: '🔗' });
-      })
-      .catch(() => {
-        toast.error('Failed to copy link.');
-      });
-  }, [sessionId, loadHostInviteKey]);
-
-  // Sync the story-point override input with the computed average whenever votes are revealed
-  useEffect(() => {
-    if (!revealedVotes) return;
-    const avg = computeVoteAverage(revealedVotes);
-    setStoryPointOverride(avg === null ? '' : String(avg % 1 === 0 ? avg : avg.toFixed(1)));
-  }, [revealedVotes]);
-
-  const handleSetSavedVote = useCallback(
-    (urlIndex: number, value: string) => {
-      if (!sessionId || !hostKey) return;
-      getSocket().emit(WS_EVENTS.HOST_SET_SAVED_VOTE, { sessionId, hostKey, urlIndex, value });
-    },
-    [sessionId, hostKey],
-  );
-
-  const handleResetSavedVote = useCallback(
-    (urlIndex: number) => {
-      if (!sessionId || !hostKey) return;
-      getSocket().emit(WS_EVENTS.HOST_RESET_SAVED_VOTE, { sessionId, hostKey, urlIndex });
-    },
-    [sessionId, hostKey],
-  );
-
-  const handleResetVotes = useCallback(() => {
-    if (!sessionId || !hostKey) return;
-    getSocket().emit(WS_EVENTS.HOST_RESET_VOTES, { sessionId, hostKey });
-  }, [sessionId, hostKey]);
-
-  const handleCopyToJira = useCallback(
-    async (urlIndex: number) => {
-      const url = session?.urls[urlIndex];
-      const jiraInfo =
-        url && isStoryPointConfigured(url, storyPointProjects) ? parseJiraUrl(url) : null;
-      const points = savedVotesMap[urlIndex];
-      if (!jiraInfo || points === undefined || Number.isNaN(Number(points))) {
-        toast.error('No numeric story point to copy, or not a Jira URL.');
-        return;
-      }
-      try {
-        await updateJiraStoryPoints(jiraInfo.key, Number(points));
-        toast.success(`Story point ${points} saved to ${jiraInfo.key}`);
-      } catch {
-        toast.error('Failed to update Jira story point. Check Jira integration settings.');
-      }
-    },
-    [session, savedVotesMap, storyPointProjects],
-  );
 
   const currentUrl = session?.urls[session.currentIndex];
   const onlineCount = participants.filter((p) => p.isOnline).length;
@@ -558,139 +547,15 @@ export function HostDashboard() {
 
               {/* Revealed votes panel */}
               {session.votingEnabled && revealedVotes && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="mt-3 p-3 rounded-lg bg-indigo-500/5 border border-indigo-500/20"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">
-                      Votes Revealed
-                    </p>
-                    {Object.keys(revealedVotes).length > 0 &&
-                      (() => {
-                        const avg = computeVoteAverage(revealedVotes);
-                        return avg === null ? null : (
-                          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                            avg {avg % 1 === 0 ? avg : avg.toFixed(1)}
-                          </span>
-                        );
-                      })()}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {Object.entries(revealedVotes).map(([pid, val]) => {
-                      const participant = participants.find((p) => p.id === pid);
-                      return (
-                        <div
-                          key={pid}
-                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30"
-                        >
-                          <span className="text-xs text-zinc-400">
-                            {participant?.name || 'Unknown'}:
-                          </span>
-                          <span className="text-xs font-bold text-indigo-300">{val}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Story point override + save + copy-to-Jira */}
-                  {(() => {
-                    const spError = validateStoryPoint(storyPointOverride.trim());
-                    const spDirty = storyPointOverride.trim().length > 0;
-                    const spValid = spDirty && !spError;
-                    const jiraInfo =
-                      currentUrl && isStoryPointConfigured(currentUrl, storyPointProjects)
-                        ? parseJiraUrl(currentUrl)
-                        : null;
-                    return (
-                      <div className="flex items-start gap-2 mt-3 pt-3 border-t border-indigo-500/20">
-                        <span className="text-xs text-zinc-400 flex-shrink-0 mt-1.5">
-                          Story Point:
-                        </span>
-                        <div className="flex flex-col gap-0.5">
-                          <input
-                            type="number"
-                            min="0"
-                            step="any"
-                            value={storyPointOverride}
-                            onChange={(e) => setStoryPointOverride(e.target.value)}
-                            onKeyDown={async (e) => {
-                              if (e.key === 'Enter' && spValid && session) {
-                                const val = storyPointOverride.trim();
-                                handleSetSavedVote(session.currentIndex, val);
-                                if (jiraInfo) {
-                                  try {
-                                    await updateJiraStoryPoints(jiraInfo.key, Number(val));
-                                    toast.success(`Story point ${val} saved to ${jiraInfo.key}`);
-                                  } catch {
-                                    toast.error(
-                                      'Failed to update Jira story point. Check Jira integration settings.',
-                                    );
-                                  }
-                                } else {
-                                  toast.success('Story point saved.');
-                                }
-                              }
-                            }}
-                            className={cn(
-                              'w-16 h-7 px-2 rounded-md bg-zinc-800 text-zinc-100 text-xs font-bold border outline-none text-center',
-                              spDirty && spError
-                                ? 'border-red-500/70 focus:border-red-500'
-                                : 'border-indigo-500/40 focus:border-indigo-500',
-                            )}
-                            aria-label="Story point override"
-                            aria-invalid={spDirty && !!spError}
-                            aria-describedby={spDirty && spError ? 'sp-error' : undefined}
-                            placeholder="—"
-                          />
-                          {spDirty && spError && (
-                            <span id="sp-error" className="text-[10px] text-red-400 leading-none">
-                              {spError}
-                            </span>
-                          )}
-                        </div>
-                        {jiraInfo ? (
-                          <button
-                            type="button"
-                            disabled={!spValid}
-                            onClick={async () => {
-                              if (!spValid || !session) return;
-                              const val = storyPointOverride.trim();
-                              handleSetSavedVote(session.currentIndex, val);
-                              try {
-                                await updateJiraStoryPoints(jiraInfo.key, Number(val));
-                                toast.success(`Story point ${val} saved to ${jiraInfo.key}`);
-                              } catch {
-                                toast.error(
-                                  'Failed to update Jira story point. Check Jira integration settings.',
-                                );
-                              }
-                            }}
-                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-500/20 text-indigo-300 text-xs font-semibold border border-indigo-500/30 hover:bg-indigo-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                          >
-                            <Send className="h-3 w-3" />
-                            Save to Jira
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={!spValid}
-                            onClick={() => {
-                              if (spValid && session) {
-                                handleSetSavedVote(session.currentIndex, storyPointOverride.trim());
-                                toast.success('Story point saved.');
-                              }
-                            }}
-                            className="px-2.5 py-1 rounded-md bg-indigo-500/20 text-indigo-300 text-xs font-semibold border border-indigo-500/30 hover:bg-indigo-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                          >
-                            Save
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </motion.div>
+                <RevealedVotesPanel
+                  revealedVotes={revealedVotes}
+                  participants={participants}
+                  currentUrl={currentUrl}
+                  storyPointProjects={storyPointProjects}
+                  storyPointOverride={storyPointOverride}
+                  onStoryPointChange={setStoryPointOverride}
+                  onSaveVote={(val) => handleSetSavedVote(session.currentIndex, val)}
+                />
               )}
             </div>
           )}

@@ -332,13 +332,8 @@ export function Home() {
   const { getSavedSessions, removeSavedSession, loadHostKey } = useSessionStore();
   const [savedSessions, setSavedSessions] = useState<SavedSession[]>(() => getSavedSessions());
 
-  // On mount: silently verify participant sessions still exist on the server.
-  // Any that return 404 are removed from localStorage and the UI list.
-  useEffect(() => {
-    const participantSessions = getSavedSessions().filter((s) => s.role === 'participant');
-    if (participantSessions.length === 0) return;
-
-    async function verifySession(s: SavedSession) {
+  const verifySession = useCallback(
+    async (s: SavedSession) => {
       try {
         await getSessionByCode(s.joinCode);
       } catch {
@@ -346,10 +341,17 @@ export function Home() {
         removeSavedSession(s.sessionId);
         setSavedSessions((prev) => prev.filter((p) => p.sessionId !== s.sessionId));
       }
-    }
+    },
+    [removeSavedSession],
+  );
 
+  // On mount: silently verify participant sessions still exist on the server.
+  // Any that return 404 are removed from localStorage and the UI list.
+  useEffect(() => {
+    const participantSessions = getSavedSessions().filter((s) => s.role === 'participant');
+    if (participantSessions.length === 0) return;
     participantSessions.forEach(verifySession);
-  }, [getSavedSessions, removeSavedSession]);
+  }, [getSavedSessions, verifySession]);
 
   const handleResume = useCallback(
     (session: SavedSession) => {
@@ -444,7 +446,7 @@ export function Home() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500" />
             </span>
-            Real-time tab synchronization for engineering teams
+            <span>Real-time tab synchronization for engineering teams</span>
           </motion.div>
 
           <motion.h1

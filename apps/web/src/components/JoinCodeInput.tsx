@@ -144,7 +144,7 @@ export function JoinCodeInput({
     <div className={cn('flex items-center gap-2.5 justify-center', className)}>
       {Array.from({ length: CODE_LENGTH }).map((_, index) => (
         <input
-          key={`pos-${index}`}
+          key={`pos-${index}`} // NOSONAR — fixed-length input, positions never reorder
           ref={(el) => {
             inputsRef.current[index] = el;
           }}

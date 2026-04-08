@@ -37,8 +37,7 @@ export async function copyToClipboard(text: string): Promise<void> {
       document.body.appendChild(textarea);
       textarea.focus();
       textarea.select();
-      // eslint-disable-next-line @typescript-eslint/no-deprecated
-      document.execCommand?.('copy');
+      document.execCommand?.('copy'); // NOSONAR — intentional deprecated fallback for non-Clipboard API browsers
       textarea.remove();
     } catch {
       // Silent — clipboard copy failure is non-critical

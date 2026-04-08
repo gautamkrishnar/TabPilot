@@ -41,7 +41,7 @@ export function JoinCodeDisplay({ joinCode, className, codeOnly = false }: JoinC
         <div className="flex items-center gap-2">
           {chars.map((char, i) => (
             <div
-              key={`pos-${i}`}
+              key={`pos-${i}`} // NOSONAR — fixed-length code, positions never reorder
               className={cn(
                 'w-12 h-14 flex items-center justify-center',
                 'rounded-lg border-2 border-zinc-300 dark:border-zinc-700',
