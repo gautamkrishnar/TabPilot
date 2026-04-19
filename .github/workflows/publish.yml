@@ -212,7 +212,8 @@ jobs:
 
               if (hasSemver || hasLatest) continue;   // always keep
               if (hasSha) { shaVersions.push(v); continue; }
-              if (isUntagged) toDelete.push(v);       // orphaned layers
+              // Don't delete untagged versions — multi-arch manifest lists
+              // reference platform-specific images that appear untagged in GHCR
             }
 
             // Sort sha versions newest-first, mark old ones for deletion
