@@ -372,7 +372,9 @@ export function ParticipantView() {
                           .map(Number)
                           .filter((n) => !Number.isNaN(n));
                         const avg =
-                          nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
+                          nums.length > 0
+                            ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length)
+                            : null;
                         return avg === null ? null : (
                           <span className="text-sm font-bold px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                             avg {avg % 1 === 0 ? avg : avg.toFixed(1)}

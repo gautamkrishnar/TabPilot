@@ -4,7 +4,7 @@ function computeVoteAverage(votes: Record<string, string>): number | null {
   const nums = Object.values(votes)
     .map(Number)
     .filter((n) => !Number.isNaN(n));
-  return nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
+  return nums.length > 0 ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length) : null;
 }
 
 /**
