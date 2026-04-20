@@ -333,14 +333,14 @@ export function HostDashboard() {
           <StatusBadge state={session.state} size="sm" />
 
           {/* Desktop-only controls (inline with title row) */}
-          <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+          <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0">
             <button
               type="button"
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors text-sm font-mono"
+              className="inline-flex items-center gap-2 h-8 px-3 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors text-xs font-mono"
               onClick={() => setShowShareModal(true)}
               title="Share session"
             >
-              <span className="text-zinc-500 text-xs">Code:</span>
+              <span className="text-zinc-500">Code:</span>
               <span className="text-zinc-800 dark:text-zinc-200 font-bold tracking-widest">
                 {session.joinCode}
               </span>
@@ -350,17 +350,19 @@ export function HostDashboard() {
             <button
               type="button"
               onClick={() => setShowMobileParticipants(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors text-xs"
             >
-              <Users className="h-4 w-4 text-zinc-400" />
+              <Users className="h-3.5 w-3.5 text-zinc-400" />
               <span className="text-zinc-700 dark:text-zinc-300 font-medium">{onlineCount}</span>
-              <span className="text-zinc-600">/{participants.length}</span>
+              <span className="text-zinc-500">/{participants.length}</span>
             </button>
 
             <div
               className={cn(
-                'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium',
-                isConnected ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400',
+                'inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border text-xs font-medium',
+                isConnected
+                  ? 'bg-green-500/10 text-green-400 border-green-500/30'
+                  : 'bg-red-500/10 text-red-400 border-red-500/30',
               )}
             >
               {isConnected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
@@ -374,7 +376,7 @@ export function HostDashboard() {
                 onClick={handleRevealVotes}
                 className="gap-1.5 border-indigo-500/50 text-indigo-400 hover:bg-indigo-500/10"
               >
-                <Eye className="h-4 w-4" />
+                <Eye className="h-3.5 w-3.5" />
                 Reveal ({votedParticipantIds.length})
               </Button>
             )}
@@ -397,14 +399,18 @@ export function HostDashboard() {
               size="sm"
               onClick={handleToggleLock}
               className={cn(
-                'gap-1.5',
+                'gap-1.5 w-[5.5rem]',
                 session.isLocked
                   ? 'border-amber-500/50 text-amber-400 hover:bg-amber-500/10 dark:border-amber-500/50'
                   : 'border-zinc-300 dark:border-zinc-700',
               )}
               title={session.isLocked ? 'Unlock session' : 'Lock session'}
             >
-              {session.isLocked ? <Lock className="h-4 w-4" /> : <LockOpen className="h-4 w-4" />}
+              {session.isLocked ? (
+                <Lock className="h-3.5 w-3.5" />
+              ) : (
+                <LockOpen className="h-3.5 w-3.5" />
+              )}
               {session.isLocked ? 'Locked' : 'Lock'}
             </Button>
 
@@ -414,7 +420,7 @@ export function HostDashboard() {
               onClick={() => setShowEndConfirm(true)}
               className="gap-1.5"
             >
-              <Power className="h-4 w-4" />
+              <Power className="h-3.5 w-3.5" />
               End
             </Button>
           </div>
