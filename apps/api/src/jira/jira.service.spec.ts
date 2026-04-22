@@ -28,6 +28,15 @@ describe('JiraService', () => {
       expect(service.isConfigured).toBe(false);
     });
 
+    it('returns true when only email and token are set (baseUrl optional)', () => {
+      delete process.env.JIRA_BASE_URL;
+      process.env.JIRA_USER_EMAIL = 'user@example.com';
+      process.env.JIRA_API_TOKEN = 'token123';
+      expect(service.isConfigured).toBe(true);
+      delete process.env.JIRA_USER_EMAIL;
+      delete process.env.JIRA_API_TOKEN;
+    });
+
     it('returns true when all env vars are set', () => {
       process.env.JIRA_BASE_URL = 'https://example.atlassian.net';
       process.env.JIRA_USER_EMAIL = 'user@example.com';
@@ -53,6 +62,47 @@ describe('JiraService', () => {
       await expect(service.getIssue('PROJ-123')).rejects.toThrow(ServiceUnavailableException);
     });
 
+    it('uses provided baseUrl when JIRA_BASE_URL is not set', async () => {
+      delete process.env.JIRA_BASE_URL;
+      process.env.JIRA_USER_EMAIL = 'user@example.com';
+      process.env.JIRA_API_TOKEN = 'token123';
+      global.fetch = jest.fn().mockResolvedValue({
+        status: 200,
+        ok: true,
+        json: async () => ({
+          fields: { summary: 'Test', status: { name: 'Open' }, issuetype: { name: 'Bug' } },
+        }),
+      } as unknown as Response);
+
+      await service.getIssue('PROJ-123', 'https://myorg.atlassian.net');
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://myorg.atlassian.net/rest/api/3/issue/PROJ-123?fields=summary,status,issuetype',
+        expect.any(Object),
+      );
+      delete process.env.JIRA_USER_EMAIL;
+      delete process.env.JIRA_API_TOKEN;
+    });
+
+    it('rejects non-atlassian baseUrl to prevent SSRF', async () => {
+      delete process.env.JIRA_BASE_URL;
+      process.env.JIRA_USER_EMAIL = 'user@example.com';
+      process.env.JIRA_API_TOKEN = 'token123';
+      await expect(service.getIssue('PROJ-123', 'https://evil.com')).rejects.toThrow(
+        BadRequestException,
+      );
+      delete process.env.JIRA_USER_EMAIL;
+      delete process.env.JIRA_API_TOKEN;
+    });
+
+    it('throws ServiceUnavailableException when no baseUrl is available', async () => {
+      delete process.env.JIRA_BASE_URL;
+      process.env.JIRA_USER_EMAIL = 'user@example.com';
+      process.env.JIRA_API_TOKEN = 'token123';
+      await expect(service.getIssue('PROJ-123')).rejects.toThrow(ServiceUnavailableException);
+      delete process.env.JIRA_USER_EMAIL;
+      delete process.env.JIRA_API_TOKEN;
+    });
+
     describe('with Jira configured', () => {
       beforeEach(() => {
         process.env.JIRA_BASE_URL = 'https://example.atlassian.net';
@@ -64,6 +114,32 @@ describe('JiraService', () => {
         delete process.env.JIRA_BASE_URL;
         delete process.env.JIRA_USER_EMAIL;
         delete process.env.JIRA_API_TOKEN;
+      });
+
+      it('rejects a provided baseUrl that differs from JIRA_BASE_URL', async () => {
+        await expect(service.getIssue('PROJ-123', 'https://other.atlassian.net')).rejects.toThrow(
+          BadRequestException,
+        );
+      });
+
+      it('rejects a provided baseUrl that differs from self-hosted JIRA_BASE_URL', async () => {
+        process.env.JIRA_BASE_URL = 'https://jira.mycompany.com';
+        await expect(service.getIssue('PROJ-123', 'https://other.atlassian.net')).rejects.toThrow(
+          BadRequestException,
+        );
+      });
+
+      it('allows a provided baseUrl that matches JIRA_BASE_URL', async () => {
+        global.fetch = jest.fn().mockResolvedValue({
+          status: 200,
+          ok: true,
+          json: async () => ({
+            fields: { summary: 'Test', status: { name: 'Open' }, issuetype: { name: 'Bug' } },
+          }),
+        } as unknown as Response);
+        await expect(
+          service.getIssue('PROJ-123', 'https://example.atlassian.net'),
+        ).resolves.toBeDefined();
       });
 
       it('throws ServiceUnavailableException when fetch fails', async () => {
@@ -135,6 +211,23 @@ describe('JiraService', () => {
       await expect(service.setStoryPoints('PROJ-123', 5)).rejects.toThrow(
         ServiceUnavailableException,
       );
+    });
+
+    it('uses provided baseUrl for setStoryPoints when JIRA_BASE_URL is not set', async () => {
+      delete process.env.JIRA_BASE_URL;
+      process.env.JIRA_USER_EMAIL = 'user@example.com';
+      process.env.JIRA_API_TOKEN = 'token123';
+      process.env.JIRA_STORY_POINTS_FIELDS = 'PROJ=story_points';
+      global.fetch = jest.fn().mockResolvedValue({ status: 204, ok: true } as Response);
+
+      await service.setStoryPoints('PROJ-123', 5, 'https://myorg.atlassian.net');
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://myorg.atlassian.net/rest/api/3/issue/PROJ-123',
+        expect.any(Object),
+      );
+      delete process.env.JIRA_USER_EMAIL;
+      delete process.env.JIRA_API_TOKEN;
+      delete process.env.JIRA_STORY_POINTS_FIELDS;
     });
 
     describe('with Jira configured', () => {

@@ -4,6 +4,7 @@ import apiClient from './api';
 
 export interface JiraUrlInfo {
   key: string; // e.g. "CONNCERT-2771"
+  baseUrl: string; // e.g. "https://myorg.atlassian.net"
 }
 
 /**
@@ -17,13 +18,15 @@ export function parseJiraUrl(url: string): JiraUrlInfo | null {
     if (parsed.hostname !== 'atlassian.net' && !parsed.hostname.endsWith('.atlassian.net'))
       return null;
 
+    const baseUrl = parsed.origin;
+
     // /browse/PROJ-123
     const browseMatch = /\/browse\/([A-Z][A-Z0-9_]*-\d+)/i.exec(parsed.pathname);
-    if (browseMatch) return { key: browseMatch[1].toUpperCase() };
+    if (browseMatch) return { key: browseMatch[1].toUpperCase(), baseUrl };
 
     // /jira/.../issues/PROJ-123
     const issuesMatch = /\/issues\/([A-Z][A-Z0-9_]*-\d+)/i.exec(parsed.pathname);
-    if (issuesMatch) return { key: issuesMatch[1].toUpperCase() };
+    if (issuesMatch) return { key: issuesMatch[1].toUpperCase(), baseUrl };
 
     return null;
   } catch {
@@ -40,8 +43,9 @@ export interface JiraIssue {
   issueType: string;
 }
 
-export async function fetchJiraIssue(key: string): Promise<JiraIssue> {
-  const res = await apiClient.get<JiraIssue>(`/jira/issue/${key}`);
+export async function fetchJiraIssue(key: string, baseUrl?: string): Promise<JiraIssue> {
+  const params = baseUrl ? { baseUrl } : undefined;
+  const res = await apiClient.get<JiraIssue>(`/jira/issue/${key}`, { params });
   return res.data;
 }
 
@@ -71,6 +75,10 @@ export function formatJiraTitle(issue: JiraIssue): string {
   return `${issue.summary} (${issue.key})`;
 }
 
-export async function updateJiraStoryPoints(key: string, points: number): Promise<void> {
-  await apiClient.patch(`/jira/issue/${key}/story-points`, { points });
+export async function updateJiraStoryPoints(
+  key: string,
+  points: number,
+  baseUrl?: string,
+): Promise<void> {
+  await apiClient.patch(`/jira/issue/${key}/story-points`, { points, baseUrl });
 }

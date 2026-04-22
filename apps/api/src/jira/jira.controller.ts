@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
 import {
   ApiBody,
   ApiNoContentResponse,
@@ -30,7 +30,8 @@ export class JiraController {
     summary: 'Fetch a Jira issue by key',
     description:
       'Proxies to the configured Jira instance. Returns the issue summary, status, and type. ' +
-      'Requires JIRA_BASE_URL, JIRA_USER_EMAIL, and JIRA_API_TOKEN to be set on the server.',
+      'Requires JIRA_USER_EMAIL and JIRA_API_TOKEN. JIRA_BASE_URL is optional — ' +
+      'if not set, pass baseUrl as a query param (inferred from the ticket URL).',
   })
   @ApiParam({ name: 'key', example: 'CONNCERT-2771', description: 'Jira issue key' })
   @ApiResponse({
@@ -47,8 +48,8 @@ export class JiraController {
   })
   @ApiNotFoundResponse({ description: 'Issue not found in Jira.' })
   @ApiResponse({ status: 503, description: 'Jira not configured or unreachable.' })
-  getIssue(@Param('key') key: string) {
-    return this.jiraService.getIssue(key.toUpperCase());
+  getIssue(@Param('key') key: string, @Query('baseUrl') baseUrl?: string) {
+    return this.jiraService.getIssue(key.toUpperCase(), baseUrl);
   }
 
   @Patch('issue/:key/story-points')
@@ -65,7 +66,7 @@ export class JiraController {
   @ApiNotFoundResponse({ description: 'Issue not found in Jira.' })
   @ApiResponse({ status: 400, description: 'Invalid key or project not configured.' })
   @ApiResponse({ status: 503, description: 'Jira not configured or unreachable.' })
-  setStoryPoints(@Param('key') key: string, @Body() body: { points: number }) {
-    return this.jiraService.setStoryPoints(key.toUpperCase(), body.points);
+  setStoryPoints(@Param('key') key: string, @Body() body: { points: number; baseUrl?: string }) {
+    return this.jiraService.setStoryPoints(key.toUpperCase(), body.points, body.baseUrl);
   }
 }

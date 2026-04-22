@@ -76,7 +76,7 @@ function RevealedVotesPanel({
     if (!jiraInfo) return;
     onSaveVote(val);
     try {
-      await updateJiraStoryPoints(jiraInfo.key, Number(val));
+      await updateJiraStoryPoints(jiraInfo.key, Number(val), jiraInfo.baseUrl);
       toast.success(`Story point ${val} saved to ${jiraInfo.key}`);
     } catch {
       toast.error('Failed to update Jira story point. Check Jira integration settings.');

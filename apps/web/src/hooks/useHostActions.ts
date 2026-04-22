@@ -197,7 +197,7 @@ export function useHostActions({
         return;
       }
       try {
-        await updateJiraStoryPoints(jiraInfo.key, Number(points));
+        await updateJiraStoryPoints(jiraInfo.key, Number(points), jiraInfo.baseUrl);
         toast.success(`Story point ${points} saved to ${jiraInfo.key}`);
       } catch {
         toast.error('Failed to update Jira story point. Check Jira integration settings.');

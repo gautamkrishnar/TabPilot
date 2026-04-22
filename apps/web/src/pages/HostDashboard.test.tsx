@@ -44,7 +44,9 @@ vi.mock('canvas-confetti', () => ({ default: vi.fn() }));
 const mockUpdateJiraStoryPoints = vi.fn();
 vi.mock('@/lib/jira', () => ({
   parseJiraUrl: (url: string) =>
-    url.includes('atlassian.net') ? { key: url.split('/').pop() } : null,
+    url.includes('atlassian.net')
+      ? { key: url.split('/').pop(), baseUrl: new URL(url).origin }
+      : null,
   isStoryPointConfigured: (url: string) => url.includes('atlassian.net'),
   updateJiraStoryPoints: (...args: unknown[]) => mockUpdateJiraStoryPoints(...args),
 }));
@@ -646,7 +648,11 @@ describe('HostDashboard — story point management', () => {
     await userEvent.click(jiraBtn);
 
     await waitFor(() => {
-      expect(mockUpdateJiraStoryPoints).toHaveBeenCalledWith('FAKE-123', 8);
+      expect(mockUpdateJiraStoryPoints).toHaveBeenCalledWith(
+        'FAKE-123',
+        8,
+        'https://example.atlassian.net',
+      );
     });
   });
 });

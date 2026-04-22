@@ -18,6 +18,17 @@ export interface JiraIssue {
   issueType: string;
 }
 
+function isAllowedJiraHost(urlStr: string): boolean {
+  try {
+    const { hostname, protocol } = new URL(urlStr);
+    return (
+      protocol === 'https:' && (hostname === 'atlassian.net' || hostname.endsWith('.atlassian.net'))
+    );
+  } catch {
+    return false;
+  }
+}
+
 @Injectable()
 export class JiraService {
   private readonly logger = new Logger(JiraService.name);
@@ -35,7 +46,28 @@ export class JiraService {
   }
 
   get isConfigured(): boolean {
-    return !!(this.baseUrl && this.email && this.token);
+    return !!(this.email && this.token);
+  }
+
+  private resolveBaseUrl(provided?: string): string {
+    if (this.baseUrl) {
+      if (provided && provided.replace(/\/$/, '') !== this.baseUrl) {
+        throw new BadRequestException(
+          `Provided baseUrl does not match the configured JIRA_BASE_URL.`,
+        );
+      }
+      return this.baseUrl;
+    }
+    if (provided) {
+      const cleaned = provided.replace(/\/$/, '');
+      if (!isAllowedJiraHost(cleaned)) {
+        throw new BadRequestException('Provided baseUrl must be an https://*.atlassian.net URL.');
+      }
+      return cleaned;
+    }
+    throw new ServiceUnavailableException(
+      'Jira base URL not configured. Set JIRA_BASE_URL or provide a baseUrl parameter.',
+    );
   }
 
   /** Project keys that have a story-points field configured (from JIRA_STORY_POINTS_FIELDS). */
@@ -61,18 +93,19 @@ export class JiraService {
     return map;
   }
 
-  async getIssue(issueKey: string): Promise<JiraIssue> {
+  async getIssue(issueKey: string, providedBaseUrl?: string): Promise<JiraIssue> {
     if (!ISSUE_KEY_RE.test(issueKey)) {
       throw new BadRequestException('Invalid Jira issue key.');
     }
     if (!this.isConfigured) {
       throw new ServiceUnavailableException(
-        'Jira integration is not configured. Set JIRA_BASE_URL, JIRA_USER_EMAIL and JIRA_API_TOKEN.',
+        'Jira integration is not configured. Set JIRA_USER_EMAIL and JIRA_API_TOKEN.',
       );
     }
 
+    const resolvedBase = this.resolveBaseUrl(providedBaseUrl);
     const auth = Buffer.from(`${this.email}:${this.token}`).toString('base64');
-    const url = `${this.baseUrl}/rest/api/3/issue/${issueKey}?fields=summary,status,issuetype`;
+    const url = `${resolvedBase}/rest/api/3/issue/${issueKey}?fields=summary,status,issuetype`;
 
     let res: Response;
     try {
@@ -83,7 +116,7 @@ export class JiraService {
         },
       });
     } catch (err) {
-      this.logger.error(`Failed to reach Jira at ${this.baseUrl}: ${err}`);
+      this.logger.error(`Failed to reach Jira at ${resolvedBase}: ${err}`);
       throw new ServiceUnavailableException('Could not reach Jira instance.');
     }
 
@@ -115,15 +148,17 @@ export class JiraService {
    * Write a story-points value to a Jira issue.
    * The field name is looked up per project key from JIRA_STORY_POINTS_FIELDS env var.
    */
-  async setStoryPoints(issueKey: string, points: number): Promise<void> {
+  async setStoryPoints(issueKey: string, points: number, providedBaseUrl?: string): Promise<void> {
     if (!ISSUE_KEY_RE.test(issueKey)) {
       throw new BadRequestException('Invalid Jira issue key.');
     }
     if (!this.isConfigured) {
       throw new ServiceUnavailableException(
-        'Jira integration is not configured. Set JIRA_BASE_URL, JIRA_USER_EMAIL and JIRA_API_TOKEN.',
+        'Jira integration is not configured. Set JIRA_USER_EMAIL and JIRA_API_TOKEN.',
       );
     }
+
+    const resolvedBase = this.resolveBaseUrl(providedBaseUrl);
 
     // Derive project key from issue key (e.g. "CONNCERT" from "CONNCERT-3114")
     const projectKey = issueKey.split('-')[0].toUpperCase();
@@ -136,7 +171,7 @@ export class JiraService {
     }
 
     const auth = Buffer.from(`${this.email}:${this.token}`).toString('base64');
-    const url = `${this.baseUrl}/rest/api/3/issue/${issueKey}`;
+    const url = `${resolvedBase}/rest/api/3/issue/${issueKey}`;
 
     let res: Response;
     try {
@@ -150,7 +185,7 @@ export class JiraService {
         body: JSON.stringify({ fields: { [fieldName]: points } }),
       });
     } catch (err) {
-      this.logger.error(`Failed to reach Jira at ${this.baseUrl}: ${err}`);
+      this.logger.error(`Failed to reach Jira at ${resolvedBase}: ${err}`);
       throw new ServiceUnavailableException('Could not reach Jira instance.');
     }
 

@@ -26,17 +26,20 @@ describe('parseJiraUrl', () => {
   it('parses /browse/ Jira URLs', () => {
     expect(parseJiraUrl('https://myorg.atlassian.net/browse/PROJ-123')).toEqual({
       key: 'PROJ-123',
+      baseUrl: 'https://myorg.atlassian.net',
     });
   });
 
   it('parses /issues/ Jira URLs', () => {
     expect(
       parseJiraUrl('https://myorg.atlassian.net/jira/software/projects/PROJ/issues/PROJ-42'),
-    ).toEqual({ key: 'PROJ-42' });
+    ).toEqual({ key: 'PROJ-42', baseUrl: 'https://myorg.atlassian.net' });
   });
 
   it('uppercases the key', () => {
-    expect(parseJiraUrl('https://myorg.atlassian.net/browse/proj-1')?.key).toBe('PROJ-1');
+    const info = parseJiraUrl('https://myorg.atlassian.net/browse/proj-1');
+    expect(info?.key).toBe('PROJ-1');
+    expect(info?.baseUrl).toBe('https://myorg.atlassian.net');
   });
 
   it('returns null for atlassian URL without issue key', () => {
@@ -64,8 +67,17 @@ describe('fetchJiraIssue', () => {
     const issue = { key: 'PROJ-1', summary: 'Test', status: 'Open', issueType: 'Bug' };
     mockGet.mockResolvedValue({ data: issue });
     const result = await fetchJiraIssue('PROJ-1');
-    expect(mockGet).toHaveBeenCalledWith('/jira/issue/PROJ-1');
+    expect(mockGet).toHaveBeenCalledWith('/jira/issue/PROJ-1', { params: undefined });
     expect(result).toEqual(issue);
+  });
+
+  it('passes baseUrl as query param when provided', async () => {
+    const issue = { key: 'PROJ-1', summary: 'Test', status: 'Open', issueType: 'Bug' };
+    mockGet.mockResolvedValue({ data: issue });
+    await fetchJiraIssue('PROJ-1', 'https://myorg.atlassian.net');
+    expect(mockGet).toHaveBeenCalledWith('/jira/issue/PROJ-1', {
+      params: { baseUrl: 'https://myorg.atlassian.net' },
+    });
   });
 });
 
@@ -125,12 +137,27 @@ describe('updateJiraStoryPoints', () => {
   it('calls PATCH with the correct endpoint and body', async () => {
     mockPatch.mockResolvedValue({ data: null });
     await updateJiraStoryPoints('CONNCERT-123', 5);
-    expect(mockPatch).toHaveBeenCalledWith('/jira/issue/CONNCERT-123/story-points', { points: 5 });
+    expect(mockPatch).toHaveBeenCalledWith('/jira/issue/CONNCERT-123/story-points', {
+      points: 5,
+      baseUrl: undefined,
+    });
   });
 
   it('passes the correct body to the API', async () => {
     mockPatch.mockResolvedValue({ data: null });
     await updateJiraStoryPoints('CONNCERT-1', 3);
-    expect(mockPatch).toHaveBeenCalledWith('/jira/issue/CONNCERT-1/story-points', { points: 3 });
+    expect(mockPatch).toHaveBeenCalledWith('/jira/issue/CONNCERT-1/story-points', {
+      points: 3,
+      baseUrl: undefined,
+    });
+  });
+
+  it('includes baseUrl in body when provided', async () => {
+    mockPatch.mockResolvedValue({ data: null });
+    await updateJiraStoryPoints('CONNCERT-1', 3, 'https://myorg.atlassian.net');
+    expect(mockPatch).toHaveBeenCalledWith('/jira/issue/CONNCERT-1/story-points', {
+      points: 3,
+      baseUrl: 'https://myorg.atlassian.net',
+    });
   });
 });
