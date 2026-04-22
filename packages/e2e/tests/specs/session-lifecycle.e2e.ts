@@ -141,12 +141,10 @@ describe('Session lifecycle', () => {
     // ── 1. Open host dashboard ──────────────────────────────────────────────
     await browser.url(`/host/${sessionId}`);
 
-    // Wait for WebSocket connection (the "Connected" indicator in the header)
-    await $('//span[text()="Connected"]').waitForDisplayed({ timeout: 20_000 });
-
     // Session is in 'waiting' state — the Start Session overlay is visible
+    // (this also proves the WebSocket connected and received session state)
     const startBtn = await $('button*=Start Session');
-    await startBtn.waitForDisplayed({ timeout: 10_000 });
+    await startBtn.waitForDisplayed({ timeout: 20_000 });
 
     // ── 2. Participant joins in a new window ────────────────────────────────
     await browser.newWindow(`${BASE_URL}/join?code=${joinCode}`);
@@ -229,20 +227,22 @@ describe('Session lifecycle', () => {
     const { sessionId, joinCode } = fixture;
 
     await browser.url(`/host/${sessionId}`);
-    await $('//span[text()="Connected"]').waitForDisplayed({ timeout: 20_000 });
 
-    // The "Start Session" overlay (absolute inset-0) covers the entire viewport
-    // including the header, making the Lock button unclickable while waiting.
     // Start the session first so the overlay dismisses, then lock.
+    // Waiting for "Start Session" also proves the WebSocket connected.
     const startBtn = await $('button*=Start Session');
-    await startBtn.waitForDisplayed({ timeout: 10_000 });
+    await startBtn.waitForDisplayed({ timeout: 20_000 });
     await startBtn.click();
     await startBtn.waitForDisplayed({ timeout: 5_000, reverse: true });
 
-    // Lock the session
-    const lockBtn = await $('button*=Lock');
-    await lockBtn.waitForClickable({ timeout: 10_000 });
-    await lockBtn.click();
+    // Open the Settings modal, then toggle the lock
+    const settingsBtn = await $('button*=Settings');
+    await settingsBtn.waitForClickable({ timeout: 10_000 });
+    await settingsBtn.click();
+
+    const lockToggle = await $('button[aria-label="Toggle lock"]');
+    await lockToggle.waitForClickable({ timeout: 10_000 });
+    await lockToggle.click();
 
     // Participant navigates to the join page — the lookup should show the
     // session as locked and keep the submit button disabled.
@@ -295,7 +295,6 @@ describe('Session lifecycle — voting flow', () => {
 
     // ── Host opens dashboard and starts session ──────────────────────────────
     await browser.url(`/host/${sessionId}`);
-    await $('//span[text()="Connected"]').waitForDisplayed({ timeout: 20_000 });
 
     // Participant joins
     await browser.newWindow(`${BASE_URL}/join?code=${joinCode}`);
@@ -316,7 +315,7 @@ describe('Session lifecycle — voting flow', () => {
     // Start session from host window
     await browser.switchToWindow(mainWindowHandle);
     const startBtn = await $('button*=Start Session');
-    await startBtn.waitForDisplayed({ timeout: 10_000 });
+    await startBtn.waitForDisplayed({ timeout: 20_000 });
     await startBtn.click();
 
     // ── Participant submits a vote ────────────────────────────────────────────
