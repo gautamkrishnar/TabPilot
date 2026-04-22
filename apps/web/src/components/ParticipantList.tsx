@@ -1,6 +1,6 @@
 import type { CoHost, Participant, Session } from '@tabpilot/shared';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Crown, ShieldCheck, Users, UserX } from 'lucide-react';
+import { Crown, ShieldCheck, Users, X } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn, getDiceBearUrl } from '@/lib/utils';
 import { ParticipantAvatar } from './ParticipantAvatar';
@@ -26,7 +26,26 @@ function ParticipantItem({ participant, onKick, hasVoted, revealedVote }: Partic
         'cursor-default',
       )}
     >
-      <ParticipantAvatar participant={participant} size="sm" showTooltip={false} />
+      <div className="relative flex-shrink-0">
+        <ParticipantAvatar participant={participant} size="sm" showTooltip={false} />
+        {onKick && (
+          <button
+            type="button"
+            onClick={() => onKick(participant.id)}
+            className={cn(
+              'absolute -top-1.5 -right-1.5 p-0.5 rounded-full',
+              'bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400',
+              'hover:bg-red-500 hover:text-white',
+              'hidden group-hover:flex items-center justify-center',
+              'transition-colors duration-150',
+            )}
+            aria-label={`Remove ${participant.name} from session`}
+            title={`Remove ${participant.name}`}
+          >
+            <X className="h-3 w-3" />
+          </button>
+        )}
+      </div>
 
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">
@@ -34,22 +53,6 @@ function ParticipantItem({ participant, onKick, hasVoted, revealedVote }: Partic
         </p>
         {participant.email && <p className="text-xs text-zinc-500 truncate">{participant.email}</p>}
       </div>
-
-      {onKick && (
-        <button
-          type="button"
-          onClick={() => onKick(participant.id)}
-          className={cn(
-            'p-1 rounded text-zinc-500 dark:text-zinc-600 flex-shrink-0',
-            'hover:text-red-400 hover:bg-red-400/10',
-            'hidden group-hover:flex items-center justify-center',
-          )}
-          aria-label={`Remove ${participant.name} from session`}
-          title={`Remove ${participant.name}`}
-        >
-          <UserX className="h-3.5 w-3.5" />
-        </button>
-      )}
 
       {(revealedVote !== undefined || hasVoted) && (
         <span className="w-7 flex items-center justify-center flex-shrink-0">
