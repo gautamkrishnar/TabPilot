@@ -1,7 +1,7 @@
 import { WS_EVENTS } from '@tabpilot/shared';
 import confetti from 'canvas-confetti';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CheckCircle, ExternalLink, Users, Wifi, WifiOff } from 'lucide-react';
+import { CheckCircle, ExternalLink, Users } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -98,7 +98,7 @@ export function ParticipantView() {
     toast.success('All tickets groomed!', { icon: '🎉', duration: 5000 });
   }, []);
 
-  const { isConnected } = useSocket({
+  useSocket({
     sessionId,
     participantId,
     onNavigate: handleNavigate,
@@ -199,16 +199,6 @@ export function ParticipantView() {
           <Users className="h-4 w-4 text-zinc-400" />
           <span className="text-zinc-700 dark:text-zinc-300 font-medium">{onlineCount}</span>
         </button>
-
-        {/* Connection */}
-        <div
-          className={cn(
-            'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs',
-            isConnected ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400',
-          )}
-        >
-          {isConnected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
-        </div>
 
         <UserAvatarMenu />
       </header>

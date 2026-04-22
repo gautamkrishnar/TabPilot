@@ -43,6 +43,12 @@ export interface HostToggleLockPayload {
   locked: boolean;
 }
 
+export interface HostToggleVotingPayload {
+  sessionId: string;
+  hostKey: string;
+  votingEnabled: boolean;
+}
+
 export interface HostKickParticipantPayload {
   sessionId: string;
   hostKey: string;
@@ -203,6 +209,7 @@ export const WS_EVENTS = {
   HOST_END_SESSION: 'host_end_session',
   HOST_ADD_URL: 'host_add_url',
   HOST_TOGGLE_LOCK: 'host_toggle_lock',
+  HOST_TOGGLE_VOTING: 'host_toggle_voting',
   HOST_KICK_PARTICIPANT: 'host_kick_participant',
   HOST_REMOVE_URL: 'host_remove_url',
   HOST_REORDER_URLS: 'host_reorder_urls',

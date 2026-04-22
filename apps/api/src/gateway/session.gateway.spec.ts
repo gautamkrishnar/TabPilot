@@ -113,6 +113,7 @@ function makeMockSessionsService(): jest.Mocked<SessionsService> {
     toSessionDto: jest.fn(),
     create: jest.fn(),
     setLocked: jest.fn(),
+    setVotingEnabled: jest.fn(),
     addUrl: jest.fn(),
     removeUrl: jest.fn(),
     reorderUrls: jest.fn(),
@@ -728,6 +729,62 @@ describe('SessionGateway', () => {
         sessionId: 'session-1',
         hostKey: 'valid',
         locked: true,
+      });
+
+      expect(mockServer.emit).not.toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // handleToggleVoting()
+  // -------------------------------------------------------------------------
+  describe('handleToggleVoting()', () => {
+    it('should emit error if host key is invalid', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(false);
+
+      await gateway.handleToggleVoting(client, {
+        sessionId: 'session-1',
+        hostKey: 'wrong',
+        votingEnabled: true,
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'UNAUTHORIZED' }),
+      );
+    });
+
+    it('should broadcast updated session_state after enabling voting', async () => {
+      const client = makeMockSocket();
+      const updatedDoc = makeSessionDoc({ votingEnabled: true });
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.setVotingEnabled.mockResolvedValue(updatedDoc);
+      sessionsService.toSessionDto.mockReturnValue(makeSessionDto({ votingEnabled: true }));
+      participantsService.findBySession.mockResolvedValue([]);
+
+      await gateway.handleToggleVoting(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        votingEnabled: true,
+      });
+
+      expect(sessionsService.setVotingEnabled).toHaveBeenCalledWith('session-1', true);
+      expect(mockServer.emit).toHaveBeenCalledWith(
+        WS_EVENTS.SESSION_STATE,
+        expect.objectContaining({ session: expect.objectContaining({ votingEnabled: true }) }),
+      );
+    });
+
+    it('should do nothing when setVotingEnabled returns null', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.setVotingEnabled.mockResolvedValue(null);
+
+      await gateway.handleToggleVoting(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        votingEnabled: true,
       });
 
       expect(mockServer.emit).not.toHaveBeenCalled();

@@ -23,6 +23,7 @@ import {
   type HostSetSavedVotePayload,
   type HostStartSessionPayload,
   type HostToggleLockPayload,
+  type HostToggleVotingPayload,
   type JoinSessionPayload,
   type NavigateToPayload,
   type OpenTabPayload,
@@ -620,6 +621,29 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       return;
     }
     const updated = await this.sessionsService.setLocked(sessionId, locked);
+    if (!updated) return;
+    const participants = await this.participantsService.findBySession(sessionId);
+    this.server.to(sessionId).emit(WS_EVENTS.SESSION_STATE, {
+      session: this.sessionsService.toSessionDto(updated),
+      participants,
+    } satisfies SessionStatePayload);
+  }
+
+  @SubscribeMessage(WS_EVENTS.HOST_TOGGLE_VOTING)
+  async handleToggleVoting(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: HostToggleVotingPayload,
+  ) {
+    const { sessionId, hostKey, votingEnabled } = payload;
+    const isValid = await this.sessionsService.validateHostKey(sessionId, hostKey);
+    if (!isValid) {
+      client.emit(WS_EVENTS.ERROR, {
+        message: 'Unauthorized',
+        code: 'UNAUTHORIZED',
+      } satisfies WsErrorPayload);
+      return;
+    }
+    const updated = await this.sessionsService.setVotingEnabled(sessionId, votingEnabled);
     if (!updated) return;
     const participants = await this.participantsService.findBySession(sessionId);
     this.server.to(sessionId).emit(WS_EVENTS.SESSION_STATE, {

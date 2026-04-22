@@ -180,6 +180,15 @@ export class SessionsService {
     return this.sessionModel.findOneAndUpdate({ sessionId }, { isLocked }, { new: true }).exec();
   }
 
+  async setVotingEnabled(
+    sessionId: string,
+    votingEnabled: boolean,
+  ): Promise<SessionDocument | null> {
+    return this.sessionModel
+      .findOneAndUpdate({ sessionId }, { votingEnabled }, { new: true })
+      .exec();
+  }
+
   async deleteSession(sessionId: string): Promise<void> {
     await this.sessionModel.deleteOne({ sessionId }).exec();
   }

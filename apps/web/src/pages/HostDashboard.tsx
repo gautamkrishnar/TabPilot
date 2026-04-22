@@ -5,17 +5,16 @@ import {
   ExternalLink,
   Eye,
   Link2,
-  Lock,
-  LockOpen,
   Play,
   Plus,
   Power,
   RefreshCw,
   Send,
+  Settings,
+  ToggleLeft,
+  ToggleRight,
   UserPlus,
   Users,
-  Wifi,
-  WifiOff,
   X,
 } from 'lucide-react';
 import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useRef, useState } from 'react';
@@ -200,6 +199,7 @@ export function HostDashboard() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [newUrl, setNewUrl] = useState('');
   const [showMobileParticipants, setShowMobileParticipants] = useState(false);
@@ -264,6 +264,7 @@ export function HostDashboard() {
     handleComplete,
     handleJumpTo,
     handleToggleLock,
+    handleToggleVoting,
     handleKickParticipant,
     handleDeleteUrl,
     handleReorderUrls,
@@ -334,40 +335,28 @@ export function HostDashboard() {
 
           {/* Desktop-only controls (inline with title row) */}
           <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0">
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 h-8 px-3 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors text-xs font-mono"
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setShowShareModal(true)}
               title="Share session"
+              className="gap-2 font-mono border-zinc-300 dark:border-zinc-700"
             >
               <span className="text-zinc-500">Code:</span>
-              <span className="text-zinc-800 dark:text-zinc-200 font-bold tracking-widest">
-                {session.joinCode}
-              </span>
+              <span className="font-bold tracking-widest">{session.joinCode}</span>
               <Copy className="h-3.5 w-3.5 text-zinc-500" />
-            </button>
+            </Button>
 
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setShowMobileParticipants(true)}
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors text-xs"
+              className="gap-1.5 border-zinc-300 dark:border-zinc-700"
             >
               <Users className="h-3.5 w-3.5 text-zinc-400" />
-              <span className="text-zinc-700 dark:text-zinc-300 font-medium">{onlineCount}</span>
+              <span className="font-medium">{onlineCount}</span>
               <span className="text-zinc-500">/{participants.length}</span>
-            </button>
-
-            <div
-              className={cn(
-                'inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border text-xs font-medium',
-                isConnected
-                  ? 'bg-green-500/10 text-green-400 border-green-500/30'
-                  : 'bg-red-500/10 text-red-400 border-red-500/30',
-              )}
-            >
-              {isConnected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
-              <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
-            </div>
+            </Button>
 
             {session.votingEnabled && votedParticipantIds.length > 0 && !revealedVotes && (
               <Button
@@ -397,30 +386,21 @@ export function HostDashboard() {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleToggleLock}
-              className={cn(
-                'gap-1.5 w-[5.5rem]',
-                session.isLocked
-                  ? 'border-amber-500/50 text-amber-400 hover:bg-amber-500/10 dark:border-amber-500/50'
-                  : 'border-zinc-300 dark:border-zinc-700',
-              )}
-              title={session.isLocked ? 'Unlock session' : 'Lock session'}
+              onClick={() => setShowSettingsModal(true)}
+              className="gap-1.5 border-zinc-300 dark:border-zinc-700"
+              title="Session settings"
             >
-              {session.isLocked ? (
-                <Lock className="h-3.5 w-3.5" />
-              ) : (
-                <LockOpen className="h-3.5 w-3.5" />
-              )}
-              {session.isLocked ? 'Locked' : 'Lock'}
+              <Settings className="h-3.5 w-3.5" />
+              Settings
             </Button>
 
             <Button
-              variant="destructive"
+              variant="outline"
               size="sm"
               onClick={() => setShowEndConfirm(true)}
-              className="gap-1.5"
+              className="gap-1.5 border-zinc-300 dark:border-zinc-700"
             >
-              <Power className="h-3.5 w-3.5" />
+              <Power className="h-3.5 w-3.5 text-red-400" />
               End
             </Button>
           </div>
@@ -439,15 +419,6 @@ export function HostDashboard() {
             <span className="text-zinc-700 dark:text-zinc-300 font-medium">{onlineCount}</span>
             <span className="text-zinc-500">/{participants.length}</span>
           </button>
-
-          <div
-            className={cn(
-              'flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium',
-              isConnected ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400',
-            )}
-          >
-            {isConnected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
-          </div>
 
           {session.votingEnabled && votedParticipantIds.length > 0 && !revealedVotes && (
             <Button
@@ -478,15 +449,11 @@ export function HostDashboard() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleToggleLock}
-            className={cn(
-              session.isLocked
-                ? 'border-amber-500/50 text-amber-400 hover:bg-amber-500/10'
-                : 'border-zinc-300 dark:border-zinc-700',
-            )}
-            title={session.isLocked ? 'Unlock session' : 'Lock session'}
+            onClick={() => setShowSettingsModal(true)}
+            className="border-zinc-300 dark:border-zinc-700"
+            title="Session settings"
           >
-            {session.isLocked ? <Lock className="h-4 w-4" /> : <LockOpen className="h-4 w-4" />}
+            <Settings className="h-4 w-4" />
           </Button>
 
           <Button variant="destructive" size="sm" onClick={() => setShowEndConfirm(true)}>
@@ -812,6 +779,85 @@ export function HostDashboard() {
                   <Power className="h-4 w-4 mr-1.5" />
                   End Session
                 </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Settings modal */}
+      <AnimatePresence>
+        {showSettingsModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowSettingsModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 w-full max-w-sm"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Session Settings</h3>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Close"
+                  onClick={() => setShowSettingsModal(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                      Story point voting
+                    </p>
+                    <p className="text-xs text-zinc-500">
+                      Participants can vote on story points during grooming
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleToggleVoting}
+                    className="flex-shrink-0"
+                    aria-label="Toggle voting"
+                  >
+                    {session.votingEnabled ? (
+                      <ToggleRight className="h-8 w-8 text-indigo-400" />
+                    ) : (
+                      <ToggleLeft className="h-8 w-8 text-zinc-600" />
+                    )}
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                      Lock session
+                    </p>
+                    <p className="text-xs text-zinc-500">Prevent new participants from joining</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleToggleLock}
+                    className="flex-shrink-0"
+                    aria-label="Toggle lock"
+                  >
+                    {session.isLocked ? (
+                      <ToggleRight className="h-8 w-8 text-amber-400" />
+                    ) : (
+                      <ToggleLeft className="h-8 w-8 text-zinc-600" />
+                    )}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

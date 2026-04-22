@@ -425,6 +425,79 @@ describe('HostDashboard — navigation controls', () => {
   });
 });
 
+describe('HostDashboard — settings modal', () => {
+  beforeEach(() => {
+    useSessionStore.setState(useSessionStore.getInitialState?.() ?? {});
+    mockEmit.mockClear();
+    seedHostState();
+  });
+
+  it('opens the settings modal when Settings is clicked', async () => {
+    render(<HostDashboard />);
+
+    await userEvent.click(screen.getAllByTitle(/session settings/i)[0]);
+
+    expect(screen.getByText('Session Settings')).toBeInTheDocument();
+    expect(screen.getByText('Story point voting')).toBeInTheDocument();
+    expect(screen.getByText('Lock session')).toBeInTheDocument();
+  });
+
+  it('emits HOST_TOGGLE_VOTING when voting toggle is clicked to enable', async () => {
+    const store = useSessionStore.getState();
+    store.setSession(makeSession({ votingEnabled: false }));
+
+    render(<HostDashboard />);
+
+    await userEvent.click(screen.getAllByTitle(/session settings/i)[0]);
+    await userEvent.click(screen.getByLabelText(/toggle voting/i));
+
+    expect(mockEmit).toHaveBeenCalledWith(WS_EVENTS.HOST_TOGGLE_VOTING, {
+      sessionId: 'session-1',
+      hostKey: 'host-key-123',
+      votingEnabled: true,
+    });
+  });
+
+  it('emits HOST_TOGGLE_VOTING when voting toggle is clicked to disable', async () => {
+    const store = useSessionStore.getState();
+    store.setSession(makeSession({ votingEnabled: true }));
+
+    render(<HostDashboard />);
+
+    await userEvent.click(screen.getAllByTitle(/session settings/i)[0]);
+    await userEvent.click(screen.getByLabelText(/toggle voting/i));
+
+    expect(mockEmit).toHaveBeenCalledWith(WS_EVENTS.HOST_TOGGLE_VOTING, {
+      sessionId: 'session-1',
+      hostKey: 'host-key-123',
+      votingEnabled: false,
+    });
+  });
+
+  it('emits HOST_TOGGLE_LOCK when lock toggle is clicked', async () => {
+    render(<HostDashboard />);
+
+    await userEvent.click(screen.getAllByTitle(/session settings/i)[0]);
+    await userEvent.click(screen.getByLabelText(/toggle lock/i));
+
+    expect(mockEmit).toHaveBeenCalledWith(WS_EVENTS.HOST_TOGGLE_LOCK, {
+      sessionId: 'session-1',
+      hostKey: 'host-key-123',
+      locked: true,
+    });
+  });
+
+  it('closes the settings modal when X is clicked', async () => {
+    render(<HostDashboard />);
+
+    await userEvent.click(screen.getAllByTitle(/session settings/i)[0]);
+    expect(screen.getByText('Session Settings')).toBeInTheDocument();
+
+    await userEvent.click(screen.getAllByRole('button', { name: /close/i })[0]);
+    expect(screen.queryByText('Session Settings')).not.toBeInTheDocument();
+  });
+});
+
 describe('HostDashboard — story point management', () => {
   beforeEach(() => {
     useSessionStore.setState(useSessionStore.getInitialState?.() ?? {});

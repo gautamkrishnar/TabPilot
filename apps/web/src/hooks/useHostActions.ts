@@ -96,6 +96,16 @@ export function useHostActions({
     });
   }, [sessionId, hostKey, session]);
 
+  const handleToggleVoting = useCallback(() => {
+    if (!sessionId || !hostKey || !session) return;
+    const votingEnabled = !session.votingEnabled;
+    getSocket().emit(WS_EVENTS.HOST_TOGGLE_VOTING, { sessionId, hostKey, votingEnabled });
+    toast(votingEnabled ? 'Voting enabled.' : 'Voting disabled.', {
+      icon: votingEnabled ? '✅' : '🚫',
+      duration: 3000,
+    });
+  }, [sessionId, hostKey, session]);
+
   const handleKickParticipant = useCallback(
     (participantId: string) => {
       if (!sessionId || !hostKey) return;
@@ -203,6 +213,7 @@ export function useHostActions({
     handleComplete,
     handleJumpTo,
     handleToggleLock,
+    handleToggleVoting,
     handleKickParticipant,
     handleDeleteUrl,
     handleReorderUrls,
