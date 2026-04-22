@@ -1,12 +1,7 @@
-<div align="center">
-  <img src="../apps/web/public/logo.svg" width="56" height="56" alt="Tab Pilot logo" />
+# Tab Pilot — Developer Reference
 
-  # Tab Pilot — Developer Reference
-</div>
+This guide is the definitive technical reference for contributors and self-hosters. It covers local setup, the monorepo layout, all environment variables, database schemas, and architectural rationale. For the full REST and WebSocket API surface, see the [Swagger docs](#6-api-reference).
 
-This guide is the definitive technical reference for contributors and self-hosters. It covers local setup, the monorepo structure, all environment variables, the full REST and WebSocket API surface, database schemas, and architectural rationale.
-
----
 
 ## Table of Contents
 
@@ -16,14 +11,12 @@ This guide is the definitive technical reference for contributors and self-hoste
 4. [Running in Development](#4-running-in-development)
 5. [Environment Variables](#5-environment-variables)
 6. [API Reference](#6-api-reference)
-7. [WebSocket Events](#7-websocket-events)
-8. [Database Schemas](#8-database-schemas)
-9. [Architecture Decisions](#9-architecture-decisions)
-10. [Testing](#10-testing)
-11. [Building for Production](#11-building-for-production)
-12. [Contributing](#12-contributing)
+7. [Database Schemas](#7-database-schemas)
+8. [Architecture Decisions](#8-architecture-decisions)
+9. [Testing](#9-testing)
+10. [Building for Production](#10-building-for-production)
+11. [Contributing](#11-contributing)
 
----
 
 ## 1. Prerequisites
 
@@ -42,13 +35,12 @@ podman machine init   # first time only
 podman machine start
 ```
 
----
 
 ## 2. Getting Started
 
 ```bash
 # Clone the repository
-git clone https://github.com/[OWNER]/TabPilot.git
+git clone https://github.com/gautamkrishnar/TabPilot.git
 cd TabPilot
 
 # Switch to Node.js 22 (reads .nvmrc)
@@ -73,71 +65,19 @@ yarn dev
 
 Open `http://localhost:5173` in your browser. The Vite dev server proxies API requests and WebSocket connections to `http://localhost:3000`.
 
----
 
 ## 3. Monorepo Structure
 
 Tab Pilot is a Yarn Berry 4 workspaces monorepo. Each workspace has its own `package.json`, TypeScript config, and build pipeline. Workspaces reference each other using the `workspace:*` protocol.
 
-```
-TabPilot/
-├── apps/
-│   ├── api/                    # @tabpilot/api — NestJS backend
-│   │   ├── src/
-│   │   │   ├── adapters/       # Custom Socket.io adapter (CORS config)
-│   │   │   ├── gateway/        # WebSocket gateway (session.gateway.ts)
-│   │   │   ├── participants/   # Participant schema, service, module
-│   │   │   ├── sessions/       # Session schema, controller, service, module, DTOs
-│   │   │   ├── app.module.ts   # Root NestJS module
-│   │   │   └── main.ts         # Bootstrap: Fastify + CORS + validation + WS adapter
-│   │   ├── nest-cli.json
-│   │   ├── package.json
-│   │   └── tsconfig.json
-│   │
-│   └── web/                    # @tabpilot/web — React frontend
-│       ├── src/
-│       │   ├── components/     # Reusable UI components (shadcn/ui + custom)
-│       │   ├── hooks/          # Custom React hooks (useSocket, useSession, etc.)
-│       │   ├── lib/            # Utility functions, API client (axios)
-│       │   ├── pages/          # Route-level page components
-│       │   ├── store/          # Zustand stores (session state, participant state)
-│       │   ├── styles/         # Global CSS (Tailwind base)
-│       │   ├── App.tsx         # Router setup (react-router-dom v7)
-│       │   └── main.tsx        # React 19 entry point
-│       ├── public/             # Static assets
-│       ├── index.html
-│       ├── vite.config.ts
-│       ├── tailwind.config.js
-│       └── tsconfig.json
-│
-├── packages/
-│   └── shared/                 # @tabpilot/shared — shared TypeScript types
-│       └── src/
-│           ├── types.ts        # Session, Participant, DTO interfaces
-│           ├── events.ts       # WS_EVENTS constants + payload interfaces
-│           └── index.ts        # Re-exports everything
-│
-├── .github/
-│   └── workflows/
-│       ├── ci.yml              # Type-check + build on push / PR
-│       └── publish.yml         # Buildah multi-arch build → GHCR
-│
-├── Containerfile               # 5-stage RHEL UBI9 multi-arch build
-├── compose.yml                 # Production compose (app + MongoDB)
-├── compose.dev.yml             # Development compose (MongoDB only)
-└── package.json                # Root workspace manifest + scripts
-```
+| Workspace | Path | Description |
+|-----------|------|-------------|
+| `@tabpilot/api` | `apps/api/` | NestJS + Fastify + Socket.io + Mongoose backend |
+| `@tabpilot/web` | `apps/web/` | React 19 + Vite + React Router v7 + Zustand frontend |
+| `@tabpilot/shared` | `packages/shared/` | Shared TS types (`Session`, `Participant`, DTOs) and `WS_EVENTS` constants |
 
-### Workspace dependency graph
+Both `@tabpilot/api` and `@tabpilot/web` depend on `@tabpilot/shared`. The shared package has no internal dependencies and is the single source of truth for all TypeScript types and WebSocket event name constants.
 
-```
-@tabpilot/api  ──depends on──►  @tabpilot/shared
-@tabpilot/web  ──depends on──►  @tabpilot/shared
-```
-
-`@tabpilot/shared` has no internal dependencies. It is the single source of truth for all TypeScript types and WebSocket event name constants.
-
----
 
 ## 4. Running in Development
 
@@ -187,7 +127,6 @@ MongoDB data is persisted in a named volume (`mongo_data_dev`). To wipe it:
 podman compose -f compose.dev.yml down -v
 ```
 
----
 
 ## 5. Environment Variables
 
@@ -199,6 +138,10 @@ podman compose -f compose.dev.yml down -v
 | `MONGODB_URI` | `mongodb://localhost:27017/tabpilot` | Yes | Full MongoDB connection URI |
 | `FRONTEND_URL` | `http://localhost:5173` | Yes | Allowed CORS origin for HTTP requests. Set to your production frontend domain in deployment. |
 | `NODE_ENV` | `development` | No | `development` or `production`. Affects logging and optimizations. |
+| `JIRA_BASE_URL` | | No | Base URL of your Jira instance (e.g. `https://myteam.atlassian.net`). Enables Jira title enrichment and story point sync. |
+| `JIRA_USER_EMAIL` | | No | Email address for Jira API authentication (Basic Auth). |
+| `JIRA_API_TOKEN` | | No | Jira API token for authentication. |
+| `JIRA_STORY_POINTS_FIELDS` | | No | Comma-separated `PROJECT_KEY=field_name` pairs for per-project story point field mapping. |
 
 **Example `apps/api/.env`:**
 ```env
@@ -206,355 +149,38 @@ PORT=3000
 MONGODB_URI=mongodb://localhost:27017/tabpilot
 FRONTEND_URL=http://localhost:5173
 NODE_ENV=development
+JIRA_BASE_URL=https://myteam.atlassian.net
+JIRA_USER_EMAIL=user@example.com
+JIRA_API_TOKEN=your-api-token
+JIRA_STORY_POINTS_FIELDS=PROJ=customfield_10016,OTHER=customfield_10028
 ```
 
 ### Web (`apps/web/.env`)
 
 | Variable | Default | Required | Description |
 |----------|---------|----------|-------------|
-| `VITE_API_URL` | `http://localhost:3000` | Yes | Base URL of the Tab Pilot REST API. Used by the axios client for session creation and joining. |
-| `VITE_WS_URL` | `http://localhost:3000` | Yes | WebSocket server URL for Socket.io. In production this is typically the same as `VITE_API_URL`. |
+| `VITE_API_URL` | `http://localhost:3000` | Yes | Base URL of the Tab Pilot API. Used by the axios client and Socket.io for all REST and WebSocket communication. |
 
 **Example `apps/web/.env`:**
 ```env
 VITE_API_URL=http://localhost:3000
-VITE_WS_URL=http://localhost:3000
 ```
 
 > **Important:** Vite only exposes variables prefixed with `VITE_` to the browser bundle. Never put secrets in `apps/web/.env`.
 
----
 
 ## 6. API Reference
 
-The NestJS API is mounted under the `/api` global prefix. All endpoints are prefixed accordingly.
-
-### Health check
+The API is documented with Swagger/OpenAPI. Start the dev server and visit:
 
 ```
-GET /api/health
+http://localhost:3000/api-docs
 ```
 
-Returns `200 OK` with a simple health payload. Used by the container health check.
+All REST endpoints are mounted under the `/api` global prefix. All WebSocket event names and payload interfaces are exported from `@tabpilot/shared` as `WS_EVENTS`.
 
----
 
-### Create a session
-
-```
-POST /api/sessions
-```
-
-**Request body:**
-
-```json
-{
-  "name": "Sprint 42 Grooming",
-  "hostName": "Alice",
-  "hostEmail": "alice@example.com",
-  "urls": [
-    "https://linear.app/myteam/issue/ENG-101",
-    "https://linear.app/myteam/issue/ENG-102",
-    "https://github.com/org/repo/issues/55"
-  ],
-  "expiryDays": 1,
-  "votingEnabled": true
-}
-```
-
-| Field | Type | Required | Constraints |
-|-------|------|----------|-------------|
-| `name` | string | Yes | 1–100 characters |
-| `hostName` | string | Yes | 1–80 characters |
-| `hostEmail` | string | No | Valid email format |
-| `urls` | string[] | Yes | 1–50 URLs; each must be a valid HTTP/HTTPS URL |
-| `expiryDays` | integer | Yes | 1–30 |
-| `votingEnabled` | boolean | No | Defaults to `false` |
-
-**Response `201 Created`:**
-
-```json
-{
-  "session": {
-    "id": "uuid-v4",
-    "name": "Sprint 42 Grooming",
-    "joinCode": "483921",
-    "hostName": "Alice",
-    "hostEmail": "alice@example.com",
-    "urls": ["https://linear.app/..."],
-    "currentIndex": 0,
-    "state": "waiting",
-    "votingEnabled": true,
-    "createdAt": "2026-04-01T10:00:00.000Z",
-    "expiresAt": "2026-04-02T10:00:00.000Z"
-  },
-  "hostKey": "nanoid-generated-secret"
-}
-```
-
-> **Security:** The `hostKey` is returned exactly once. The frontend stores it in `localStorage`. The API stores only a bcrypt hash (`hostKeyHash`). There is no way to recover a lost host key.
-
----
-
-### Get session by ID
-
-```
-GET /api/sessions/:id
-```
-
-**Response `200 OK`:** Returns a `Session` object (same shape as above, without `hostKey`).
-
-**Response `404 Not Found`:** Session does not exist.
-
----
-
-### Get session by join code
-
-```
-GET /api/sessions/code/:code
-```
-
-**Path parameter:** `:code` — the 6-digit numeric join code.
-
-**Response `200 OK`:** Returns a `Session` object.
-
-**Response `404 Not Found`:** No session with that join code exists.
-
----
-
-### Join a session
-
-```
-POST /api/sessions/:id/join
-```
-
-**Request body:**
-
-```json
-{
-  "name": "Bob",
-  "email": "bob@example.com",
-  "participantId": "optional-existing-uuid"
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | Yes | Display name, 1–80 characters |
-| `email` | string | No | Optional email |
-| `participantId` | string | No | If provided, re-joins as an existing participant (preserves avatar and identity across page refreshes) |
-
-**Response `201 Created`:**
-
-```json
-{
-  "session": { "...session object..." },
-  "participant": {
-    "id": "uuid-v4",
-    "sessionId": "uuid-v4",
-    "name": "Bob",
-    "email": "bob@example.com",
-    "avatarUrl": "https://api.dicebear.com/9.x/bottts/svg?seed=...",
-    "isOnline": false,
-    "joinedAt": "2026-04-01T10:01:00.000Z"
-  }
-}
-```
-
----
-
-## 7. WebSocket Events
-
-Tab Pilot uses Socket.io for all real-time communication. The WebSocket server is mounted at the root namespace (`/`). Clients join a Socket.io "room" named after the `sessionId`.
-
-### Connection
-
-Connect using the Socket.io client:
-
-```typescript
-import { io } from 'socket.io-client';
-
-const socket = io('http://localhost:3000');
-```
-
-All event name constants are exported from `@tabpilot/shared` as `WS_EVENTS`.
-
----
-
-### Client → Server events
-
-| Event | Constant | Description |
-|-------|----------|-------------|
-| `join_session` | `WS_EVENTS.JOIN_SESSION` | Join a session room. Must be sent after connecting. |
-| `host_start_session` | `WS_EVENTS.HOST_START_SESSION` | Host starts the session, opening the first URL. |
-| `host_navigate` | `WS_EVENTS.HOST_NAVIGATE` | Host navigates to next/previous/specific ticket. |
-| `host_open_url` | `WS_EVENTS.HOST_OPEN_URL` | Host pushes an arbitrary URL to all participants. |
-| `host_end_session` | `WS_EVENTS.HOST_END_SESSION` | Host ends the session for all participants. |
-| `submit_vote` | `WS_EVENTS.SUBMIT_VOTE` | Participant submits a story point estimate. |
-| `leave_session` | `WS_EVENTS.LEAVE_SESSION` | Client explicitly leaves the session room. |
-
-#### `join_session` payload
-
-```typescript
-interface JoinSessionPayload {
-  sessionId: string;
-  participantId?: string;  // omit if joining as host
-  hostKey?: string;        // provide to authenticate as host
-}
-```
-
-#### `host_start_session` payload
-
-```typescript
-interface HostStartSessionPayload {
-  sessionId: string;
-  hostKey: string;
-}
-```
-
-#### `host_navigate` payload
-
-```typescript
-interface HostNavigatePayload {
-  sessionId: string;
-  hostKey: string;
-  direction?: 'next' | 'prev';  // relative navigation
-  index?: number;               // absolute navigation (0-based)
-}
-```
-
-Either `direction` or `index` must be provided. If both are present, `index` takes precedence.
-
-#### `host_open_url` payload
-
-```typescript
-interface HostOpenUrlPayload {
-  sessionId: string;
-  hostKey: string;
-  url: string;  // must be http:// or https://
-}
-```
-
-#### `host_end_session` payload
-
-```typescript
-interface HostEndSessionPayload {
-  sessionId: string;
-  hostKey: string;
-}
-```
-
-#### `submit_vote` payload
-
-```typescript
-interface SubmitVotePayload {
-  sessionId: string;
-  participantId: string;
-  value: string;  // e.g. "1", "2", "3", "5", "8", "13", "?"
-}
-```
-
----
-
-### Server → Client events
-
-| Event | Constant | Sent when |
-|-------|----------|-----------|
-| `session_state` | `WS_EVENTS.SESSION_STATE` | Immediately after `join_session`; full session + participants snapshot |
-| `participant_joined` | `WS_EVENTS.PARTICIPANT_JOINED` | A new participant joins the room |
-| `participant_left` | `WS_EVENTS.PARTICIPANT_LEFT` | A participant disconnects permanently |
-| `participant_online` | `WS_EVENTS.PARTICIPANT_ONLINE` | A participant's online status changes |
-| `session_started` | `WS_EVENTS.SESSION_STARTED` | Host calls `host_start_session` |
-| `navigate_to` | `WS_EVENTS.NAVIGATE_TO` | Navigation event — open this URL |
-| `open_tab` | `WS_EVENTS.OPEN_TAB` | Host pushes an arbitrary URL via `host_open_url` |
-| `session_ended` | `WS_EVENTS.SESSION_ENDED` | Host ends the session |
-| `vote_update` | `WS_EVENTS.VOTE_UPDATE` | Any participant submits or changes their vote |
-| `error` | `WS_EVENTS.ERROR` | An error occurred (invalid host key, session not found, etc.) |
-
-#### `session_state` payload
-
-```typescript
-interface SessionStatePayload {
-  session: Session;
-  participants: Participant[];
-}
-```
-
-#### `participant_joined` payload
-
-```typescript
-interface ParticipantJoinedPayload {
-  participant: Participant;
-}
-```
-
-#### `participant_left` payload
-
-```typescript
-interface ParticipantLeftPayload {
-  participantId: string;
-}
-```
-
-#### `participant_online` payload
-
-```typescript
-interface ParticipantOnlinePayload {
-  participantId: string;
-  isOnline: boolean;
-}
-```
-
-#### `session_started` payload
-
-```typescript
-interface SessionStartedPayload {
-  currentUrl: string;
-  currentIndex: number;
-  total: number;
-}
-```
-
-#### `navigate_to` payload
-
-```typescript
-interface NavigateToPayload {
-  url: string;
-  index: number;  // 0-based position in the URL queue
-  total: number;  // total number of URLs in the queue
-}
-```
-
-#### `open_tab` payload
-
-```typescript
-interface OpenTabPayload {
-  url: string;
-}
-```
-
-#### `vote_update` payload
-
-```typescript
-interface VoteUpdatePayload {
-  votes: Record<string, string>;  // participantId → vote value
-}
-```
-
-Votes are stored in memory on the server and reset when the host navigates to a new ticket. They are not persisted to MongoDB.
-
-#### `error` payload
-
-```typescript
-interface WsErrorPayload {
-  message: string;
-  code: string;  // e.g. 'INVALID_HOST_KEY', 'SESSION_NOT_FOUND', 'VOTING_DISABLED'
-}
-```
-
----
-
-## 8. Database Schemas
+## 7. Database Schemas
 
 Tab Pilot uses MongoDB 7 with Mongoose. There are two collections: `sessiondocs` and `participantdocs`.
 
@@ -564,15 +190,21 @@ Tab Pilot uses MongoDB 7 with Mongoose. There are two collections: `sessiondocs`
 |-------|------|----------|-------------|
 | `sessionId` | String | Yes | UUID v4, unique, indexed. Primary identifier used in all API and WS calls. |
 | `name` | String | Yes | Human-readable session name set by the host. |
-| `joinCode` | String | Yes | 6-digit numeric code, unique, indexed. Used by participants to find the session. |
-| `hostName` | String | Yes | Display name of the host. |
+| `joinCode` | String | Yes | 6-character code, unique, indexed. Used by participants to find the session. |
+| `hostName` | String | Yes | Display name of the primary host. |
 | `hostEmail` | String | No | Optional host email address. |
-| `hostKeyHash` | String | Yes | bcrypt hash of the host key. The plaintext key is never stored. |
+| `hostKeyHash` | String | Yes | SHA-256 hash of the host key. The plaintext key is never stored. |
+| `hostInviteKeyHash` | String | Yes | SHA-256 hash of the co-host invite key. |
+| `coHosts` | Array | No | List of co-hosts, each with `keyHash`, `name`, `email?`, and `joinedAt`. |
 | `urls` | String[] | Yes | Ordered list of ticket URLs. Up to 50 entries. |
 | `currentIndex` | Number | No | 0-based index of the currently active URL. Defaults to `0`. |
 | `state` | String | Yes | Session lifecycle state: `'waiting'` → `'active'` → `'ended'`. |
-| `votingEnabled` | Boolean | No | Whether story point voting is enabled for this session. Defaults to `false`. |
-| `expiresAt` | Date | Yes | UTC datetime when the session expires. Calculated from `expiryDays` at creation. |
+| `votingEnabled` | Boolean | No | Whether story point voting is enabled. Defaults to `false`. Can be toggled mid-session. |
+| `isLocked` | Boolean | No | Whether new participants are blocked from joining. Defaults to `false`. |
+| `votes` | Array | No | All votes per ticket: `{ urlIndex, participantId, value }`. |
+| `revealedIndices` | Number[] | No | URL indices where votes have been revealed. |
+| `storyPoints` | Map | No | Saved story point values keyed by URL SHA-256 hash. |
+| `expiresAt` | Date | Yes | UTC datetime when the session expires. TTL-indexed for automatic deletion. |
 | `createdAt` | Date | Auto | Mongoose `timestamps: true` — creation timestamp. |
 | `updatedAt` | Date | Auto | Mongoose `timestamps: true` — last update timestamp. |
 
@@ -590,9 +222,8 @@ Tab Pilot uses MongoDB 7 with Mongoose. There are two collections: `sessiondocs`
 | `createdAt` | Date | Auto | Mongoose `timestamps: true` — join timestamp. |
 | `updatedAt` | Date | Auto | Mongoose `timestamps: true` — last update timestamp. |
 
----
 
-## 9. Architecture Decisions
+## 8. Architecture Decisions
 
 ### Why Yarn Berry (v4) workspaces?
 
@@ -614,38 +245,48 @@ Zustand was chosen over Redux Toolkit for React state management because Tab Pil
 
 Red Hat Universal Base Images are freely redistributable, enterprise-hardened, and receive timely CVE patches. Using `ubi9/nodejs-22` as the build base and `ubi9/nodejs-22-minimal` as the production runner reduces the attack surface while ensuring the image is compatible with OpenShift and other enterprise container platforms. The minimal variant strips out package managers and other tooling not needed at runtime, cutting the final image size significantly. The production container runs as UID 1001 (non-root), which is a requirement in most enterprise Kubernetes deployments.
 
----
 
-## 10. Testing
+## 9. Testing
 
 ### Running tests
 
 ```bash
-# Run all tests across all workspaces
-yarn test
+# Run all tests
+yarn test:api                   # Jest (NestJS/API) — 195 tests
+yarn test:web                   # Vitest (React/web) — 255 tests
 
-# Run tests for the API only
-yarn workspace @tabpilot/api test
+# Single file
+yarn workspace @tabpilot/api test -- session.gateway.spec.ts
+yarn workspace @tabpilot/web test -- src/pages/HostDashboard.test.tsx
 
-# Run tests in watch mode (API)
+# Watch modes
 yarn workspace @tabpilot/api test:watch
+yarn workspace @tabpilot/web test:watch
 
-# Run with coverage
+# Coverage
 yarn workspace @tabpilot/api test:cov
 ```
 
 ### What is tested
 
+**Backend (Jest + ts-jest):**
 - **Sessions service** — session creation, host key hashing and validation, state transitions, join code uniqueness
 - **Participants service** — participant creation, avatar URL generation, online status tracking, socket ID updates
 - **Sessions controller** — HTTP request/response shapes, 404 handling for unknown sessions and join codes
+- **Session gateway** — all WebSocket event handlers, voting flows, navigation, profile updates, co-host operations
 - **DTOs** — `class-validator` constraint enforcement (URL validation, array size limits, expiry range)
 
-The WebSocket gateway and real-time event flows are tested via integration tests that spin up an in-memory NestJS application and connect real Socket.io test clients.
+**Frontend (Vitest + Testing Library):**
+- **Page components** — HostDashboard, ParticipantView, CreateSession, JoinSession, HostJoin, Home
+- **Hooks** — useSocket event handling, useSession lifecycle, useHostActions
+- **Store** — Zustand state transitions, localStorage persistence
 
----
+### E2E tests
 
-## 11. Building for Production
+BrowserStack-based end-to-end tests run via the `e2e.yml` GitHub Actions workflow.
+
+
+## 10. Building for Production
 
 ### Build all workspaces
 
@@ -701,8 +342,7 @@ podman build --platform linux/arm64 -f Containerfile -t tabpilot:arm64 .
 
 Multi-arch manifest builds for GHCR are handled by the `publish.yml` GitHub Actions workflow using Buildah and `redhat-actions/push-to-registry`.
 
----
 
-## 12. Contributing
+## 11. Contributing
 
 Please read the [Contributing Guide](../.github/CONTRIBUTING.md) for branch naming conventions, commit message format, the PR process, and code style guidelines.

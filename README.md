@@ -1,19 +1,24 @@
-<div align="center">
+<p align="center">
+  <img src="apps/web/public/logo.svg" width="120" height="120" alt="Tab Pilot logo" />
+</p>
 
-<img src="apps/web/public/logo.svg" width="80" height="80" alt="Tab Pilot logo" />
+<h1 align="center">Tab Pilot</h1>
 
-# Tab Pilot
+<p align="center">
+  <strong>Real-time tab synchronization for engineering grooming sessions</strong><br>
+  <em>The host navigates. Everyone follows. No installs, no accounts, no friction.</em>
+</p>
 
-**Real-time tab synchronization for engineering grooming sessions**
+<p align="center">
+  <a href="https://github.com/gautamkrishnar/TabPilot/actions/workflows/ci.yml"><img src="https://github.com/gautamkrishnar/TabPilot/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://www.gnu.org/licenses/gpl-3.0"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License: GPL v3"></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22-339933?logo=nodedotjs&logoColor=white" alt="Node.js 22"></a>
+  <a href="https://github.com/gautamkrishnar/TabPilot/pkgs/container/tabpilot"><img src="https://img.shields.io/badge/Container-GHCR-blue?logo=github" alt="Container"></a>
+</p>
 
-*The host navigates. Everyone follows. No installs, no accounts, no friction.*
-
-[![CI](https://github.com/gautamkrishnar/TabPilot/actions/workflows/ci.yml/badge.svg)](https://github.com/gautamkrishnar/TabPilot/actions/workflows/ci.yml)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Node.js 22](https://img.shields.io/badge/Node.js-22-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
-[![Container](https://img.shields.io/badge/Container-GHCR-blue?logo=github)](https://github.com/gautamkrishnar/TabPilot/pkgs/container/tabpilot)
-
-</div>
+<p align="center">
+  <a href="https://tabpilot.gkr.pw/"><strong>Try Tab Pilot &rarr;</strong></a>
+</p>
 
 ## What is Tab Pilot?
 
@@ -38,7 +43,9 @@ It works with any ticketing tool that has a URL: **Jira, Linear, GitHub Issues, 
 - 🌓 **Dark / light mode** — system preference by default, with a manual toggle
 - 👥 **Co-host support** — invite trusted participants as co-hosts via a secure invite link; co-hosts share navigation control with the primary host
 - ✏️ **Edit profile mid-session** — participants and hosts can update their display name and email at any time during a session
-- ✅ **Session completion state** — the navigation controls highlight when every ticket has been groomed, with a clear "All tickets groomed!" indicator
+- ✅ **Session completion state** — the navigation controls highlight when every ticket has been groomed, with a clear "All tickets groomed!" indicator visible to both hosts and participants
+- 📊 **Save votes to Jira** — export story point estimates directly to Jira issues when Jira integration is configured
+- 🔄 **Toggle voting mid-session** — hosts can enable or disable story point voting after session creation
 
 ## Get Started
 

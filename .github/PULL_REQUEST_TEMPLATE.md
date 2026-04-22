@@ -32,7 +32,7 @@ Closes #
 
 <!-- How was this change tested? Check all that apply and add any relevant detail below. -->
 
-- [ ] Unit tests added or updated (`yarn workspace @tabpilot/api test`)
+- [ ] Unit tests added or updated (`yarn test:api` / `yarn test:web`)
 - [ ] Manual testing in browser (describe the scenario below)
 - [ ] Tested end-to-end with host and at least one participant
 - [ ] Tested with Podman Compose production stack (`podman compose up --build`)

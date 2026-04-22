@@ -2,13 +2,11 @@
 
 Thank you for your interest in contributing to Tab Pilot. This guide explains how to get involved — whether you're reporting a bug, requesting a feature, or submitting a pull request.
 
----
 
 ## Code of Conduct
 
 This project follows the [Contributor Covenant Code of Conduct](https://www.contributor-covenant.org/version/2/1/code_of_conduct/). By participating, you agree to uphold a welcoming and respectful environment for all contributors. Harassment, discrimination, and disrespectful behaviour will not be tolerated.
 
----
 
 ## Ways to Contribute
 
@@ -16,7 +14,7 @@ This project follows the [Contributor Covenant Code of Conduct](https://www.cont
 
 Use the [Bug Report](.github/ISSUE_TEMPLATE/bug_report.yml) issue template. Include steps to reproduce, expected vs. actual behaviour, browser and OS details, and any relevant logs. The more information you provide, the faster the issue can be diagnosed.
 
-Before filing, please check existing [open issues](https://github.com/[OWNER]/TabPilot/issues) to avoid duplicates.
+Before filing, please check existing [open issues](https://github.com/gautamkrishnar/TabPilot/issues) to avoid duplicates.
 
 ### Request a Feature
 
@@ -24,20 +22,19 @@ Use the [Feature Request](.github/ISSUE_TEMPLATE/feature_request.yml) issue temp
 
 ### Ask a Question
 
-Use [GitHub Discussions](https://github.com/[OWNER]/TabPilot/discussions) for questions about usage, self-hosting, configuration, or general discussion. Issues are reserved for actionable bug reports and feature requests.
+Use [GitHub Discussions](https://github.com/gautamkrishnar/TabPilot/discussions) for questions about usage, self-hosting, configuration, or general discussion. Issues are reserved for actionable bug reports and feature requests.
 
 ### Submit a Pull Request
 
 All code contributions go through pull requests. See the PR process section below.
 
----
 
 ## Development Setup
 
 Follow the full setup guide in [docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md). The short version:
 
 ```bash
-git clone https://github.com/[OWNER]/TabPilot.git
+git clone https://github.com/gautamkrishnar/TabPilot.git
 cd TabPilot
 nvm use
 corepack enable
@@ -48,7 +45,6 @@ podman compose -f compose.dev.yml up -d
 yarn dev
 ```
 
----
 
 ## Branch Naming Conventions
 
@@ -79,7 +75,6 @@ Use lowercase and hyphens. Keep branch names short and descriptive. Reference th
 fix/483-host-key-not-persisted
 ```
 
----
 
 ## Commit Message Format
 
@@ -128,7 +123,6 @@ refactor(participants): extract avatar URL generation to utility function
 - Keep the short description under 72 characters
 - Reference issues in the footer with `Closes #N` or `Fixes #N`
 
----
 
 ## Pull Request Process
 
@@ -145,7 +139,7 @@ refactor(participants): extract avatar URL generation to utility function
    yarn lint     # No lint errors
    ```
 
-5. **Push your branch** to your fork and [open a pull request](https://github.com/[OWNER]/TabPilot/compare) against `master`.
+5. **Push your branch** to your fork and [open a pull request](https://github.com/gautamkrishnar/TabPilot/compare) against `master`.
 
 6. **Fill in the PR template** completely. Incomplete PRs without a summary, test description, or checklist will be asked to update before review.
 
@@ -153,7 +147,6 @@ refactor(participants): extract avatar URL generation to utility function
 
 8. **Merge.** Once approved and all checks pass, a maintainer will merge the PR. Commits are squashed on merge for a clean history.
 
----
 
 ## Code Style Guidelines
 
@@ -186,7 +179,6 @@ refactor(participants): extract avatar URL generation to utility function
 - Environment variables accessed in the API must be read from `process.env` with sensible defaults. Do not hard-code configuration values.
 - Keep commits atomic: one logical change per commit.
 
----
 
 ## Test Requirements
 
@@ -195,12 +187,10 @@ refactor(participants): extract avatar URL generation to utility function
 - Tests live alongside the source they test (e.g., `sessions.service.spec.ts` next to `sessions.service.ts`).
 - Aim for meaningful coverage, not coverage percentage. Test the behaviour, not the implementation.
 
----
 
 ## Review SLA
 
 Maintainers aim to triage new issues within **3 business days** and provide an initial review on pull requests within **5 business days**. Complex PRs that require architectural discussion may take longer. If you have not received a response after 7 days, it is perfectly fine to leave a polite comment on the issue or PR to bump it.
 
----
 
 Thank you for contributing to Tab Pilot.
