@@ -42,7 +42,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           # For workflow_run events the SHA is on the triggering workflow's commit
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
@@ -50,7 +50,7 @@ jobs:
       # ── Compute image tags & labels ─────────────────────────────────────────
       - name: Image metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
@@ -68,7 +68,7 @@ jobs:
 
       # ── QEMU for arm64 emulation on the amd64 runner ────────────────────────
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       # ── Install a pinned Buildah ─────────────────────────────────────────────
       - name: Install Buildah
@@ -134,7 +134,7 @@ jobs:
       #     ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
       - name: Install Cosign
         if: steps.push.outputs.digest != ''
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@v4
 
       - name: Sign image
         if: steps.push.outputs.digest != ''
@@ -184,7 +184,7 @@ jobs:
 
     steps:
       - name: Delete old SHA-tagged versions
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const owner = context.repo.owner.toLowerCase();
