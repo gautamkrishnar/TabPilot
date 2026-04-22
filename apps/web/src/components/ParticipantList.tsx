@@ -35,61 +35,44 @@ function ParticipantItem({ participant, onKick, hasVoted, revealedVote }: Partic
         {participant.email && <p className="text-xs text-zinc-500 truncate">{participant.email}</p>}
       </div>
 
-      <div className="flex items-center gap-2 flex-shrink-0">
-        {/* Vote / online indicator */}
-        {(() => {
-          if (revealedVote !== undefined) {
-            return (
-              <motion.span
-                initial={{ scale: 0.6, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="min-w-[28px] h-7 px-1.5 flex items-center justify-center rounded-lg bg-indigo-500 text-white text-xs font-bold shadow-glow-indigo"
-              >
-                {revealedVote}
-              </motion.span>
-            );
-          }
-          if (hasVoted) {
-            return (
-              /* Voted indicator — shows they've voted but hides the value */
-              <motion.span
-                initial={{ scale: 0.6, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="h-5 w-5 flex items-center justify-center rounded-full bg-green-500/20 border border-green-500/40"
-                title="Voted"
-              >
-                <span className="h-2 w-2 rounded-full bg-green-500" />
-              </motion.span>
-            );
-          }
-          /* Online indicator */
-          return participant.isOnline ? (
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-            </span>
-          ) : (
-            <span className="h-2 w-2 rounded-full bg-zinc-600" />
-          );
-        })()}
+      {onKick && (
+        <button
+          type="button"
+          onClick={() => onKick(participant.id)}
+          className={cn(
+            'p-1 rounded text-zinc-500 dark:text-zinc-600 flex-shrink-0',
+            'hover:text-red-400 hover:bg-red-400/10',
+            'hidden group-hover:flex items-center justify-center',
+          )}
+          aria-label={`Remove ${participant.name} from session`}
+          title={`Remove ${participant.name}`}
+        >
+          <UserX className="h-3.5 w-3.5" />
+        </button>
+      )}
 
-        {/* Kick button — host only, appears on hover */}
-        {onKick && (
-          <button
-            type="button"
-            onClick={() => onKick(participant.id)}
-            className={cn(
-              'p-1 rounded text-zinc-500 dark:text-zinc-600',
-              'hover:text-red-400 hover:bg-red-400/10',
-              'opacity-0 group-hover:opacity-100 transition-all duration-150',
-            )}
-            aria-label={`Remove ${participant.name} from session`}
-            title={`Remove ${participant.name}`}
-          >
-            <UserX className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
+      {(revealedVote !== undefined || hasVoted) && (
+        <span className="w-7 flex items-center justify-center flex-shrink-0">
+          {revealedVote !== undefined ? (
+            <motion.span
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="min-w-[28px] h-7 px-1.5 flex items-center justify-center rounded-lg bg-indigo-500 text-white text-xs font-bold shadow-glow-indigo"
+            >
+              {revealedVote}
+            </motion.span>
+          ) : (
+            <motion.span
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="h-5 w-5 flex items-center justify-center rounded-full bg-green-500/20 border border-green-500/40"
+              title="Voted"
+            >
+              <span className="h-2 w-2 rounded-full bg-green-500" />
+            </motion.span>
+          )}
+        </span>
+      )}
     </motion.div>
   );
 }
@@ -133,7 +116,9 @@ function HostItem({ session }: Readonly<{ session: Session }>) {
         {session.hostEmail && <p className="text-xs text-zinc-500 truncate">{session.hostEmail}</p>}
       </div>
 
-      <Crown className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" aria-label="Host" />
+      <span className="w-7 flex items-center justify-center flex-shrink-0">
+        <Crown className="h-3.5 w-3.5 text-amber-500" aria-label="Host" />
+      </span>
     </div>
   );
 }
@@ -168,7 +153,9 @@ function CoHostItem({ coHost }: Readonly<{ coHost: CoHost }>) {
         {coHost.email && <p className="text-xs text-zinc-500 truncate">{coHost.email}</p>}
       </div>
 
-      <ShieldCheck className="h-3.5 w-3.5 text-indigo-400 flex-shrink-0" aria-label="Co-host" />
+      <span className="w-7 flex items-center justify-center flex-shrink-0">
+        <ShieldCheck className="h-3.5 w-3.5 text-indigo-400" aria-label="Co-host" />
+      </span>
     </div>
   );
 }

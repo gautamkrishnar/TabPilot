@@ -169,7 +169,7 @@ export function ParticipantView() {
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden">
       {/* Top bar */}
-      <header className="h-14 flex-shrink-0 flex items-center gap-3 px-4 border-b border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-sm">
+      <header className="h-14 flex-shrink-0 flex items-center gap-3 px-4 border-b border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-sm z-10">
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <a href="/" aria-label="Tab Pilot home">
             <img
