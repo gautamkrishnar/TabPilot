@@ -59,15 +59,19 @@ export class JiraService {
       return this.baseUrl;
     }
     if (provided) {
-      const cleaned = provided.replace(/\/$/, '');
-      if (!isAllowedJiraHost(cleaned)) {
-        throw new BadRequestException('Provided baseUrl must be an https://*.atlassian.net URL.');
-      }
-      return cleaned;
+      return provided.replace(/\/$/, '');
     }
     throw new ServiceUnavailableException(
       'Jira base URL not configured. Set JIRA_BASE_URL or provide a baseUrl parameter.',
     );
+  }
+
+  private assertAllowedUrl(url: string): string {
+    if (this.baseUrl) return url;
+    if (!isAllowedJiraHost(url)) {
+      throw new BadRequestException('Provided baseUrl must be an https://*.atlassian.net URL.');
+    }
+    return url;
   }
 
   /** Project keys that have a story-points field configured (from JIRA_STORY_POINTS_FIELDS). */
@@ -105,7 +109,9 @@ export class JiraService {
 
     const resolvedBase = this.resolveBaseUrl(providedBaseUrl);
     const auth = Buffer.from(`${this.email}:${this.token}`).toString('base64');
-    const url = `${resolvedBase}/rest/api/3/issue/${issueKey}?fields=summary,status,issuetype`;
+    const url = this.assertAllowedUrl(
+      `${resolvedBase}/rest/api/3/issue/${issueKey}?fields=summary,status,issuetype`,
+    );
 
     let res: Response;
     try {
@@ -171,7 +177,7 @@ export class JiraService {
     }
 
     const auth = Buffer.from(`${this.email}:${this.token}`).toString('base64');
-    const url = `${resolvedBase}/rest/api/3/issue/${issueKey}`;
+    const url = this.assertAllowedUrl(`${resolvedBase}/rest/api/3/issue/${issueKey}`);
 
     let res: Response;
     try {

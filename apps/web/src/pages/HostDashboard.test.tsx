@@ -43,11 +43,23 @@ vi.mock('canvas-confetti', () => ({ default: vi.fn() }));
 
 const mockUpdateJiraStoryPoints = vi.fn();
 vi.mock('@/lib/jira', () => ({
-  parseJiraUrl: (url: string) =>
-    url.includes('atlassian.net')
-      ? { key: url.split('/').pop(), baseUrl: new URL(url).origin }
-      : null,
-  isStoryPointConfigured: (url: string) => url.includes('atlassian.net'),
+  parseJiraUrl: (url: string) => {
+    try {
+      const parsed = new URL(url);
+      if (parsed.hostname === 'atlassian.net' || parsed.hostname.endsWith('.atlassian.net')) {
+        return { key: parsed.pathname.split('/').pop(), baseUrl: parsed.origin };
+      }
+    } catch {}
+    return null;
+  },
+  isStoryPointConfigured: (url: string) => {
+    try {
+      const { hostname } = new URL(url);
+      return hostname === 'atlassian.net' || hostname.endsWith('.atlassian.net');
+    } catch {
+      return false;
+    }
+  },
   updateJiraStoryPoints: (...args: unknown[]) => mockUpdateJiraStoryPoints(...args),
 }));
 
