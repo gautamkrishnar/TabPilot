@@ -152,6 +152,20 @@ describe('ParticipantView — voting UI', () => {
     render(<ParticipantView />);
     expect(screen.getByText('Already voted')).toBeInTheDocument();
   });
+
+  it('clears selected vote when host resets votes', async () => {
+    render(<ParticipantView />);
+    await userEvent.click(screen.getByRole('button', { name: '8' }));
+    expect(screen.getByText(/you voted: 8/i)).toBeInTheDocument();
+
+    act(() => {
+      useSessionStore.getState().setVotedParticipantIds([]);
+      useSessionStore.getState().setRevealedVotes(null);
+    });
+
+    expect(screen.queryByText(/you voted/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '8' })).toBeInTheDocument();
+  });
 });
 
 describe('ParticipantView — revealed votes display', () => {

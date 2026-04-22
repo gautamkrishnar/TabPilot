@@ -135,13 +135,19 @@ export function ParticipantView() {
     };
   }, [session?.name, session]);
 
-  // Reset vote when URL changes. currentNavigateUrl is used as a trigger only —
-  // it intentionally doesn't appear in the callback body.
+  // Reset vote when URL changes or host resets votes
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional trigger dependency
   useEffect(() => {
     setSelectedVote(null);
     votedRef.current = false;
   }, [currentNavigateUrl]);
+
+  useEffect(() => {
+    if (votedParticipantIds.length === 0 && !revealedVotes) {
+      setSelectedVote(null);
+      votedRef.current = false;
+    }
+  }, [votedParticipantIds, revealedVotes]);
 
   // Reset completion banner when a new URL is added (current index is no longer last)
   useEffect(() => {
