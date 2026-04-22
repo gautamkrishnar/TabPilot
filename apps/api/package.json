@@ -13,11 +13,11 @@
     "test:cov": "jest --coverage"
   },
   "dependencies": {
-    "@fastify/static": "^8.0.0",
+    "@fastify/static": "^9.1.2",
     "@nestjs/common": "^11.0.0",
-    "@nestjs/core": "^11.0.0",
+    "@nestjs/core": "^11.1.19",
     "@nestjs/mongoose": "^11.0.0",
-    "@nestjs/platform-fastify": "^11.0.0",
+    "@nestjs/platform-fastify": "^11.1.19",
     "@nestjs/platform-socket.io": "^11.0.0",
     "@nestjs/swagger": "^11.2.6",
     "@nestjs/websockets": "^11.0.0",
