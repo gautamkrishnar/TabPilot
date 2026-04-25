@@ -134,7 +134,7 @@ jobs:
       #     ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
       - name: Install Cosign
         if: steps.push.outputs.digest != ''
-        uses: sigstore/cosign-installer@v4
+        uses: sigstore/cosign-installer@v4.1.1
 
       - name: Sign image
         if: steps.push.outputs.digest != ''
