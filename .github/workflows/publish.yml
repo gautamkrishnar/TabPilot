@@ -114,13 +114,14 @@ jobs:
           while IFS= read -r TAG; do
             [ -z "$TAG" ] && continue
             echo "Pushing $TAG …"
-            OUTPUT=$(buildah manifest push --all tab-pilot "docker://${TAG}" 2>&1)
-            echo "$OUTPUT"
             if [ -z "$FIRST_TAG" ]; then
               FIRST_TAG="$TAG"
-              DIGEST=$(echo "$OUTPUT" | grep -oP 'sha256:[a-f0-9]+' | head -1)
+              buildah manifest push --all --digestfile /tmp/manifest-digest tab-pilot "docker://${TAG}"
+              DIGEST=$(cat /tmp/manifest-digest)
               echo "digest=${DIGEST}" >> $GITHUB_OUTPUT
               echo "image=${TAG}" >> $GITHUB_OUTPUT
+            else
+              buildah manifest push --all tab-pilot "docker://${TAG}"
             fi
           done <<< "${{ steps.meta.outputs.tags }}"
 
@@ -140,11 +141,10 @@ jobs:
         if: steps.push.outputs.digest != ''
         env:
           COSIGN_EXPERIMENTAL: "1"
-          IMAGE_REF: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}"
         run: |
-          # GHCR requires lowercase image names; github.repository preserves the
-          # original casing (e.g. gautamkrishnar/TabPilot) which cosign rejects.
-          cosign sign --yes "${IMAGE_REF,,}"
+          # Derive repo from the already-lowercase metadata-action tag
+          IMAGE_REPO=$(echo "${{ steps.push.outputs.image }}" | cut -d: -f1)
+          cosign sign --yes "${IMAGE_REPO}@${{ steps.push.outputs.digest }}"
 
       # ── Job summary ──────────────────────────────────────────────────────────
       - name: Summary
