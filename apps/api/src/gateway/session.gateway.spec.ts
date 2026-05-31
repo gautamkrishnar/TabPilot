@@ -1506,6 +1506,29 @@ describe('SessionGateway', () => {
       });
     });
 
+    it('should not mark offline if participant has another active socket', async () => {
+      const client = makeMockSocket('socket-99');
+      const socketMeta = (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta;
+      socketMeta.set('socket-99', {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        isHost: false,
+      });
+      socketMeta.set('socket-100', {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        isHost: false,
+      });
+
+      await gateway.handleDisconnect(client);
+
+      expect(participantsService.updateOnlineStatus).not.toHaveBeenCalled();
+      expect(mockServer.emit).not.toHaveBeenCalledWith(
+        WS_EVENTS.PARTICIPANT_ONLINE,
+        expect.anything(),
+      );
+    });
+
     it('should do nothing if there is no socket metadata for the client', async () => {
       const client = makeMockSocket('unknown-socket');
       await gateway.handleDisconnect(client);

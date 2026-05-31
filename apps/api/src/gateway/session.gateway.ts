@@ -224,15 +224,20 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
     }
 
     if (meta.participantId && !meta.isHost) {
-      try {
-        await this.participantsService.updateOnlineStatus(meta.participantId, false);
-        const payload: ParticipantOnlinePayload = {
-          participantId: meta.participantId,
-          isOnline: false,
-        };
-        this.server.to(meta.sessionId).emit(WS_EVENTS.PARTICIPANT_ONLINE, payload);
-      } catch {
-        // Participant may already be gone
+      const hasOtherSocket = Array.from(this.socketMeta.values()).some(
+        (m) => m.participantId === meta.participantId,
+      );
+      if (!hasOtherSocket) {
+        try {
+          await this.participantsService.updateOnlineStatus(meta.participantId, false);
+          const payload: ParticipantOnlinePayload = {
+            participantId: meta.participantId,
+            isOnline: false,
+          };
+          this.server.to(meta.sessionId).emit(WS_EVENTS.PARTICIPANT_ONLINE, payload);
+        } catch {
+          // Participant may already be gone
+        }
       }
     }
   }
