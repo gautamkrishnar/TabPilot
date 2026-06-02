@@ -97,6 +97,31 @@ export class JiraService {
     return map;
   }
 
+  /**
+   * Parse JIRA_EXTRA_FIELDS env var — a JSON object mapping project keys to
+   * field/value pairs that are sent alongside story points.
+   *
+   * Format: {"PROJKEY":{"fieldName":value},"PROJKEY2":{"fieldName2":value2}}
+   * e.g.   {"CONNCERT":{"customfield_10517":{"id":"10852"}}}
+   */
+  private getExtraFieldsMap(): Map<string, Record<string, unknown>> {
+    const raw = process.env.JIRA_EXTRA_FIELDS?.trim();
+    if (!raw) return new Map();
+    try {
+      const parsed = JSON.parse(raw) as Record<string, Record<string, unknown>>;
+      const map = new Map<string, Record<string, unknown>>();
+      for (const [proj, fields] of Object.entries(parsed)) {
+        if (fields && typeof fields === 'object' && !Array.isArray(fields)) {
+          map.set(proj.toUpperCase(), fields);
+        }
+      }
+      return map;
+    } catch {
+      this.logger.warn('JIRA_EXTRA_FIELDS is not valid JSON — ignored.');
+      return new Map();
+    }
+  }
+
   async getIssue(issueKey: string, providedBaseUrl?: string): Promise<JiraIssue> {
     if (!ISSUE_KEY_RE.test(issueKey)) {
       throw new BadRequestException('Invalid Jira issue key.');
@@ -179,6 +204,13 @@ export class JiraService {
     const auth = Buffer.from(`${this.email}:${this.token}`).toString('base64');
     const url = this.assertAllowedUrl(`${resolvedBase}/rest/api/3/issue/${issueKey}`);
 
+    const fields: Record<string, unknown> = { [fieldName]: points };
+
+    const extraFields = this.getExtraFieldsMap().get(projectKey);
+    if (extraFields) {
+      Object.assign(fields, extraFields);
+    }
+
     let res: Response;
     try {
       res = await fetch(url, {
@@ -188,7 +220,7 @@ export class JiraService {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        body: JSON.stringify({ fields: { [fieldName]: points } }),
+        body: JSON.stringify({ fields }),
       });
     } catch (err) {
       this.logger.error(`Failed to reach Jira at ${resolvedBase}: ${err}`);

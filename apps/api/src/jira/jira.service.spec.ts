@@ -315,6 +315,86 @@ describe('JiraService', () => {
         const body = JSON.parse(fetchCall[1].body as string);
         expect(body.fields).toEqual({ customfield_10016: 3 });
       });
+
+      it('includes extra fields from JIRA_EXTRA_FIELDS alongside story points', async () => {
+        process.env.JIRA_STORY_POINTS_FIELDS = 'PROJ=story_points';
+        process.env.JIRA_EXTRA_FIELDS = '{"PROJ":{"customfield_10517":{"id":"10852"}}}';
+        global.fetch = jest.fn().mockResolvedValue({ status: 204, ok: true } as Response);
+
+        await service.setStoryPoints('PROJ-123', 5);
+
+        const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+        const body = JSON.parse(fetchCall[1].body as string);
+        expect(body.fields).toEqual({
+          story_points: 5,
+          customfield_10517: { id: '10852' },
+        });
+      });
+
+      it('does not include extra fields when JIRA_EXTRA_FIELDS is not set', async () => {
+        process.env.JIRA_STORY_POINTS_FIELDS = 'PROJ=story_points';
+        delete process.env.JIRA_EXTRA_FIELDS;
+        global.fetch = jest.fn().mockResolvedValue({ status: 204, ok: true } as Response);
+
+        await service.setStoryPoints('PROJ-123', 5);
+
+        const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+        const body = JSON.parse(fetchCall[1].body as string);
+        expect(body.fields).toEqual({ story_points: 5 });
+      });
+
+      it('does not include extra fields when project is not in JIRA_EXTRA_FIELDS', async () => {
+        process.env.JIRA_STORY_POINTS_FIELDS = 'PROJ=story_points';
+        process.env.JIRA_EXTRA_FIELDS = '{"OTHER":{"customfield_10517":{"id":"10852"}}}';
+        global.fetch = jest.fn().mockResolvedValue({ status: 204, ok: true } as Response);
+
+        await service.setStoryPoints('PROJ-123', 5);
+
+        const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+        const body = JSON.parse(fetchCall[1].body as string);
+        expect(body.fields).toEqual({ story_points: 5 });
+      });
+
+      it('supports multiple extra fields per project', async () => {
+        process.env.JIRA_STORY_POINTS_FIELDS = 'PROJ=story_points';
+        process.env.JIRA_EXTRA_FIELDS =
+          '{"PROJ":{"customfield_10517":{"id":"10852"},"customfield_10028":42}}';
+        global.fetch = jest.fn().mockResolvedValue({ status: 204, ok: true } as Response);
+
+        await service.setStoryPoints('PROJ-123', 3);
+
+        const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+        const body = JSON.parse(fetchCall[1].body as string);
+        expect(body.fields).toEqual({
+          story_points: 3,
+          customfield_10517: { id: '10852' },
+          customfield_10028: 42,
+        });
+      });
+
+      it('ignores invalid JSON in JIRA_EXTRA_FIELDS', async () => {
+        process.env.JIRA_STORY_POINTS_FIELDS = 'PROJ=story_points';
+        process.env.JIRA_EXTRA_FIELDS = 'not-valid-json';
+        global.fetch = jest.fn().mockResolvedValue({ status: 204, ok: true } as Response);
+
+        await service.setStoryPoints('PROJ-123', 5);
+
+        const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+        const body = JSON.parse(fetchCall[1].body as string);
+        expect(body.fields).toEqual({ story_points: 5 });
+      });
+
+      it('is case-insensitive for project keys in JIRA_EXTRA_FIELDS', async () => {
+        process.env.JIRA_STORY_POINTS_FIELDS = 'PROJ=story_points';
+        process.env.JIRA_EXTRA_FIELDS = '{"proj":{"customfield_10517":{"id":"10852"}}}';
+        global.fetch = jest.fn().mockResolvedValue({ status: 204, ok: true } as Response);
+
+        await service.setStoryPoints('PROJ-123', 5);
+
+        const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+        const body = JSON.parse(fetchCall[1].body as string);
+        expect(body.fields.customfield_10517).toEqual({ id: '10852' });
+      });
     });
   });
 });
