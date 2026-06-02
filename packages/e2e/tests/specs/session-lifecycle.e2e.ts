@@ -93,7 +93,7 @@ describe('Create Session — UI flow', () => {
 
     // Success screen shows the "Open Host Dashboard" button
     const openBtn = await $('button=Open Host Dashboard');
-    await openBtn.waitForDisplayed({ timeout: 60_000 });
+    await openBtn.waitForDisplayed();
 
     // Join code is rendered as 6 individual character divs inside JoinCodeDisplay.
     // Each char div has classes: font-bold font-mono — collect and concatenate.
@@ -144,7 +144,7 @@ describe('Session lifecycle', () => {
     // Session is in 'waiting' state — the Start Session overlay is visible
     // (this also proves the WebSocket connected and received session state)
     const startBtn = await $('button*=Start Session');
-    await startBtn.waitForDisplayed({ timeout: 60_000 });
+    await startBtn.waitForDisplayed();
 
     // ── 2. Participant joins in a new window ────────────────────────────────
     await browser.newWindow(`${BASE_URL}/join?code=${joinCode}`);
@@ -153,11 +153,11 @@ describe('Session lifecycle', () => {
     // JoinCodeInput is pre-filled from ?code= URL param. The name input is
     // always visible, but the submit button stays disabled until the session
     // lookup resolves — wait for it to become clickable before submitting.
-    await $('#name').waitForDisplayed({ timeout: 60_000 });
+    await $('#name').waitForDisplayed();
     await $('#name').setValue('Test Participant');
 
     const joinSubmitBtn = await $('button[type="submit"]');
-    await joinSubmitBtn.waitForClickable({ timeout: 60_000 });
+    await joinSubmitBtn.waitForClickable();
     await joinSubmitBtn.click();
 
     // Participant lands on /session/:id
@@ -197,7 +197,7 @@ describe('Session lifecycle', () => {
     await browser.switchToWindow(mainWindowHandle);
 
     const nextBtn = await $('button*=Next');
-    await nextBtn.waitForClickable({ timeout: 60_000 });
+    await nextBtn.waitForClickable();
     await nextBtn.click();
 
     // ── 6. Participant sees the second ticket URL ────────────────────────────
@@ -216,9 +216,9 @@ describe('Session lifecycle', () => {
 
     // Click "End" which opens the confirm modal, then confirm.
     const endBtn = await $('button*=End');
-    await endBtn.waitForClickable({ timeout: 60_000 });
+    await endBtn.waitForClickable();
     await endBtn.click();
-    await $('button=End Session').waitForClickable({ timeout: 60_000 });
+    await $('button=End Session').waitForClickable();
     await $('button=End Session').click();
   });
 
@@ -231,17 +231,17 @@ describe('Session lifecycle', () => {
     // Start the session first so the overlay dismisses, then lock.
     // Waiting for "Start Session" also proves the WebSocket connected.
     const startBtn = await $('button*=Start Session');
-    await startBtn.waitForDisplayed({ timeout: 60_000 });
+    await startBtn.waitForDisplayed();
     await startBtn.click();
-    await startBtn.waitForDisplayed({ timeout: 60_000, reverse: true });
+    await startBtn.waitForDisplayed({ reverse: true });
 
     // Open the Settings modal, then toggle the lock
     const settingsBtn = await $('button*=Settings');
-    await settingsBtn.waitForClickable({ timeout: 60_000 });
+    await settingsBtn.waitForClickable();
     await settingsBtn.click();
 
     const lockToggle = await $('button[aria-label="Toggle lock"]');
-    await lockToggle.waitForClickable({ timeout: 60_000 });
+    await lockToggle.waitForClickable();
     await lockToggle.click();
 
     // Participant navigates to the join page — the lookup should show the
@@ -300,11 +300,11 @@ describe('Session lifecycle — voting flow', () => {
     await browser.newWindow(`${BASE_URL}/join?code=${joinCode}`);
     const participantHandle = await browser.getWindowHandle();
 
-    await $('#name').waitForDisplayed({ timeout: 60_000 });
+    await $('#name').waitForDisplayed();
     await $('#name').setValue('Voting Participant');
 
     const joinSubmitBtn = await $('button[type="submit"]');
-    await joinSubmitBtn.waitForClickable({ timeout: 60_000 });
+    await joinSubmitBtn.waitForClickable();
     await joinSubmitBtn.click();
 
     await browser.waitUntil(async () => (await browser.getUrl()).includes('/session/'), {
@@ -315,7 +315,7 @@ describe('Session lifecycle — voting flow', () => {
     // Start session from host window
     await browser.switchToWindow(mainWindowHandle);
     const startBtn = await $('button*=Start Session');
-    await startBtn.waitForDisplayed({ timeout: 60_000 });
+    await startBtn.waitForDisplayed();
     await startBtn.click();
 
     // ── Participant submits a vote ────────────────────────────────────────────
@@ -324,7 +324,7 @@ describe('Session lifecycle — voting flow', () => {
     // Voting buttons are rendered once the session is active and navigate_to arrives
     // Vote values: '1','2','3','5','8','13','21','?','☕'
     const voteBtn = await $('button=5');
-    await voteBtn.waitForDisplayed({ timeout: 60_000 });
+    await voteBtn.waitForDisplayed();
     await voteBtn.click();
 
     // ── Host sees "1 voted" indicator and reveals votes ──────────────────────
@@ -332,7 +332,7 @@ describe('Session lifecycle — voting flow', () => {
 
     // Reveal button shows once at least one participant has voted
     const revealBtn = await $('button*=Reveal');
-    await revealBtn.waitForDisplayed({ timeout: 60_000 });
+    await revealBtn.waitForDisplayed();
     await revealBtn.click();
 
     // ── Participant sees revealed vote result ────────────────────────────────
