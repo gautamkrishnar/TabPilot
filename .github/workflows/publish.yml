@@ -44,7 +44,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          # For workflow_run events the SHA is on the triggering workflow's commit
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       # ── Compute image tags & labels ─────────────────────────────────────────
@@ -66,73 +65,37 @@ jobs:
             org.opencontainers.image.description=Real-time grooming and tab synchronization tool
             org.opencontainers.image.vendor=${{ github.repository_owner }}
 
-      # ── QEMU for arm64 emulation on the amd64 runner ────────────────────────
+      # ── QEMU for arm64 emulation ────────────────────────────────────────────
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
 
-      # ── Install a pinned Buildah ─────────────────────────────────────────────
-      - name: Install Buildah
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y buildah
+      # ── BuildKit with multi-platform support ────────────────────────────────
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       # ── Authenticate to GHCR ────────────────────────────────────────────────
       - name: Log in to GHCR
-        uses: redhat-actions/podman-login@v1
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── Build both architectures into a single manifest list ────────────────
-      # buildah bud --manifest creates/updates a local manifest as it builds each arch.
-      - name: Build amd64
-        run: |
-          buildah bud \
-            --platform linux/amd64 \
-            --manifest tab-pilot \
-            --label "org.opencontainers.image.title=Tab Pilot" \
-            --label "org.opencontainers.image.revision=${{ github.sha }}" \
-            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
-            -f Containerfile .
-
-      - name: Build arm64
-        run: |
-          buildah bud \
-            --platform linux/arm64 \
-            --manifest tab-pilot \
-            --label "org.opencontainers.image.title=Tab Pilot" \
-            --label "org.opencontainers.image.revision=${{ github.sha }}" \
-            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
-            -f Containerfile .
-
-      # ── Push the manifest list under every computed tag ──────────────────────
-      - name: Push manifest to GHCR
+      # ── Build both architectures in parallel + push ─────────────────────────
+      - name: Build and push
         id: push
-        run: |
-          FIRST_TAG=""
-          while IFS= read -r TAG; do
-            [ -z "$TAG" ] && continue
-            echo "Pushing $TAG …"
-            if [ -z "$FIRST_TAG" ]; then
-              FIRST_TAG="$TAG"
-              buildah manifest push --all --digestfile /tmp/manifest-digest tab-pilot "docker://${TAG}"
-              DIGEST=$(cat /tmp/manifest-digest)
-              echo "digest=${DIGEST}" >> $GITHUB_OUTPUT
-              echo "image=${TAG}" >> $GITHUB_OUTPUT
-            else
-              buildah manifest push --all tab-pilot "docker://${TAG}"
-            fi
-          done <<< "${{ steps.meta.outputs.tags }}"
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Containerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      # ── Sign the manifest list with Cosign (keyless / OIDC) ────────────────────
-      # Sigstore keyless signing — no long-lived keys, identity is this workflow.
-      # The signature is stored in GHCR alongside the image.
-      # Verify with:
-      #   cosign verify \
-      #     --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/publish.yml@refs/.*" \
-      #     --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-      #     ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+      # ── Sign the manifest list with Cosign (keyless / OIDC) ────────────────
       - name: Install Cosign
         if: steps.push.outputs.digest != ''
         uses: sigstore/cosign-installer@v4.1.1
@@ -142,9 +105,7 @@ jobs:
         env:
           COSIGN_EXPERIMENTAL: "1"
         run: |
-          # Derive repo from the already-lowercase metadata-action tag
-          IMAGE_REPO=$(echo "${{ steps.push.outputs.image }}" | cut -d: -f1)
-          cosign sign --yes "${IMAGE_REPO}@${{ steps.push.outputs.digest }}"
+          cosign sign --yes "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}"
 
       # ── Job summary ──────────────────────────────────────────────────────────
       - name: Summary
@@ -171,8 +132,6 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
 
   # ── Prune old SHA-tagged versions from GHCR ─────────────────────────────────
-  # Keeps: master, latest, all semver tags (v*), and the most recent sha- tag.
-  # Deletes everything older to prevent unbounded GHCR growth.
   prune:
     name: Prune old images from GHCR
     runs-on: ubuntu-latest
@@ -190,33 +149,26 @@ jobs:
             const owner = context.repo.owner.toLowerCase();
             const packageName = context.repo.repo.toLowerCase();
 
-            // Fetch all versions (up to 100)
             const { data: versions } = await github.rest.packages.getAllPackageVersionsForPackageOwnedByAuthenticatedUser({
               package_type: 'container',
               package_name: packageName,
               per_page: 100,
             });
 
-            // Separate sha- tagged versions from protected ones
             const SHA_KEEP = 1;
             const shaVersions = [];
             const toDelete = [];
 
             for (const v of versions) {
               const tags = v.metadata?.container?.tags ?? [];
-              // metadata-action emits semver tags without 'v' prefix (e.g. "1.0.0", "1.0", "1")
               const hasSemver = tags.some(t => /^v?\d+(\.\d+)*$/.test(t));
               const hasLatest = tags.includes('latest') || tags.includes('master');
               const hasSha = tags.some(t => t.startsWith('sha-'));
-              const isUntagged = tags.length === 0;
 
-              if (hasSemver || hasLatest) continue;   // always keep
+              if (hasSemver || hasLatest) continue;
               if (hasSha) { shaVersions.push(v); continue; }
-              // Don't delete untagged versions — multi-arch manifest lists
-              // reference platform-specific images that appear untagged in GHCR
             }
 
-            // Sort sha versions newest-first, mark old ones for deletion
             shaVersions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
             toDelete.push(...shaVersions.slice(SHA_KEEP));
 
