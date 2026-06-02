@@ -105,7 +105,8 @@ jobs:
         env:
           COSIGN_EXPERIMENTAL: "1"
         run: |
-          cosign sign --yes "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}"
+          IMAGE_REF=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
+          cosign sign --yes "${IMAGE_REF}@${{ steps.push.outputs.digest }}"
 
       # ── Job summary ──────────────────────────────────────────────────────────
       - name: Summary
