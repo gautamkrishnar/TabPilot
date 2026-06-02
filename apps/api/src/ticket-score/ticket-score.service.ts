@@ -1,7 +1,10 @@
 import * as fs from 'node:fs';
 import { GoogleGenAI } from '@google/genai';
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
 import type { TicketScore } from '@tabpilot/shared';
+import type { Model } from 'mongoose';
+import { TicketScoreDoc } from './ticket-score.schema';
 
 const SCORING_PROMPT = `You are a Jira ticket quality assessor for engineering grooming sessions.
 Score this ticket on six dimensions from 0 to 100.
@@ -29,7 +32,10 @@ The overall score is the average of all six dimension scores, rounded to the nea
 export class TicketScoreService {
   private readonly logger = new Logger(TicketScoreService.name);
   private client: GoogleGenAI | null = null;
-  private readonly cache = new Map<string, TicketScore>();
+
+  constructor(
+    @InjectModel(TicketScoreDoc.name) private readonly scoreModel: Model<TicketScoreDoc>,
+  ) {}
 
   private get credentialsPath(): string | undefined {
     return process.env.GOOGLE_APPLICATION_CREDENTIALS;
@@ -75,18 +81,25 @@ export class TicketScoreService {
     return this.client;
   }
 
-  getCached(key: string): TicketScore | undefined {
-    return this.cache.get(key.toUpperCase());
+  private toTicketScore(doc: TicketScoreDoc): TicketScore {
+    return { overall: doc.overall, dimensions: doc.dimensions };
   }
 
-  clearCache(key: string): void {
-    this.cache.delete(key.toUpperCase());
+  async getCached(key: string): Promise<TicketScore | null> {
+    const doc = await this.scoreModel.findOne({ issueKey: key.toUpperCase() }).lean().exec();
+    return doc ? this.toTicketScore(doc) : null;
+  }
+
+  async clearCache(key: string): Promise<void> {
+    await this.scoreModel.deleteOne({ issueKey: key.toUpperCase() }).exec();
   }
 
   async scoreTicket(key: string, summary: string, description: string): Promise<TicketScore> {
-    const cacheKey = key.toUpperCase();
-    const cached = this.cache.get(cacheKey);
-    if (cached) return cached;
+    const issueKey = key.toUpperCase();
+
+    const cached = await this.scoreModel.findOne({ issueKey }).lean().exec();
+    if (cached) return this.toTicketScore(cached);
+
     const ai = this.getClient();
 
     const ticketContent = `## Ticket Summary\n${summary}\n\n## Ticket Description\n${description || '(no description provided)'}`;
@@ -119,7 +132,14 @@ export class TicketScoreService {
       if (typeof parsed.overall !== 'number' || !parsed.dimensions) {
         throw new Error('Missing required fields');
       }
-      this.cache.set(cacheKey, parsed);
+
+      await this.scoreModel.create({
+        issueKey,
+        overall: parsed.overall,
+        dimensions: parsed.dimensions,
+        scoredAt: new Date(),
+      });
+
       return parsed;
     } catch {
       this.logger.error(`Failed to parse Gemini response: ${text}`);

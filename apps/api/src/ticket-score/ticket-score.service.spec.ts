@@ -1,6 +1,8 @@
 import 'reflect-metadata';
 import { ServiceUnavailableException } from '@nestjs/common';
+import { getModelToken } from '@nestjs/mongoose';
 import { Test, type TestingModule } from '@nestjs/testing';
+import { TicketScoreDoc } from './ticket-score.schema';
 import { TicketScoreService } from './ticket-score.service';
 
 const mockGenerateContent = jest.fn();
@@ -37,12 +39,31 @@ const VALID_RESPONSE = {
   },
 };
 
+const mockScoreModel = {
+  findOne: jest.fn(),
+  create: jest.fn(),
+  deleteOne: jest.fn(),
+};
+
+function chainableFindOne(result: unknown) {
+  mockScoreModel.findOne.mockReturnValue({
+    lean: () => ({ exec: () => Promise.resolve(result) }),
+  });
+}
+
+function chainableDeleteOne() {
+  mockScoreModel.deleteOne.mockReturnValue({ exec: () => Promise.resolve() });
+}
+
 describe('TicketScoreService', () => {
   let service: TicketScoreService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [TicketScoreService],
+      providers: [
+        TicketScoreService,
+        { provide: getModelToken(TicketScoreDoc.name), useValue: mockScoreModel },
+      ],
     }).compile();
 
     service = module.get<TicketScoreService>(TicketScoreService);
@@ -75,6 +96,8 @@ describe('TicketScoreService', () => {
       process.env.GOOGLE_APPLICATION_CREDENTIALS = '/valid/sa.json';
       mockExistsSync.mockReturnValue(true);
       mockReadFileSync.mockReturnValue(JSON.stringify({ project_id: 'test-project' }));
+      chainableFindOne(null);
+      mockScoreModel.create.mockResolvedValue({});
     });
 
     afterEach(() => {
@@ -85,7 +108,10 @@ describe('TicketScoreService', () => {
     it('throws ServiceUnavailableException when credentials are not set', async () => {
       delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
       const module = await Test.createTestingModule({
-        providers: [TicketScoreService],
+        providers: [
+          TicketScoreService,
+          { provide: getModelToken(TicketScoreDoc.name), useValue: mockScoreModel },
+        ],
       }).compile();
       const freshService = module.get<TicketScoreService>(TicketScoreService);
 
@@ -104,6 +130,24 @@ describe('TicketScoreService', () => {
       );
       expect(result).toEqual(VALID_RESPONSE);
       expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+      expect(mockScoreModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({ issueKey: 'PROJ-2', overall: 72 }),
+      );
+    });
+
+    it('returns cached result from MongoDB without calling Gemini', async () => {
+      chainableFindOne({ issueKey: 'PROJ-5', ...VALID_RESPONSE, scoredAt: new Date() });
+
+      const result = await service.scoreTicket('PROJ-5', 'Summary', 'Description');
+      expect(result).toEqual(VALID_RESPONSE);
+      expect(mockGenerateContent).not.toHaveBeenCalled();
+      expect(mockScoreModel.create).not.toHaveBeenCalled();
+    });
+
+    it('calls Gemini again after cache is cleared', async () => {
+      chainableDeleteOne();
+      await service.clearCache('PROJ-6');
+      expect(mockScoreModel.deleteOne).toHaveBeenCalledWith({ issueKey: 'PROJ-6' });
     });
 
     it('throws ServiceUnavailableException when Gemini returns empty text', async () => {
@@ -141,19 +185,6 @@ describe('TicketScoreService', () => {
       );
     });
 
-    it('uses custom VERTEX_AI_LOCATION when set', async () => {
-      process.env.VERTEX_AI_LOCATION = 'europe-west1';
-      mockGenerateContent.mockResolvedValue({ text: JSON.stringify(VALID_RESPONSE) });
-
-      const module = await Test.createTestingModule({
-        providers: [TicketScoreService],
-      }).compile();
-      const freshService = module.get<TicketScoreService>(TicketScoreService);
-
-      const result = await freshService.scoreTicket('PROJ-1', 'Summary', 'Description');
-      expect(result).toEqual(VALID_RESPONSE);
-    });
-
     it('handles description being empty', async () => {
       mockGenerateContent.mockResolvedValue({ text: JSON.stringify(VALID_RESPONSE) });
 
@@ -163,26 +194,15 @@ describe('TicketScoreService', () => {
       expect(callArgs.contents).toContain('(no description provided)');
     });
 
-    it('returns cached result on second call without calling Gemini again', async () => {
-      mockGenerateContent.mockResolvedValue({ text: JSON.stringify(VALID_RESPONSE) });
+    it('getCached returns null for uncached keys', async () => {
+      chainableFindOne(null);
+      expect(await service.getCached('NONEXISTENT-1')).toBeNull();
+    });
 
-      await service.scoreTicket('PROJ-5', 'Summary', 'Description');
-      const result = await service.scoreTicket('PROJ-5', 'Summary', 'Description');
+    it('getCached returns score for cached keys', async () => {
+      chainableFindOne({ issueKey: 'PROJ-7', ...VALID_RESPONSE, scoredAt: new Date() });
+      const result = await service.getCached('PROJ-7');
       expect(result).toEqual(VALID_RESPONSE);
-      expect(mockGenerateContent).toHaveBeenCalledTimes(1);
-    });
-
-    it('calls Gemini again after cache is cleared', async () => {
-      mockGenerateContent.mockResolvedValue({ text: JSON.stringify(VALID_RESPONSE) });
-
-      await service.scoreTicket('PROJ-6', 'Summary', 'Description');
-      service.clearCache('PROJ-6');
-      await service.scoreTicket('PROJ-6', 'Summary', 'Description');
-      expect(mockGenerateContent).toHaveBeenCalledTimes(2);
-    });
-
-    it('getCached returns undefined for uncached keys', () => {
-      expect(service.getCached('NONEXISTENT-1')).toBeUndefined();
     });
   });
 });

@@ -42,7 +42,7 @@ export class TicketScoreController {
   @ApiOperation({ summary: 'Clear cached score for a ticket (triggers re-score on next GET)' })
   @ApiParam({ name: 'key', example: 'PROJ-123', description: 'Jira issue key' })
   @ApiNoContentResponse({ description: 'Cache cleared.' })
-  clearScore(@Param('key') key: string) {
-    this.ticketScoreService.clearCache(key);
+  async clearScore(@Param('key') key: string) {
+    await this.ticketScoreService.clearCache(key);
   }
 }
