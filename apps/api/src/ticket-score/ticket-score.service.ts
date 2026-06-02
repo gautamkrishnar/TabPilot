@@ -124,8 +124,11 @@ export class TicketScoreService {
       throw new ServiceUnavailableException('Gemini returned an empty response.');
     }
 
-    const fenced = /^```(?:json)?\s*\n?([\s\S]*?)\n?\s*```$/m.exec(text);
-    if (fenced) text = fenced[1].trim();
+    if (text.startsWith('```')) {
+      const start = text.indexOf('\n');
+      const end = text.lastIndexOf('```');
+      if (start !== -1 && end > start) text = text.slice(start + 1, end).trim();
+    }
 
     try {
       const parsed = JSON.parse(text) as TicketScore;
