@@ -6,6 +6,7 @@ import { JiraModule } from './jira/jira.module';
 import { MetaModule } from './meta/meta.module';
 import { ParticipantsModule } from './participants/participants.module';
 import { SessionsModule } from './sessions/sessions.module';
+import { TicketScoreModule } from './ticket-score/ticket-score.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { SessionsModule } from './sessions/sessions.module';
     HealthModule,
     JiraModule,
     MetaModule,
+    TicketScoreModule,
   ],
 })
 export class AppModule {}

@@ -18,6 +18,22 @@ export interface JiraIssue {
   issueType: string;
 }
 
+export interface JiraIssueWithDescription extends JiraIssue {
+  description: string;
+}
+
+function adfToPlainText(node: unknown): string {
+  if (!node || typeof node !== 'object') return '';
+  const n = node as { type?: string; text?: string; content?: unknown[] };
+  if (n.type === 'text' && typeof n.text === 'string') return n.text;
+  if (!Array.isArray(n.content)) return '';
+  const childText = n.content.map(adfToPlainText).join('');
+  if (n.type === 'paragraph' || n.type === 'heading') return `${childText}\n`;
+  if (n.type === 'listItem') return `- ${childText}`;
+  if (n.type === 'hardBreak') return '\n';
+  return childText;
+}
+
 function isAllowedJiraHost(urlStr: string): boolean {
   try {
     const { hostname, protocol } = new URL(urlStr);
@@ -170,6 +186,68 @@ export class JiraService {
     return {
       key: issueKey,
       summary: data.fields?.summary ?? issueKey,
+      status: data.fields?.status?.name ?? 'Unknown',
+      issueType: data.fields?.issuetype?.name ?? 'Issue',
+    };
+  }
+
+  async getIssueWithDescription(
+    issueKey: string,
+    providedBaseUrl?: string,
+  ): Promise<JiraIssueWithDescription> {
+    if (!ISSUE_KEY_RE.test(issueKey)) {
+      throw new BadRequestException('Invalid Jira issue key.');
+    }
+    if (!this.isConfigured) {
+      throw new ServiceUnavailableException(
+        'Jira integration is not configured. Set JIRA_USER_EMAIL and JIRA_API_TOKEN.',
+      );
+    }
+
+    const resolvedBase = this.resolveBaseUrl(providedBaseUrl);
+    const auth = Buffer.from(`${this.email}:${this.token}`).toString('base64');
+    const url = this.assertAllowedUrl(
+      `${resolvedBase}/rest/api/3/issue/${issueKey}?fields=summary,description,status,issuetype`,
+    );
+
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        headers: {
+          Authorization: `Basic ${auth}`,
+          Accept: 'application/json',
+        },
+      });
+    } catch (err) {
+      this.logger.error(`Failed to reach Jira at ${resolvedBase}: ${err}`);
+      throw new ServiceUnavailableException('Could not reach Jira instance.');
+    }
+
+    if (res.status === 401) {
+      throw new ServiceUnavailableException(
+        'Jira authentication failed. Check JIRA_USER_EMAIL and JIRA_API_TOKEN.',
+      );
+    }
+    if (res.status === 404) {
+      throw new NotFoundException(`Jira issue ${issueKey} not found.`);
+    }
+    if (!res.ok) {
+      throw new ServiceUnavailableException(`Jira returned HTTP ${res.status}.`);
+    }
+
+    const data = (await res.json()) as {
+      fields: {
+        summary: string;
+        description: unknown;
+        status: { name: string };
+        issuetype: { name: string };
+      };
+    };
+
+    return {
+      key: issueKey,
+      summary: data.fields?.summary ?? issueKey,
+      description: adfToPlainText(data.fields?.description),
       status: data.fields?.status?.name ?? 'Unknown',
       issueType: data.fields?.issuetype?.name ?? 'Issue',
     };

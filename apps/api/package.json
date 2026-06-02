@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@fastify/static": "^9.1.2",
+    "@google/genai": "^2.7.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.1.19",
     "@nestjs/mongoose": "^11.0.0",

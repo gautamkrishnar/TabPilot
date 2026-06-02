@@ -46,6 +46,7 @@ It works with any ticketing tool that has a URL: **Jira, Linear, GitHub Issues, 
 - ✅ **Session completion state** — the navigation controls highlight when every ticket has been groomed, with a clear "All tickets groomed!" indicator visible to both hosts and participants
 - 📊 **Save votes to Jira** — export story point estimates directly to Jira issues when Jira integration is configured
 - 🔄 **Toggle voting mid-session** — hosts can enable or disable story point voting after session creation
+- ✨ **AI ticket quality scoring** — Jira tickets are scored on six quality dimensions (clarity, completeness, actionability, testability, formatting, context) using Gemini Flash via Vertex AI — opt-in via service account credentials
 
 ## Get Started
 

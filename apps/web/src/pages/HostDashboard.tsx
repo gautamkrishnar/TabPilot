@@ -25,6 +25,7 @@ import { JoinCodeDisplay } from '@/components/JoinCodeDisplay';
 import { NavigationControls } from '@/components/NavigationControls';
 import { ParticipantList } from '@/components/ParticipantList';
 import { StatusBadge } from '@/components/StatusBadge';
+import { TicketScoreBreakdown } from '@/components/TicketScoreBreakdown';
 import { UrlQueue } from '@/components/UrlQueue';
 import { UserAvatarMenu } from '@/components/UserAvatarMenu';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,8 @@ import { useHostActions } from '@/hooks/useHostActions';
 import { useJiraStatus } from '@/hooks/useJiraStatus';
 import { useSocket } from '@/hooks/useSocket';
 import { useStoryPointOverride } from '@/hooks/useStoryPointOverride';
+import { usePrefetchTicketScores } from '@/hooks/useTicketScore';
+import { useTicketScoreStatus } from '@/hooks/useTicketScoreStatus';
 import { isStoryPointConfigured, parseJiraUrl, updateJiraStoryPoints } from '@/lib/jira';
 import { cn, getFaviconUrl, truncateUrl } from '@/lib/utils';
 import { useSessionStore } from '@/store/sessionStore';
@@ -247,6 +250,9 @@ export function HostDashboard() {
 
   const { data: jiraStatus } = useJiraStatus();
   const storyPointProjects = jiraStatus?.storyPointProjects ?? [];
+  const { data: scoreStatus } = useTicketScoreStatus();
+  const scoringEnabled = scoreStatus?.configured ?? false;
+  usePrefetchTicketScores(scoringEnabled ? (session?.urls ?? []) : []);
 
   // Update page title
   useEffect(() => {
@@ -530,6 +536,8 @@ export function HostDashboard() {
                   onSaveVote={(val) => handleSetSavedVote(session.currentIndex, val)}
                 />
               )}
+
+              {scoringEnabled && <TicketScoreBreakdown url={currentUrl} canRegenerate />}
             </div>
           )}
 
@@ -555,6 +563,7 @@ export function HostDashboard() {
               onResetVote={session.votingEnabled ? handleResetSavedVote : undefined}
               onCopyToJira={session.votingEnabled ? handleCopyToJira : undefined}
               storyPointProjects={storyPointProjects}
+              scoringEnabled={scoringEnabled}
             />
 
             {/* Add URL input */}

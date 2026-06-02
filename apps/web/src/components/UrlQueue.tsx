@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import * as Yup from 'yup';
+import { TicketScoreBadge } from '@/components/TicketScoreBadge';
 import { useJiraIssue } from '@/hooks/useJiraIssue';
 import { useUrlTitle } from '@/hooks/useUrlTitle';
 import { formatJiraTitle, isStoryPointConfigured, parseJiraUrl } from '@/lib/jira';
@@ -50,9 +51,10 @@ interface UrlTitleProps {
   readonly url: string;
   readonly isCurrent: boolean;
   readonly isPast: boolean;
+  readonly scoringEnabled?: boolean;
 }
 
-function UrlTitle({ url, isCurrent, isPast }: UrlTitleProps) {
+function UrlTitle({ url, isCurrent, isPast, scoringEnabled }: UrlTitleProps) {
   const { data: jiraIssue, isLoading: jiraLoading } = useJiraIssue(url);
   const { data: pageTitle, isLoading: titleLoading } = useUrlTitle(url);
 
@@ -75,6 +77,7 @@ function UrlTitle({ url, isCurrent, isPast }: UrlTitleProps) {
         >
           {title}
         </p>
+        {scoringEnabled && <TicketScoreBadge url={url} />}
       </div>
       <p
         className={cn(
@@ -238,6 +241,7 @@ interface RowProps {
   readonly onCopyToJira?: (index: number) => void;
   /** Project keys that have story-points configured — used to gate the Jira send button */
   readonly storyPointProjects?: string[];
+  readonly scoringEnabled?: boolean;
 }
 
 function buildRowClassName(
@@ -274,6 +278,7 @@ function UrlRow({
   onResetVote,
   onCopyToJira,
   storyPointProjects,
+  scoringEnabled,
 }: RowProps) {
   const isCurrent = index === currentIndex;
   const isPast = index < currentIndex;
@@ -362,7 +367,7 @@ function UrlRow({
       />
 
       {/* Title */}
-      <UrlTitle url={url} isCurrent={isCurrent} isPast={isPast} />
+      <UrlTitle url={url} isCurrent={isCurrent} isPast={isPast} scoringEnabled={scoringEnabled} />
 
       {/* Current badge */}
       {isCurrent && (
@@ -480,6 +485,7 @@ export interface UrlQueueProps {
   readonly onCopyToJira?: (index: number) => void;
   /** Project keys with story-points configured — gates the Jira send button per row */
   readonly storyPointProjects?: string[];
+  readonly scoringEnabled?: boolean;
 }
 
 export function UrlQueue({
@@ -495,6 +501,7 @@ export function UrlQueue({
   onResetVote,
   onCopyToJira,
   storyPointProjects,
+  scoringEnabled,
 }: UrlQueueProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   // Optimistic local copy — updated immediately on drop so there's no
@@ -576,6 +583,7 @@ export function UrlQueue({
                 onResetVote={onResetVote}
                 onCopyToJira={onCopyToJira}
                 storyPointProjects={storyPointProjects}
+                scoringEnabled={scoringEnabled}
               />
             </motion.div>
           ))}

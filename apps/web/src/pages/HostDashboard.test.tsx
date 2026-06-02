@@ -69,6 +69,15 @@ vi.mock('@/hooks/useJiraStatus', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useTicketScoreStatus', () => ({
+  useTicketScoreStatus: () => ({ data: { configured: false } }),
+}));
+
+vi.mock('@/hooks/useTicketScore', () => ({
+  useTicketScore: () => ({ data: null, isLoading: false }),
+  usePrefetchTicketScores: () => {},
+}));
+
 vi.mock('react-hot-toast', () => ({
   default: { error: vi.fn(), success: vi.fn() },
 }));

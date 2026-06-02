@@ -9,11 +9,14 @@ import { ParticipantAvatar } from '@/components/ParticipantAvatar';
 import { ParticipantList } from '@/components/ParticipantList';
 import { StatusBadge } from '@/components/StatusBadge';
 import { TabSyncToggle } from '@/components/TabSyncToggle';
+import { TicketScoreBreakdown } from '@/components/TicketScoreBreakdown';
 import { UserAvatarMenu } from '@/components/UserAvatarMenu';
 import { Button } from '@/components/ui/button';
 import { useCurrentTitle } from '@/hooks/useCurrentTitle';
 import { useSocket } from '@/hooks/useSocket';
 import { useTabSync } from '@/hooks/useTabSync';
+import { usePrefetchTicketScores } from '@/hooks/useTicketScore';
+import { useTicketScoreStatus } from '@/hooks/useTicketScoreStatus';
 import { getSocket } from '@/lib/socket';
 import { cn, formatUrl, getFaviconUrl, truncateUrl } from '@/lib/utils';
 import { useSessionStore } from '@/store/sessionStore';
@@ -160,6 +163,9 @@ export function ParticipantView() {
   const onlineCount = participants.filter((p) => p.isOnline).length;
 
   const currentTitle = useCurrentTitle(currentUrl);
+  const { data: scoreStatus } = useTicketScoreStatus();
+  const scoringEnabled = scoreStatus?.configured ?? false;
+  usePrefetchTicketScores(scoringEnabled ? (session?.urls ?? []) : []);
 
   if (!session) {
     return (
@@ -308,6 +314,7 @@ export function ParticipantView() {
                       Open in new tab
                     </Button>
                   </a>
+
                 </div>
 
                 {/* Tab sync status when navigating */}
@@ -414,6 +421,11 @@ export function ParticipantView() {
                   </div>
                 )}
               </div>
+            )}
+
+            {/* Ticket quality score */}
+            {scoringEnabled && session.state === 'active' && currentUrl && (
+              <TicketScoreBreakdown url={currentUrl} />
             )}
 
             {/* Grooming complete banner */}

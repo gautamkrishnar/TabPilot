@@ -65,6 +65,19 @@ vi.mock('@/components/ParticipantList', () => ({
   ParticipantList: () => <div data-testid="participant-list" />,
 }));
 
+vi.mock('@/hooks/useTicketScore', () => ({
+  useTicketScore: () => ({ data: null, isLoading: false }),
+  usePrefetchTicketScores: () => {},
+}));
+
+vi.mock('@/hooks/useTicketScoreStatus', () => ({
+  useTicketScoreStatus: () => ({ data: { configured: false } }),
+}));
+
+vi.mock('@/components/TicketScoreBreakdown', () => ({
+  TicketScoreBreakdown: () => null,
+}));
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

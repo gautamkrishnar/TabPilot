@@ -8,6 +8,7 @@ import {
   Play,
   Share2,
   Shield,
+  Sparkles,
   Ticket,
   Trash2,
   Users,
@@ -74,6 +75,15 @@ const features = [
     color: 'from-green-500/20 to-emerald-500/10',
     iconColor: 'text-green-400',
     border: 'border-green-500/20',
+  },
+  {
+    icon: Sparkles,
+    title: 'AI ticket scoring',
+    description:
+      'Scores Jira ticket clarity across six dimensions using Gemini — see quality at a glance before grooming.',
+    color: 'from-rose-500/20 to-pink-500/10',
+    iconColor: 'text-rose-400',
+    border: 'border-rose-500/20',
   },
 ];
 

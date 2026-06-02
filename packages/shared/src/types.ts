@@ -57,3 +57,22 @@ export interface JoinSessionResponse {
   session: Session;
   participant: Participant;
 }
+
+// ─── Ticket scoring ──────────────────────────────────────────────────────────
+
+export interface TicketScoreDimension {
+  score: number;
+  feedback: string;
+}
+
+export interface TicketScore {
+  overall: number;
+  dimensions: {
+    clarity: TicketScoreDimension;
+    completeness: TicketScoreDimension;
+    actionability: TicketScoreDimension;
+    testability: TicketScoreDimension;
+    formatting: TicketScoreDimension;
+    context: TicketScoreDimension;
+  };
+}
