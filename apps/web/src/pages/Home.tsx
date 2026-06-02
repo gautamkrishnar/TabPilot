@@ -94,9 +94,9 @@ const steps = [
     title: 'Create',
     description:
       'Host creates a session with ticket URLs and a session name. Get a shareable 6-character join code instantly.',
-    color: 'text-indigo-400',
-    bg: 'bg-indigo-500/10',
-    border: 'border-indigo-500/20',
+    color: 'text-cyan-400',
+    bg: 'bg-cyan-500/20 dark:bg-cyan-500/10',
+    border: 'border-cyan-500/30 dark:border-cyan-500/20',
   },
   {
     number: '02',
@@ -105,8 +105,8 @@ const steps = [
     description:
       'Team members join using the 6-character code or shareable link. No account needed — just your name.',
     color: 'text-violet-400',
-    bg: 'bg-violet-500/10',
-    border: 'border-violet-500/20',
+    bg: 'bg-violet-500/20 dark:bg-violet-500/10',
+    border: 'border-violet-500/30 dark:border-violet-500/20',
   },
   {
     number: '03',
@@ -114,9 +114,9 @@ const steps = [
     title: 'Groom',
     description:
       "Host navigates tickets one by one. Everyone's synced tab follows in real time. Discuss, estimate, repeat.",
-    color: 'text-cyan-400',
-    bg: 'bg-cyan-500/10',
-    border: 'border-cyan-500/20',
+    color: 'text-indigo-400',
+    bg: 'bg-indigo-500/20 dark:bg-indigo-500/10',
+    border: 'border-indigo-500/30 dark:border-indigo-500/20',
   },
 ];
 
@@ -639,9 +639,6 @@ export function Home() {
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-            {/* Connecting lines */}
-            <div className="hidden md:block absolute top-10 left-1/3 right-1/3 h-px bg-gradient-to-r from-indigo-500/50 via-violet-500/50 to-cyan-500/50" />
-
             {steps.map((step, i) => (
               <motion.div
                 key={step.title}
@@ -653,13 +650,13 @@ export function Home() {
               >
                 <div
                   className={cn(
-                    'relative z-10 w-20 h-20 rounded-2xl flex items-center justify-center mb-6',
+                    'relative w-20 h-20 rounded-2xl flex items-center justify-center mb-6',
                     step.bg,
                     `border ${step.border}`,
                   )}
                 >
                   <step.icon className={cn('h-9 w-9', step.color)} />
-                  <span className="absolute -top-2 -right-2 text-xs font-bold text-zinc-500 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-full w-6 h-6 flex items-center justify-center">
+                  <span className="absolute -bottom-2 -right-2 text-xs font-bold text-zinc-500 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-full w-6 h-6 flex items-center justify-center">
                     {i + 1}
                   </span>
                 </div>
@@ -667,6 +664,10 @@ export function Home() {
                 <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-xs">
                   {step.description}
                 </p>
+
+                {i < steps.length - 1 && (
+                  <ArrowRight className="hidden md:block absolute top-8 -right-6 h-5 w-5 text-zinc-300 dark:text-zinc-700" />
+                )}
               </motion.div>
             ))}
           </div>
