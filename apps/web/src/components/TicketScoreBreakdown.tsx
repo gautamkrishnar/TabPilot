@@ -56,13 +56,7 @@ function overallBg(score: number): string {
   return 'bg-red-500/15 border-red-500/30';
 }
 
-function textColor(score: number): string {
-  if (score >= 70) return 'text-emerald-400';
-  if (score >= 40) return 'text-amber-400';
-  return 'text-red-400';
-}
-
-function ComparisonStrip({ dims }: { dims: TicketScore['dimensions'] }) {
+function ComparisonStrip({ dims }: { readonly dims: TicketScore['dimensions'] }) {
   return (
     <div className="space-y-1">
       <div className="flex gap-0.5 h-2 rounded-full overflow-hidden">
@@ -90,7 +84,7 @@ function ComparisonStrip({ dims }: { dims: TicketScore['dimensions'] }) {
           const dim = dims[key];
           return (
             <div key={key} className="flex-1 flex items-center justify-center">
-              <span className={cn('text-[10px] font-bold', textColor(dim.score))}>
+              <span className={cn('text-[10px] font-bold', overallColor(dim.score))}>
                 {DIMENSION_SHORT[key]}
               </span>
             </div>
@@ -101,7 +95,13 @@ function ComparisonStrip({ dims }: { dims: TicketScore['dimensions'] }) {
   );
 }
 
-function DimensionDetail({ name, dim }: { name: string; dim: TicketScoreDimension }) {
+function DimensionDetail({
+  name,
+  dim,
+}: {
+  readonly name: string;
+  readonly dim: TicketScoreDimension;
+}) {
   return (
     <div className="flex gap-2 items-start">
       <span

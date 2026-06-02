@@ -304,6 +304,9 @@ export function HostDashboard() {
 
   const currentUrl = session?.urls[session.currentIndex];
   const onlineCount = participants.filter((p) => p.isOnline).length;
+  const canReveal = !!session?.votingEnabled && votedParticipantIds.length > 0 && !revealedVotes;
+  const canResetVotes =
+    !!session?.votingEnabled && (votedParticipantIds.length > 0 || !!revealedVotes);
 
   // Enrich current URL — Jira first, then generic page title, then domain
   const currentTitle = useCurrentTitle(currentUrl);
@@ -364,7 +367,7 @@ export function HostDashboard() {
               <span className="text-zinc-500">/{participants.length}</span>
             </Button>
 
-            {session.votingEnabled && votedParticipantIds.length > 0 && !revealedVotes && (
+            {canReveal && (
               <Button
                 variant="outline"
                 size="sm"
@@ -376,7 +379,7 @@ export function HostDashboard() {
               </Button>
             )}
 
-            {session.votingEnabled && (votedParticipantIds.length > 0 || revealedVotes) && (
+            {canResetVotes && (
               <Button
                 variant="outline"
                 size="sm"
@@ -426,7 +429,7 @@ export function HostDashboard() {
             <span className="text-zinc-500">/{participants.length}</span>
           </button>
 
-          {session.votingEnabled && votedParticipantIds.length > 0 && !revealedVotes && (
+          {canReveal && (
             <Button
               variant="outline"
               size="sm"
@@ -438,7 +441,7 @@ export function HostDashboard() {
             </Button>
           )}
 
-          {session.votingEnabled && (votedParticipantIds.length > 0 || revealedVotes) && (
+          {canResetVotes && (
             <Button
               variant="outline"
               size="sm"

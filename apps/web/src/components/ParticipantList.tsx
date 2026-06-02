@@ -56,15 +56,7 @@ function ParticipantItem({ participant, onKick, hasVoted, revealedVote }: Partic
 
       {(revealedVote !== undefined || hasVoted) && (
         <span className="w-7 flex items-center justify-center flex-shrink-0">
-          {revealedVote !== undefined ? (
-            <motion.span
-              initial={{ scale: 0.6, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="min-w-[28px] h-7 px-1.5 flex items-center justify-center rounded-lg bg-indigo-500 text-white text-xs font-bold shadow-glow-indigo"
-            >
-              {revealedVote}
-            </motion.span>
-          ) : (
+          {revealedVote === undefined ? (
             <motion.span
               initial={{ scale: 0.6, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -72,6 +64,14 @@ function ParticipantItem({ participant, onKick, hasVoted, revealedVote }: Partic
               title="Voted"
             >
               <span className="h-2 w-2 rounded-full bg-green-500" />
+            </motion.span>
+          ) : (
+            <motion.span
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="min-w-[28px] h-7 px-1.5 flex items-center justify-center rounded-lg bg-indigo-500 text-white text-xs font-bold shadow-glow-indigo"
+            >
+              {revealedVote}
             </motion.span>
           )}
         </span>
