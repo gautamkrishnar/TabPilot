@@ -340,6 +340,16 @@ function UrlRow({
         <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-transparent pointer-events-none" />
       )}
 
+      {/* Invisible click target for row navigation — a real <button> for a11y */}
+      {isClickable && (
+        <button
+          type="button"
+          className="absolute inset-0 z-0 cursor-pointer"
+          onClick={() => onJumpTo(index)}
+          aria-label={`Jump to ticket ${index + 1}`}
+        />
+      )}
+
       {/* Drag handle or lock indicator — host only */}
       {dragHandle}
 
@@ -379,7 +389,7 @@ function UrlRow({
       {/* Saved story point badge for past tickets (host: editable + reset + copy-to-Jira) */}
       {isPast && isHost && (
         <div
-          className="flex items-center gap-1 flex-shrink-0"
+          className="relative z-10 flex items-center gap-1 flex-shrink-0"
           onClick={(e) => e.stopPropagation()}
           aria-hidden="true"
         >
@@ -407,7 +417,7 @@ function UrlRow({
       {/* Action buttons (host only) */}
       {isHost && (
         <div
-          className="flex items-center gap-1 flex-shrink-0"
+          className="relative z-10 flex items-center gap-1 flex-shrink-0"
           onClick={(e) => e.stopPropagation()}
           aria-hidden="true"
         >
@@ -437,29 +447,8 @@ function UrlRow({
     </>
   );
 
-  // Use a <div> even when clickable to avoid nesting <button> inside <button>
-  // (the row contains drag-handle and delete buttons that are always rendered for hosts).
-  // role and tabIndex are set conditionally alongside the handlers.
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: role='button' is set when interactive
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={rowClassName}
-      role={isClickable ? 'button' : undefined}
-      tabIndex={isClickable ? 0 : undefined}
-      onClick={isClickable ? () => onJumpTo(index) : undefined}
-      onKeyDown={
-        isClickable
-          ? (e) => {
-              if (['Enter', ' '].includes(e.key)) {
-                e.preventDefault();
-                onJumpTo(index);
-              }
-            }
-          : undefined
-      }
-    >
+    <div ref={setNodeRef} style={style} className={rowClassName}>
       {rowContent}
     </div>
   );
