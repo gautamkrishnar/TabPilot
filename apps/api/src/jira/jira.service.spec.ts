@@ -199,6 +199,108 @@ describe('JiraService', () => {
     });
   });
 
+  describe('getIssueWithDescription()', () => {
+    it('throws BadRequestException for invalid issue key', async () => {
+      await expect(service.getIssueWithDescription('not-valid')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('throws ServiceUnavailableException when not configured', async () => {
+      delete process.env.JIRA_USER_EMAIL;
+      delete process.env.JIRA_API_TOKEN;
+      await expect(service.getIssueWithDescription('PROJ-123')).rejects.toThrow(
+        ServiceUnavailableException,
+      );
+    });
+
+    describe('with Jira configured', () => {
+      beforeEach(() => {
+        process.env.JIRA_BASE_URL = 'https://example.atlassian.net';
+        process.env.JIRA_USER_EMAIL = 'user@example.com';
+        process.env.JIRA_API_TOKEN = 'token123';
+      });
+
+      afterEach(() => {
+        delete process.env.JIRA_BASE_URL;
+        delete process.env.JIRA_USER_EMAIL;
+        delete process.env.JIRA_API_TOKEN;
+      });
+
+      it('returns issue with plain-text description from ADF', async () => {
+        global.fetch = jest.fn().mockResolvedValue({
+          status: 200,
+          ok: true,
+          json: async () => ({
+            fields: {
+              summary: 'Fix the bug',
+              description: {
+                type: 'doc',
+                content: [
+                  {
+                    type: 'paragraph',
+                    content: [{ type: 'text', text: 'Steps to reproduce:' }],
+                  },
+                  {
+                    type: 'paragraph',
+                    content: [{ type: 'text', text: 'Click the button.' }],
+                  },
+                ],
+              },
+              status: { name: 'Open' },
+              issuetype: { name: 'Bug' },
+            },
+          }),
+        } as unknown as Response);
+
+        const issue = await service.getIssueWithDescription('PROJ-123');
+        expect(issue.key).toBe('PROJ-123');
+        expect(issue.summary).toBe('Fix the bug');
+        expect(issue.description).toContain('Steps to reproduce:');
+        expect(issue.description).toContain('Click the button.');
+      });
+
+      it('returns empty description when field is null', async () => {
+        global.fetch = jest.fn().mockResolvedValue({
+          status: 200,
+          ok: true,
+          json: async () => ({
+            fields: {
+              summary: 'No desc ticket',
+              description: null,
+              status: { name: 'Open' },
+              issuetype: { name: 'Task' },
+            },
+          }),
+        } as unknown as Response);
+
+        const issue = await service.getIssueWithDescription('PROJ-456');
+        expect(issue.description).toBe('');
+      });
+
+      it('fetches description field in the API call', async () => {
+        global.fetch = jest.fn().mockResolvedValue({
+          status: 200,
+          ok: true,
+          json: async () => ({
+            fields: {
+              summary: 'Test',
+              description: null,
+              status: { name: 'Open' },
+              issuetype: { name: 'Task' },
+            },
+          }),
+        } as unknown as Response);
+
+        await service.getIssueWithDescription('PROJ-789');
+        expect(global.fetch).toHaveBeenCalledWith(
+          expect.stringContaining('fields=summary,description,status,issuetype'),
+          expect.any(Object),
+        );
+      });
+    });
+  });
+
   describe('setStoryPoints()', () => {
     it('throws BadRequestException for invalid issue key format', async () => {
       await expect(service.setStoryPoints('not-valid', 5)).rejects.toThrow(BadRequestException);
