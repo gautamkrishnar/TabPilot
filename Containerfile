@@ -60,6 +60,7 @@ COPY --chown=1001:0 --from=prod-deps /opt/app-root/src/node_modules ./node_modul
 # Copy built artifacts
 COPY --chown=1001:0 --from=api-builder /opt/app-root/src/apps/api/dist apps/api/dist
 COPY --chown=1001:0 --from=web-builder /opt/app-root/src/apps/web/dist apps/web/dist
+COPY --chown=1001:0 --from=shared-builder /opt/app-root/src/packages/shared/package.json packages/shared/
 COPY --chown=1001:0 --from=shared-builder /opt/app-root/src/packages/shared/dist packages/shared/dist
 
 # Run as non-root (OpenShift requirement)
