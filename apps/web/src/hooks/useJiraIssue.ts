@@ -11,7 +11,7 @@ export function useJiraIssue(url: string) {
 
   return useQuery({
     queryKey: ['jira', 'issue', info?.key ?? ''],
-    queryFn: () => fetchJiraIssue(info!.key, info!.baseUrl),
+    queryFn: () => fetchJiraIssue(info?.key ?? '', info?.baseUrl),
     enabled: !!info,
     staleTime: 10 * 60 * 1000, // 10 min — issue titles rarely change mid-session
     retry: false, // don't retry — missing config or wrong key should fail fast

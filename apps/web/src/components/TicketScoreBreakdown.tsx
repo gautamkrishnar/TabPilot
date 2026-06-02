@@ -5,7 +5,14 @@ import { useState } from 'react';
 import { useTicketScore } from '@/hooks/useTicketScore';
 import { cn } from '@/lib/utils';
 
-const DIMENSIONS = ['clarity', 'completeness', 'actionability', 'testability', 'formatting', 'context'] as const;
+const DIMENSIONS = [
+  'clarity',
+  'completeness',
+  'actionability',
+  'testability',
+  'formatting',
+  'context',
+] as const;
 
 const DIMENSION_LABELS: Record<string, string> = {
   clarity: 'Clarity',
@@ -68,7 +75,10 @@ function ComparisonStrip({ dims }: { dims: TicketScore['dimensions'] }) {
               title={`${DIMENSION_LABELS[key]}: ${dim.score}`}
             >
               <div
-                className={cn('absolute inset-y-0 left-0 transition-all duration-700', segmentColor(dim.score))}
+                className={cn(
+                  'absolute inset-y-0 left-0 transition-all duration-700',
+                  segmentColor(dim.score),
+                )}
                 style={{ width: `${dim.score}%` }}
               />
             </div>

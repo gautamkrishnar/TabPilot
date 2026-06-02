@@ -314,7 +314,6 @@ export function ParticipantView() {
                       Open in new tab
                     </Button>
                   </a>
-
                 </div>
 
                 {/* Tab sync status when navigating */}
