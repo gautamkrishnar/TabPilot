@@ -422,7 +422,7 @@ export function Home() {
                 </a>
               )}
               <a
-                href="https://github.com/gautamkrishnar/TabPilot"
+                href="https://github.com/gautamkrishnar/tabpilot"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="GitHub repository"

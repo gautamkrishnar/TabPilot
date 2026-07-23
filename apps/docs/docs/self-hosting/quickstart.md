@@ -70,7 +70,7 @@ docker compose up -d
 Clone the repository and build the container image locally:
 
 ```bash
-git clone https://github.com/gautamkrishnar/TabPilot.git
+git clone https://github.com/gautamkrishnar/tabpilot.git
 cd TabPilot
 
 # Using Podman Compose (builds the image automatically)

@@ -10,10 +10,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/gautamkrishnar/TabPilot/actions/workflows/ci.yml"><img src="https://github.com/gautamkrishnar/TabPilot/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/gautamkrishnar/tabpilot/actions/workflows/ci.yml"><img src="https://github.com/gautamkrishnar/tabpilot/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://www.gnu.org/licenses/gpl-3.0"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License: GPL v3"></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22-339933?logo=nodedotjs&logoColor=white" alt="Node.js 22"></a>
-  <a href="https://github.com/gautamkrishnar/TabPilot/pkgs/container/tabpilot"><img src="https://img.shields.io/badge/Container-GHCR-blue?logo=github" alt="Container"></a>
+  <a href="https://github.com/gautamkrishnar/tabpilot/pkgs/container/tabpilot"><img src="https://img.shields.io/badge/Container-GHCR-blue?logo=github" alt="Container"></a>
 </p>
 
 <p align="center">
@@ -88,11 +88,11 @@ See **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** for the full setup guide.
 
 Bug reports, feature requests, and pull requests are welcome.
 
-- [Report a bug](https://github.com/gautamkrishnar/TabPilot/issues/new?template=bug_report.yml)
-- [Request a feature](https://github.com/gautamkrishnar/TabPilot/issues/new?template=feature_request.yml)
-- [Browse open issues](https://github.com/gautamkrishnar/TabPilot/issues)
-- [Contributing guide](https://github.com/gautamkrishnar/TabPilot/blob/master/.github/CONTRIBUTING.md)
-- [Discussions](https://github.com/gautamkrishnar/TabPilot/discussions)
+- [Report a bug](https://github.com/gautamkrishnar/tabpilot/issues/new?template=bug_report.yml)
+- [Request a feature](https://github.com/gautamkrishnar/tabpilot/issues/new?template=feature_request.yml)
+- [Browse open issues](https://github.com/gautamkrishnar/tabpilot/issues)
+- [Contributing guide](https://github.com/gautamkrishnar/tabpilot/blob/master/.github/CONTRIBUTING.md)
+- [Discussions](https://github.com/gautamkrishnar/tabpilot/discussions)
 
 ## License
 

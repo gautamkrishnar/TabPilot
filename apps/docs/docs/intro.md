@@ -58,7 +58,7 @@ Run your own instance in under five minutes:
 
 ```bash
 # Clone and start with Docker Compose
-git clone https://github.com/gautamkrishnar/TabPilot.git
+git clone https://github.com/gautamkrishnar/tabpilot.git
 cd TabPilot
 docker compose -f compose.yml up -d
 ```
@@ -123,6 +123,6 @@ docker run -p 3000:3000 \
 
 Tab Pilot is released under the **GPL-3.0 license**. Source code and issue tracker live at:
 
-[https://github.com/gautamkrishnar/TabPilot](https://github.com/gautamkrishnar/TabPilot)
+[https://github.com/gautamkrishnar/tabpilot](https://github.com/gautamkrishnar/tabpilot)
 
 Contributions are welcome — bug reports, pull requests, and feature ideas.

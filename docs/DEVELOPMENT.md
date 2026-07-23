@@ -40,7 +40,7 @@ podman machine start
 
 ```bash
 # Clone the repository
-git clone https://github.com/gautamkrishnar/TabPilot.git
+git clone https://github.com/gautamkrishnar/tabpilot.git
 cd TabPilot
 
 # Switch to Node.js 22 (reads .nvmrc)

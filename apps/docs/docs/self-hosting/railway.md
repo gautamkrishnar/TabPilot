@@ -119,7 +119,7 @@ Railway does not automatically pull new versions of `latest` tags. To deploy a n
    ```
 
 :::tip Pin to a specific version
-For predictable production deployments, use a pinned image tag instead of `latest`. Update the Docker image reference in your service settings to a specific tag (e.g., `ghcr.io/gautamkrishnar/tabpilot:v1.2.0`). Check [GitHub releases](https://github.com/gautamkrishnar/TabPilot/releases) for available versions.
+For predictable production deployments, use a pinned image tag instead of `latest`. Update the Docker image reference in your service settings to a specific tag (e.g., `ghcr.io/gautamkrishnar/tabpilot:v1.2.0`). Check [GitHub releases](https://github.com/gautamkrishnar/tabpilot/releases) for available versions.
 :::
 
 ---

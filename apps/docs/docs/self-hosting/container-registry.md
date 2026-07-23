@@ -40,7 +40,7 @@ ghcr.io/gautamkrishnar/tabpilot:latest
 | `vX.Y.Z-docs` | Pinned release tag with bundled docs |
 
 :::tip Pinning versions in production
-For critical deployments, pin to a specific version tag rather than `latest` to avoid unexpected updates. Check [GitHub releases](https://github.com/gautamkrishnar/TabPilot/releases) for available versions.
+For critical deployments, pin to a specific version tag rather than `latest` to avoid unexpected updates. Check [GitHub releases](https://github.com/gautamkrishnar/tabpilot/releases) for available versions.
 :::
 
 ---
@@ -83,7 +83,7 @@ Docker and Podman automatically select the correct variant for your host. No fla
 If you want to build the image yourself — for local development, custom modifications, or air-gapped environments:
 
 ```bash
-git clone https://github.com/gautamkrishnar/TabPilot.git
+git clone https://github.com/gautamkrishnar/tabpilot.git
 cd TabPilot
 
 # Without docs (default)

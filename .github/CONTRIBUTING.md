@@ -14,7 +14,7 @@ This project follows the [Contributor Covenant Code of Conduct](https://www.cont
 
 Use the [Bug Report](.github/ISSUE_TEMPLATE/bug_report.yml) issue template. Include steps to reproduce, expected vs. actual behaviour, browser and OS details, and any relevant logs. The more information you provide, the faster the issue can be diagnosed.
 
-Before filing, please check existing [open issues](https://github.com/gautamkrishnar/TabPilot/issues) to avoid duplicates.
+Before filing, please check existing [open issues](https://github.com/gautamkrishnar/tabpilot/issues) to avoid duplicates.
 
 ### Request a Feature
 
@@ -22,7 +22,7 @@ Use the [Feature Request](.github/ISSUE_TEMPLATE/feature_request.yml) issue temp
 
 ### Ask a Question
 
-Use [GitHub Discussions](https://github.com/gautamkrishnar/TabPilot/discussions) for questions about usage, self-hosting, configuration, or general discussion. Issues are reserved for actionable bug reports and feature requests.
+Use [GitHub Discussions](https://github.com/gautamkrishnar/tabpilot/discussions) for questions about usage, self-hosting, configuration, or general discussion. Issues are reserved for actionable bug reports and feature requests.
 
 ### Submit a Pull Request
 
@@ -34,7 +34,7 @@ All code contributions go through pull requests. See the PR process section belo
 Follow the full setup guide in [docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md). The short version:
 
 ```bash
-git clone https://github.com/gautamkrishnar/TabPilot.git
+git clone https://github.com/gautamkrishnar/tabpilot.git
 cd TabPilot
 nvm use
 corepack enable
@@ -139,7 +139,7 @@ refactor(participants): extract avatar URL generation to utility function
    yarn lint     # No lint errors
    ```
 
-5. **Push your branch** to your fork and [open a pull request](https://github.com/gautamkrishnar/TabPilot/compare) against `master`.
+5. **Push your branch** to your fork and [open a pull request](https://github.com/gautamkrishnar/tabpilot/compare) against `master`.
 
 6. **Fill in the PR template** completely. Incomplete PRs without a summary, test description, or checklist will be asked to update before review.
 

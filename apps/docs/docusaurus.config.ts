@@ -11,7 +11,7 @@ const config: Config = {
   baseUrl: "/docs/",
 
   organizationName: "gautamkrishnar",
-  projectName: "TabPilot",
+  projectName: "tabpilot",
   deploymentBranch: "gh-pages",
   trailingSlash: false,
 
@@ -33,7 +33,7 @@ const config: Config = {
       {
         docs: {
           sidebarPath: "./sidebars.ts",
-          editUrl: "https://github.com/gautamkrishnar/TabPilot/tree/master/apps/docs/",
+          editUrl: "https://github.com/gautamkrishnar/tabpilot/tree/master/apps/docs/",
           routeBasePath: "/",
         },
         blog: false,
@@ -64,13 +64,7 @@ const config: Config = {
           label: "Docs",
         },
         {
-          href: "https://tabpilot.gkr.pw/",
-          label: "Try Tab Pilot →",
-          position: "right",
-          className: "navbar-cta-button",
-        },
-        {
-          href: "https://github.com/gautamkrishnar/TabPilot",
+          href: "https://github.com/gautamkrishnar/tabpilot",
           position: "right",
           className: "header-github-link",
           "aria-label": "GitHub repository",
@@ -106,7 +100,7 @@ const config: Config = {
             },
             {
               label: "GitHub",
-              href: "https://github.com/gautamkrishnar/TabPilot",
+              href: "https://github.com/gautamkrishnar/tabpilot",
             },
           ],
         },
@@ -115,7 +109,7 @@ const config: Config = {
           items: [
             {
               label: "GPL-3.0 License",
-              href: "https://github.com/gautamkrishnar/TabPilot/blob/master/LICENSE",
+              href: "https://github.com/gautamkrishnar/tabpilot/blob/master/LICENSE",
             },
           ],
         },

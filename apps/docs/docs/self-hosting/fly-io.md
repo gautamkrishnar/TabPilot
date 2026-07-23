@@ -237,7 +237,7 @@ For reproducible deploys, update `fly.toml` to reference a tagged release instea
   image = "ghcr.io/gautamkrishnar/tabpilot:v1.2.0"
 ```
 
-Check [GitHub releases](https://github.com/gautamkrishnar/TabPilot/releases) for available tags.
+Check [GitHub releases](https://github.com/gautamkrishnar/tabpilot/releases) for available tags.
 :::
 
 ---

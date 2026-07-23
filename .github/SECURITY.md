@@ -16,7 +16,7 @@ Tab Pilot is currently in its initial release (v1). Only the latest published ve
 
 If you discover a security vulnerability in Tab Pilot, please disclose it responsibly using one of the following methods:
 
-1. **GitHub Private Security Advisory (preferred):** Navigate to the [Security tab](https://github.com/gautamkrishnar/TabPilot/security/advisories/new) of this repository and click "Report a vulnerability". This keeps the disclosure private until a fix is available.
+1. **GitHub Private Security Advisory (preferred):** Navigate to the [Security tab](https://github.com/gautamkrishnar/tabpilot/security/advisories/new) of this repository and click "Report a vulnerability". This keeps the disclosure private until a fix is available.
 
 2. **Email:** Send a description of the vulnerability to the repository owner. Check the GitHub profile of `@gautamkrishnar` for contact information.
 
