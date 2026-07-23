@@ -95,6 +95,11 @@ export class JiraService {
     return Array.from(this.getStoryPointsFieldMap().keys());
   }
 
+  /** True when JIRA_EXTRA_FIELDS is set and contains at least one entry. */
+  get hasExtraFieldsConfigured(): boolean {
+    return this.getExtraFieldsMap().size > 0;
+  }
+
   /**
    * Parse JIRA_STORY_POINTS_FIELDS env var into a project-key → field-name map.
    * Format: "PROJKEY=fieldName,PROJKEY2=fieldName2"
@@ -257,7 +262,12 @@ export class JiraService {
    * Write a story-points value to a Jira issue.
    * The field name is looked up per project key from JIRA_STORY_POINTS_FIELDS env var.
    */
-  async setStoryPoints(issueKey: string, points: number, providedBaseUrl?: string): Promise<void> {
+  async setStoryPoints(
+    issueKey: string,
+    points: number,
+    providedBaseUrl?: string,
+    skipExtraFields = false,
+  ): Promise<void> {
     if (!ISSUE_KEY_RE.test(issueKey)) {
       throw new BadRequestException('Invalid Jira issue key.');
     }
@@ -284,9 +294,11 @@ export class JiraService {
 
     const fields: Record<string, unknown> = { [fieldName]: points };
 
-    const extraFields = this.getExtraFieldsMap().get(projectKey);
-    if (extraFields) {
-      Object.assign(fields, extraFields);
+    if (!skipExtraFields) {
+      const extraFields = this.getExtraFieldsMap().get(projectKey);
+      if (extraFields) {
+        Object.assign(fields, extraFields);
+      }
     }
 
     let res: Response;

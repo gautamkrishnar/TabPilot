@@ -27,6 +27,7 @@ interface UseHostActionsOptions {
   loadHostInviteKey: (sessionId: string) => string | null;
   savedVotesMap: Record<number, string>;
   storyPointProjects: string[];
+  sendExtraFields: boolean;
 }
 
 /**
@@ -45,6 +46,7 @@ export function useHostActions({
   loadHostInviteKey,
   savedVotesMap,
   storyPointProjects,
+  sendExtraFields,
 }: UseHostActionsOptions) {
   const handleRevealVotes = useCallback(() => {
     if (!sessionId || !hostKey) return;
@@ -197,13 +199,18 @@ export function useHostActions({
         return;
       }
       try {
-        await updateJiraStoryPoints(jiraInfo.key, Number(points), jiraInfo.baseUrl);
+        await updateJiraStoryPoints(
+          jiraInfo.key,
+          Number(points),
+          jiraInfo.baseUrl,
+          !sendExtraFields,
+        );
         toast.success(`Story point ${points} saved to ${jiraInfo.key}`);
       } catch {
         toast.error('Failed to update Jira story point. Check Jira integration settings.');
       }
     },
-    [session, savedVotesMap, storyPointProjects],
+    [session, savedVotesMap, storyPointProjects, sendExtraFields],
   );
 
   return {

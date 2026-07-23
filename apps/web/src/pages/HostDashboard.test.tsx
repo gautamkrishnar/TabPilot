@@ -65,7 +65,7 @@ vi.mock('@/lib/jira', () => ({
 
 vi.mock('@/hooks/useJiraStatus', () => ({
   useJiraStatus: () => ({
-    data: { configured: true, storyPointProjects: ['FAKE'] },
+    data: { configured: true, storyPointProjects: ['FAKE'], hasExtraFields: false },
   }),
 }));
 
@@ -673,6 +673,7 @@ describe('HostDashboard — story point management', () => {
         'FAKE-123',
         8,
         'https://example.atlassian.net',
+        true,
       );
     });
   });

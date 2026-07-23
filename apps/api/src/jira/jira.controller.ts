@@ -22,6 +22,7 @@ export class JiraController {
     return {
       configured: this.jiraService.isConfigured,
       storyPointProjects: this.jiraService.configuredStoryPointProjects,
+      hasExtraFields: this.jiraService.hasExtraFieldsConfigured,
     };
   }
 
@@ -61,12 +62,20 @@ export class JiraController {
       '(format: "PROJKEY=fieldName,PROJKEY2=fieldName2").',
   })
   @ApiParam({ name: 'key', example: 'CONNCERT-3114', description: 'Jira issue key' })
-  @ApiBody({ schema: { example: { points: 5 } } })
+  @ApiBody({ schema: { example: { points: 5, skipExtraFields: false } } })
   @ApiNoContentResponse({ description: 'Story points updated successfully.' })
   @ApiNotFoundResponse({ description: 'Issue not found in Jira.' })
   @ApiResponse({ status: 400, description: 'Invalid key or project not configured.' })
   @ApiResponse({ status: 503, description: 'Jira not configured or unreachable.' })
-  setStoryPoints(@Param('key') key: string, @Body() body: { points: number; baseUrl?: string }) {
-    return this.jiraService.setStoryPoints(key.toUpperCase(), body.points, body.baseUrl);
+  setStoryPoints(
+    @Param('key') key: string,
+    @Body() body: { points: number; baseUrl?: string; skipExtraFields?: boolean },
+  ) {
+    return this.jiraService.setStoryPoints(
+      key.toUpperCase(),
+      body.points,
+      body.baseUrl,
+      body.skipExtraFields,
+    );
   }
 }

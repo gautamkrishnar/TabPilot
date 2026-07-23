@@ -140,6 +140,7 @@ describe('updateJiraStoryPoints', () => {
     expect(mockPatch).toHaveBeenCalledWith('/jira/issue/CONNCERT-123/story-points', {
       points: 5,
       baseUrl: undefined,
+      skipExtraFields: true,
     });
   });
 
@@ -149,6 +150,7 @@ describe('updateJiraStoryPoints', () => {
     expect(mockPatch).toHaveBeenCalledWith('/jira/issue/CONNCERT-1/story-points', {
       points: 3,
       baseUrl: undefined,
+      skipExtraFields: true,
     });
   });
 
@@ -158,6 +160,17 @@ describe('updateJiraStoryPoints', () => {
     expect(mockPatch).toHaveBeenCalledWith('/jira/issue/CONNCERT-1/story-points', {
       points: 3,
       baseUrl: 'https://myorg.atlassian.net',
+      skipExtraFields: true,
+    });
+  });
+
+  it('sends skipExtraFields: false when explicitly passed', async () => {
+    mockPatch.mockResolvedValue({ data: null });
+    await updateJiraStoryPoints('CONNCERT-1', 3, undefined, false);
+    expect(mockPatch).toHaveBeenCalledWith('/jira/issue/CONNCERT-1/story-points', {
+      points: 3,
+      baseUrl: undefined,
+      skipExtraFields: false,
     });
   });
 });

@@ -55,6 +55,9 @@ interface RevealedVotesPanelProps {
   readonly storyPointOverride: string;
   readonly onStoryPointChange: (value: string) => void;
   readonly onSaveVote: (val: string) => void;
+  readonly hasExtraFields: boolean;
+  readonly sendExtraFields: boolean;
+  readonly onSendExtraFieldsChange: (v: boolean) => void;
 }
 
 function RevealedVotesPanel({
@@ -65,6 +68,9 @@ function RevealedVotesPanel({
   storyPointOverride,
   onStoryPointChange,
   onSaveVote,
+  hasExtraFields,
+  sendExtraFields,
+  onSendExtraFieldsChange,
 }: RevealedVotesPanelProps) {
   const avg = Object.keys(revealedVotes).length > 0 ? computeVoteAverage(revealedVotes) : null;
   const spError = validateStoryPoint(storyPointOverride.trim());
@@ -79,7 +85,7 @@ function RevealedVotesPanel({
     if (!jiraInfo) return;
     onSaveVote(val);
     try {
-      await updateJiraStoryPoints(jiraInfo.key, Number(val), jiraInfo.baseUrl);
+      await updateJiraStoryPoints(jiraInfo.key, Number(val), jiraInfo.baseUrl, !sendExtraFields);
       toast.success(`Story point ${val} saved to ${jiraInfo.key}`);
     } catch {
       toast.error('Failed to update Jira story point. Check Jira integration settings.');
@@ -157,15 +163,29 @@ function RevealedVotesPanel({
           )}
         </div>
         {jiraInfo ? (
-          <button
-            type="button"
-            disabled={!spValid}
-            onClick={() => saveToJira(storyPointOverride.trim())}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-500/20 text-indigo-300 text-xs font-semibold border border-indigo-500/30 hover:bg-indigo-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            <Send className="h-3 w-3" />
-            Save to Jira
-          </button>
+          <div className="flex flex-col gap-1.5">
+            <button
+              type="button"
+              disabled={!spValid}
+              onClick={() => saveToJira(storyPointOverride.trim())}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-500/20 text-indigo-300 text-xs font-semibold border border-indigo-500/30 hover:bg-indigo-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <Send className="h-3 w-3" />
+              Save to Jira
+            </button>
+            {hasExtraFields && (
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={sendExtraFields}
+                  onChange={(e) => onSendExtraFieldsChange(e.target.checked)}
+                  className="h-3 w-3 rounded accent-indigo-500"
+                  aria-label="Send extra Jira fields"
+                />
+                <span className="text-[10px] text-zinc-500">Include extra fields</span>
+              </label>
+            )}
+          </div>
         ) : (
           <button
             type="button"
@@ -207,6 +227,7 @@ export function HostDashboard() {
   const [newUrl, setNewUrl] = useState('');
   const [showMobileParticipants, setShowMobileParticipants] = useState(false);
   const [isGroomingComplete, setIsGroomingComplete] = useState(false);
+  const [sendExtraFields, setSendExtraFields] = useState(false);
 
   const {
     session,
@@ -250,6 +271,7 @@ export function HostDashboard() {
 
   const { data: jiraStatus } = useJiraStatus();
   const storyPointProjects = jiraStatus?.storyPointProjects ?? [];
+  const hasExtraFields = jiraStatus?.hasExtraFields ?? false;
   const { data: scoreStatus } = useTicketScoreStatus();
   const scoringEnabled = scoreStatus?.configured ?? false;
   usePrefetchTicketScores(scoringEnabled ? (session?.urls ?? []) : []);
@@ -293,6 +315,7 @@ export function HostDashboard() {
     loadHostInviteKey,
     savedVotesMap,
     storyPointProjects,
+    sendExtraFields,
   });
 
   // Reset completion banner when a new URL is added (current index is no longer last)
@@ -537,6 +560,9 @@ export function HostDashboard() {
                   storyPointOverride={storyPointOverride}
                   onStoryPointChange={setStoryPointOverride}
                   onSaveVote={(val) => handleSetSavedVote(session.currentIndex, val)}
+                  hasExtraFields={hasExtraFields}
+                  sendExtraFields={sendExtraFields}
+                  onSendExtraFieldsChange={setSendExtraFields}
                 />
               )}
 

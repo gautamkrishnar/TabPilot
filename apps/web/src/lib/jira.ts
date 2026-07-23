@@ -53,6 +53,8 @@ export interface JiraStatus {
   configured: boolean;
   /** Project keys that have a story-points field configured, e.g. ["CONNCERT"] */
   storyPointProjects: string[];
+  /** True when JIRA_EXTRA_FIELDS is configured on the server. */
+  hasExtraFields: boolean;
 }
 
 export async function fetchJiraStatus(): Promise<JiraStatus> {
@@ -79,6 +81,7 @@ export async function updateJiraStoryPoints(
   key: string,
   points: number,
   baseUrl?: string,
+  skipExtraFields = true,
 ): Promise<void> {
-  await apiClient.patch(`/jira/issue/${key}/story-points`, { points, baseUrl });
+  await apiClient.patch(`/jira/issue/${key}/story-points`, { points, baseUrl, skipExtraFields });
 }
