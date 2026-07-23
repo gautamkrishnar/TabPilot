@@ -1,8 +1,5 @@
 name: Publish Container Image
 
-# Runs automatically after CI succeeds on the default branch.
-# Also triggered by semver tags (v1.2.3) for release publishes.
-# Can be manually triggered with an optional tag override.
 on:
   workflow_run:
     workflows: [CI]
@@ -20,16 +17,19 @@ on:
         required: false
         type: string
 
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   publish:
-    name: Build & Push to GHCR
+    name: Build & Push (without docs)
     runs-on: ubuntu-latest
 
-    # For workflow_run triggers: only proceed when CI passed
     if: >
       github.event_name != 'workflow_run' ||
       github.event.workflow_run.conclusion == 'success'
@@ -46,7 +46,6 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      # ── Compute image tags & labels ─────────────────────────────────────────
       - name: Image metadata
         id: meta
         uses: docker/metadata-action@v6
@@ -65,15 +64,12 @@ jobs:
             org.opencontainers.image.description=Real-time grooming and tab synchronization tool
             org.opencontainers.image.vendor=${{ github.repository_owner }}
 
-      # ── QEMU for arm64 emulation ────────────────────────────────────────────
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
 
-      # ── BuildKit with multi-platform support ────────────────────────────────
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      # ── Authenticate to GHCR ────────────────────────────────────────────────
       - name: Log in to GHCR
         uses: docker/login-action@v4
         with:
@@ -81,21 +77,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── Build both architectures in parallel + push ─────────────────────────
       - name: Build and push
         id: push
         uses: docker/build-push-action@v7
         with:
           context: .
           file: Containerfile
+          target: runner
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=runner
+          cache-to: type=gha,scope=runner,mode=max
 
-      # ── Sign the manifest list with Cosign (keyless / OIDC) ────────────────
       - name: Install Cosign
         if: steps.push.outputs.digest != ''
         uses: sigstore/cosign-installer@v4.1.2
@@ -108,7 +103,6 @@ jobs:
           IMAGE_REF=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
           cosign sign --yes "${IMAGE_REF}@${{ steps.push.outputs.digest }}"
 
-      # ── Job summary ──────────────────────────────────────────────────────────
       - name: Summary
         run: |
           {
@@ -116,19 +110,109 @@ jobs:
             echo ""
             echo "| | |"
             echo "| --- | --- |"
-            echo "| **Registry** | \`${{ env.REGISTRY }}\` |"
+            echo "| **Variant** | Without docs |"
             echo "| **Image** | \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\` |"
             echo "| **Digest** | \`${{ steps.push.outputs.digest }}\` |"
             echo "| **Platforms** | \`linux/amd64\`, \`linux/arm64\` |"
-            echo "| **Commit** | \`${{ github.sha }}\` |"
             echo ""
             echo "**Tags pushed:**"
             echo '```'
             echo "${{ steps.meta.outputs.tags }}"
             echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
+  publish-with-docs:
+    name: Build & Push (with docs)
+    runs-on: ubuntu-latest
+
+    if: >
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Image metadata (with-docs)
+        id: meta-docs
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-,format=short,suffix=-docs
+            type=semver,pattern={{version}},suffix=-docs
+            type=semver,pattern={{major}}.{{minor}},suffix=-docs
+            type=semver,pattern={{major}},suffix=-docs
+            type=raw,value=latest-docs,enable=${{ startsWith(github.ref, 'refs/tags/') }}
+            type=raw,value=master-docs,enable={{is_default_branch}}
+            type=raw,value=${{ inputs.tag }}-docs,enable=${{ inputs.tag != '' }}
+          labels: |
+            org.opencontainers.image.title=Tab Pilot (with docs)
+            org.opencontainers.image.description=Real-time grooming and tab synchronization tool — bundled with documentation
+            org.opencontainers.image.vendor=${{ github.repository_owner }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: push-docs
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Containerfile
+          target: runner-with-docs
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-docs.outputs.tags }}
+          labels: ${{ steps.meta-docs.outputs.labels }}
+          cache-from: type=gha,scope=runner-with-docs
+          cache-to: type=gha,scope=runner-with-docs,mode=max
+
+      - name: Install Cosign
+        if: steps.push-docs.outputs.digest != ''
+        uses: sigstore/cosign-installer@v4.1.2
+
+      - name: Sign image
+        if: steps.push-docs.outputs.digest != ''
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          IMAGE_REF=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
+          cosign sign --yes "${IMAGE_REF}@${{ steps.push-docs.outputs.digest }}"
+
+      - name: Summary
+        run: |
+          {
+            echo "## Container Image Published :books:"
             echo ""
-            echo '```bash'
-            echo "podman pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:master"
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| **Variant** | With docs |"
+            echo "| **Image** | \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\` |"
+            echo "| **Digest** | \`${{ steps.push-docs.outputs.digest }}\` |"
+            echo "| **Platforms** | \`linux/amd64\`, \`linux/arm64\` |"
+            echo ""
+            echo "**Tags pushed:**"
+            echo '```'
+            echo "${{ steps.meta-docs.outputs.tags }}"
             echo '```'
           } >> $GITHUB_STEP_SUMMARY
 
@@ -136,8 +220,8 @@ jobs:
   prune:
     name: Prune old images from GHCR
     runs-on: ubuntu-latest
-    needs: publish
-    if: needs.publish.result == 'success'
+    needs: [publish, publish-with-docs]
+    if: always() && (needs.publish.result == 'success' || needs.publish-with-docs.result == 'success')
 
     permissions:
       packages: write
@@ -162,8 +246,8 @@ jobs:
 
             for (const v of versions) {
               const tags = v.metadata?.container?.tags ?? [];
-              const hasSemver = tags.some(t => /^v?\d+(\.\d+)*$/.test(t));
-              const hasLatest = tags.includes('latest') || tags.includes('master');
+              const hasSemver = tags.some(t => /^v?\d+(\.\d+)*(-docs)?$/.test(t));
+              const hasLatest = tags.some(t => ['latest', 'master', 'latest-docs', 'master-docs'].includes(t));
               const hasSha = tags.some(t => t.startsWith('sha-'));
 
               if (hasSemver || hasLatest) continue;

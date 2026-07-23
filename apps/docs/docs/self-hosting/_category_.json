@@ -1,0 +1,8 @@
+{
+  "label": "Self-Hosting",
+  "position": 3,
+  "description": "Deploy Tab Pilot on your own infrastructure using Docker Compose, Kubernetes, Fly.io, Railway, and more.",
+  "link": {
+    "type": "generated-index"
+  }
+}

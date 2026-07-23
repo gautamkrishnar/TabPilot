@@ -1,6 +1,9 @@
 node_modules/
 dist/
 build/
+apps/docs/.docusaurus/
+apps/docs/build/
+apps/docs/.yarn/
 .env
 .env.local
 .cache/

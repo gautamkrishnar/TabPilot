@@ -1,0 +1,33 @@
+# Dependencies — reinstalled inside the image
+node_modules
+**/node_modules
+
+# Build outputs — rebuilt inside the image
+**/dist
+apps/docs/build
+apps/docs/.docusaurus
+
+# Dev tooling not needed at build time
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+**/coverage
+packages/e2e/src
+packages/e2e/logs
+packages/e2e/log
+packages/e2e/node_modules
+
+# Local env files
+**/.env
+**/.env.*
+!**/.env.example
+
+# Git / IDE
+.git
+.gitignore
+.github
+**/.DS_Store
+
+# Docs dev assets
+apps/docs/node_modules

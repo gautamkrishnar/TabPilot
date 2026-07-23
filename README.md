@@ -53,9 +53,15 @@ It works with any ticketing tool that has a URL: **Jira, Linear, GitHub Issues, 
 ### Run with Podman
 
 ```bash
+# Without docs (default)
 podman compose up -d
 open http://localhost:3000
+
+# With docs (serves docs at /docs/)
+podman build --target runner-with-docs -t tabpilot:latest-docs .
 ```
+
+Two image variants are published to GHCR: `latest` (default, ~280 MB) and `latest-docs` (~281 MB, bundles the docs site at `/docs/`).
 
 ### Run locally (for development)
 

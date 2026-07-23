@@ -340,15 +340,18 @@ This runs `yarn workspaces foreach -t run build`, which respects the topological
 
 ### Containerfile stages
 
-The `Containerfile` uses a 5-stage build:
+The `Containerfile` uses an 8-stage build:
 
 | Stage | Base | Purpose |
 |-------|------|---------|
-| `deps` | `ubi9/nodejs-22` | Install all workspace dependencies with `yarn install --immutable` |
+| `deps` | `ubi9/nodejs-22` | Install all workspace dependencies with `yarn install --immutable` (includes `apps/docs`) |
 | `shared-builder` | `deps` | Build `@tabpilot/shared` |
 | `web-builder` | `shared-builder` | Build the React frontend with Vite (`tsc && vite build`) |
+| `docs-builder` | `deps` | Build the Docusaurus docs site — branches from `deps`, independent of other builders |
 | `api-builder` | `shared-builder` | Build the NestJS API; copies web dist for static file serving |
-| `runner` | `ubi9/nodejs-22-minimal` | Copy only production artifacts; install prod-only deps; run as UID 1001 |
+| `prod-deps` | `deps` | Install production-only dependencies (strips dev deps) |
+| `runner` | `ubi9/nodejs-22-minimal` | Default production image — compiled outputs, prod deps, runs as UID 1001 |
+| `runner-with-docs` | `runner` | `runner` + Docusaurus output copied into `apps/web/dist/docs/` |
 
 The runner stage copies:
 - `apps/api/dist` — compiled NestJS application
@@ -360,6 +363,9 @@ The runner stage copies:
 ```bash
 # Build the container image from source and start the stack
 podman compose up --build -d
+
+# Build the with-docs variant
+podman build --target runner-with-docs -t tabpilot:latest-docs .
 
 # Watch logs
 podman compose logs -f app
@@ -374,8 +380,11 @@ podman compose down -v
 ### Build multi-arch images manually
 
 ```bash
-# Build for the current platform
+# Build for the current platform (default, no-docs)
 podman build -f Containerfile -t tabpilot:local .
+
+# Build the with-docs variant for the current platform
+podman build --target runner-with-docs -f Containerfile -t tabpilot:local-docs .
 
 # Build for a specific platform
 podman build --platform linux/amd64 -f Containerfile -t tabpilot:amd64 .

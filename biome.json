@@ -19,7 +19,9 @@
       "!packages/e2e/logs",
       "!packages/e2e/log",
       "!apps/web/src/components/ui",
-      "!**/*.min.js"
+      "!**/*.min.js",
+      "!apps/docs/build",
+      "!apps/docs/.docusaurus"
     ]
   },
   "formatter": {
@@ -83,6 +85,35 @@
     }
   },
   "overrides": [
+    {
+      "includes": ["apps/docs/**"],
+      "formatter": {
+        "indentStyle": "space",
+        "indentWidth": 2
+      },
+      "javascript": {
+        "formatter": {
+          "quoteStyle": "double",
+          "trailingCommas": "all",
+          "semicolons": "always"
+        }
+      },
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUnusedVariables": "warn",
+            "noUnusedImports": "warn"
+          },
+          "suspicious": {
+            "noExplicitAny": "off",
+            "noConsole": "off"
+          },
+          "a11y": {
+            "noSvgWithoutTitle": "off"
+          }
+        }
+      }
+    },
     {
       "includes": ["apps/api/src/**/*.ts"],
       "linter": {

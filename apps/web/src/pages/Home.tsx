@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowRight,
+  BookOpen,
   Clock,
   Github,
   Globe,
@@ -22,6 +23,7 @@ import kevinAvatar from '@/assets/avatars/kevin-greenwood.webp';
 import radhikaAvatar from '@/assets/avatars/radhika-nargotra.webp';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
+import { useDocsAvailable } from '@/hooks/useDocsAvailable';
 import { deleteSession, getSessionByCode } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { type SavedSession, useSessionStore } from '@/store/sessionStore';
@@ -341,6 +343,7 @@ export function Home() {
   const navigate = useNavigate();
   const { getSavedSessions, removeSavedSession, loadHostKey } = useSessionStore();
   const [savedSessions, setSavedSessions] = useState<SavedSession[]>(() => getSavedSessions());
+  const docsAvailable = useDocsAvailable();
 
   const verifySession = useCallback(
     async (s: SavedSession) => {
@@ -409,6 +412,15 @@ export function Home() {
               <span className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Tab Pilot</span>
             </div>
             <div className="flex items-center gap-3">
+              {docsAvailable && (
+                <a
+                  href="/docs/"
+                  className="hidden sm:flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                >
+                  <BookOpen className="h-4 w-4" />
+                  Docs
+                </a>
+              )}
               <a
                 href="https://github.com/gautamkrishnar/TabPilot"
                 target="_blank"

@@ -8,21 +8,21 @@
   ],
   "scripts": {
     "dev": "yarn workspace @tabpilot/shared build && concurrently -n shared,api,web -c yellow,cyan,magenta \"yarn workspace @tabpilot/shared dev\" \"yarn workspace @tabpilot/api dev\" \"yarn workspace @tabpilot/web dev\"",
-    "build": "yarn workspaces foreach -t run build",
+    "build": "yarn workspaces foreach -t --exclude '@tabpilot/docs' run build",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "check": "biome check .",
     "check:fix": "biome check --write .",
-    "typecheck": "yarn workspace @tabpilot/shared build && yarn workspaces foreach -A --exclude '@tabpilot/e2e' --exclude '@tabpilot/shared' run typecheck",
-    "test": "yarn workspaces foreach -A --exclude '@tabpilot/e2e' run test --passWithNoTests",
+    "typecheck": "yarn workspace @tabpilot/shared build && yarn workspaces foreach -A --exclude '@tabpilot/e2e' --exclude '@tabpilot/shared' --exclude '@tabpilot/docs' run typecheck",
+    "test": "yarn workspaces foreach -A --exclude '@tabpilot/e2e' --exclude '@tabpilot/docs' run test --passWithNoTests",
     "test:api": "yarn workspace @tabpilot/api test",
     "test:api:cov": "yarn workspace @tabpilot/api test:cov",
     "test:web": "yarn workspace @tabpilot/web test",
     "test:web:cov": "yarn workspace @tabpilot/web test:cov",
     "test:e2e": "yarn workspace @tabpilot/e2e test",
     "test:e2e:github": "yarn workspace @tabpilot/e2e test:github",
-    "clean": "yarn workspaces foreach run clean"
+    "clean": "yarn workspaces foreach --exclude '@tabpilot/docs' run clean"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.10",
@@ -30,7 +30,6 @@
     "typescript": "^5.7.3"
   },
   "resolutions": {
-    "path-to-regexp": "^8.4.2",
     "fastify": "^5.8.5",
     "picomatch": "^4.0.4",
     "lodash": "^4.18.1",
