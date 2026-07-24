@@ -26,12 +26,14 @@ No accounts, no plugins, no screen-sharing required.
 
 ## How It Works
 
-```
-Host creates session  →  shares 6-char code
-Participants enter code  →  browser auto-navigates
-Host clicks Next  →  everyone jumps to the next ticket
-Team votes  →  host reveals simultaneously
-Host saves points  →  written back to Jira (optional)
+```mermaid
+flowchart LR
+    A([Host]) -->|creates session| B[Session + join code]
+    B -->|shares 6-char code| C([Participants])
+    C -->|enter code| D[Browser auto-navigates]
+    D -->|Host clicks Next| E[Everyone jumps to next ticket]
+    E -->|team votes| F[Host reveals simultaneously]
+    F -->|optional| G[(Jira — story points saved)]
 ```
 
 Sessions have a configurable expiry and live in MongoDB. All real-time events travel over WebSockets (Socket.io). There are no persistent user accounts — identity is ephemeral per session.
