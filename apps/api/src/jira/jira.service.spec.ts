@@ -94,6 +94,17 @@ describe('JiraService', () => {
       delete process.env.JIRA_API_TOKEN;
     });
 
+    it('rejects http (non-https) baseUrl when no JIRA_BASE_URL is set', async () => {
+      delete process.env.JIRA_BASE_URL;
+      process.env.JIRA_USER_EMAIL = 'user@example.com';
+      process.env.JIRA_API_TOKEN = 'token123';
+      await expect(service.getIssue('PROJ-123', 'http://myorg.atlassian.net')).rejects.toThrow(
+        BadRequestException,
+      );
+      delete process.env.JIRA_USER_EMAIL;
+      delete process.env.JIRA_API_TOKEN;
+    });
+
     it('throws ServiceUnavailableException when no baseUrl is available', async () => {
       delete process.env.JIRA_BASE_URL;
       process.env.JIRA_USER_EMAIL = 'user@example.com';
@@ -127,6 +138,16 @@ describe('JiraService', () => {
         await expect(service.getIssue('PROJ-123', 'https://other.atlassian.net')).rejects.toThrow(
           BadRequestException,
         );
+      });
+
+      it('rejects request to a different host even when JIRA_BASE_URL is set (assertAllowedUrl)', async () => {
+        // assertAllowedUrl must enforce the configured hostname as defence-in-depth
+        process.env.JIRA_BASE_URL = 'https://example.atlassian.net';
+        const spy = jest
+          .spyOn(service as any, 'resolveBaseUrl')
+          .mockReturnValue('https://evil.com');
+        await expect(service.getIssue('PROJ-123')).rejects.toThrow(BadRequestException);
+        spy.mockRestore();
       });
 
       it('allows a provided baseUrl that matches JIRA_BASE_URL', async () => {

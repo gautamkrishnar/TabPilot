@@ -34,7 +34,7 @@ function adfToPlainText(node: unknown): string {
   return childText;
 }
 
-function isAllowedJiraHost(urlStr: string): boolean {
+function isAtlassianHost(urlStr: string): boolean {
   try {
     const { hostname, protocol } = new URL(urlStr);
     return (
@@ -75,6 +75,13 @@ export class JiraService {
       return this.baseUrl;
     }
     if (provided) {
+      // No JIRA_BASE_URL configured — only *.atlassian.net is permitted as a fallback.
+      // Self-hosted instances must be declared via JIRA_BASE_URL.
+      if (!isAtlassianHost(provided)) {
+        throw new BadRequestException(
+          'No JIRA_BASE_URL is configured. Provide an https://*.atlassian.net URL, or set JIRA_BASE_URL for a self-hosted instance.',
+        );
+      }
       return provided.replace(/\/$/, '');
     }
     throw new ServiceUnavailableException(
@@ -83,9 +90,30 @@ export class JiraService {
   }
 
   private assertAllowedUrl(url: string): string {
-    if (this.baseUrl) return url;
-    if (!isAllowedJiraHost(url)) {
-      throw new BadRequestException('Provided baseUrl must be an https://*.atlassian.net URL.');
+    let hostname: string;
+    let protocol: string;
+    try {
+      ({ hostname, protocol } = new URL(url));
+    } catch {
+      throw new BadRequestException('Invalid Jira URL.');
+    }
+
+    if (protocol !== 'https:') {
+      throw new BadRequestException('Jira URL must use HTTPS.');
+    }
+
+    if (this.baseUrl) {
+      const allowedHost = new URL(this.baseUrl).hostname;
+      if (hostname !== allowedHost) {
+        throw new BadRequestException(
+          `Jira request host must match the configured JIRA_BASE_URL (${allowedHost}).`,
+        );
+      }
+      return url;
+    }
+
+    if (hostname !== 'atlassian.net' && !hostname.endsWith('.atlassian.net')) {
+      throw new BadRequestException('Jira URL must be an https://*.atlassian.net address.');
     }
     return url;
   }
