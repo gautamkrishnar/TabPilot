@@ -12,8 +12,6 @@ No accounts, no plugins, no screen-sharing required.
 
 **Hosted version:** [https://tabpilot.gkr.pw/](https://tabpilot.gkr.pw/)
 
----
-
 ## Key Features
 
 | Feature | Description |
@@ -26,8 +24,6 @@ No accounts, no plugins, no screen-sharing required.
 | **Zero accounts** | Participants join with a 6-character code — no signup required |
 | **Self-hostable** | Single container, runs anywhere Docker or Podman is available |
 
----
-
 ## How It Works
 
 ```
@@ -39,8 +35,6 @@ Host saves points  →  written back to Jira (optional)
 ```
 
 Sessions have a configurable expiry and live in MongoDB. All real-time events travel over WebSockets (Socket.io). There are no persistent user accounts — identity is ephemeral per session.
-
----
 
 ## Getting Started
 
@@ -65,8 +59,6 @@ docker compose -f compose.yml up -d
 
 See the [Quick Start guide](./self-hosting/quickstart.md) for the full walkthrough, including pre-built container images and production configuration.
 
----
-
 ## Documentation Overview
 
 - **[Self-Hosting](./self-hosting/quickstart.md)** — run Tab Pilot on your own infrastructure
@@ -83,8 +75,6 @@ See the [Quick Start guide](./self-hosting/quickstart.md) for the full walkthrou
   - [Joining a Session](./usage/joining-a-session.md)
   - [Story Point Voting](./usage/voting.md)
   - [Co-hosts](./usage/co-hosts.md)
-
----
 
 ## Documentation
 
@@ -116,8 +106,6 @@ docker run -p 3000:3000 \
   ghcr.io/gautamkrishnar/tabpilot:latest-docs
 # Docs available at http://localhost:3000/docs/
 ```
-
----
 
 ## Open Source
 

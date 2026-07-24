@@ -11,14 +11,10 @@ title: Railway
 Railway's free tier includes $5 of usage per month. This is typically enough for light team use and experimentation. For continuous team usage, expect to use the Hobby plan ($5/month) or higher.
 :::
 
----
-
 ## Prerequisites
 
 - A [Railway account](https://railway.app/login) (free tier is sufficient to start)
 - Your public domain or the Railway-generated URL for your app
-
----
 
 ## Step 1: Create a New Project
 
@@ -32,8 +28,6 @@ Railway's free tier includes $5 of usage per month. This is typically enough for
 
 4. Click **Deploy**. Railway will pull the image and provision a service.
 
----
-
 ## Step 2: Add MongoDB
 
 Tab Pilot requires MongoDB. Railway provides a managed MongoDB plugin:
@@ -45,8 +39,6 @@ Tab Pilot requires MongoDB. Railway provides a managed MongoDB plugin:
 :::tip Use MongoDB Atlas as an alternative
 If you prefer a managed service with better durability guarantees, use [MongoDB Atlas](https://www.mongodb.com/atlas) (free M0 tier). Create a cluster, whitelist `0.0.0.0/0` for Railway's dynamic IPs, and paste the Atlas connection string as `MONGODB_URI`.
 :::
-
----
 
 ## Step 3: Set Environment Variables
 
@@ -77,8 +69,6 @@ Optional variables for Jira integration:
 
 See [Jira Integration](../configuration/jira-integration.md) for full details.
 
----
-
 ## Step 4: Verify the Deployment
 
 Once the service is deployed, Railway will display a public URL (e.g., `https://tabpilot-production-xxxx.up.railway.app`). Click it or run:
@@ -89,8 +79,6 @@ curl https://tabpilot-production-xxxx.up.railway.app/api/health
 ```
 
 If the health check returns `{"status":"ok"}`, Tab Pilot is running correctly.
-
----
 
 ## Custom Domain
 
@@ -104,8 +92,6 @@ If the health check returns `{"status":"ok"}`, Tab Pilot is running correctly.
    ```
 
 5. Railway automatically redeploys the service when variables change.
-
----
 
 ## Updating Tab Pilot
 
@@ -122,13 +108,9 @@ Railway does not automatically pull new versions of `latest` tags. To deploy a n
 For predictable production deployments, use a pinned image tag instead of `latest`. Update the Docker image reference in your service settings to a specific tag (e.g., `ghcr.io/gautamkrishnar/tabpilot:v1.2.0`). Check [GitHub releases](https://github.com/gautamkrishnar/tabpilot/releases) for available versions.
 :::
 
----
-
 ## Viewing Logs
 
 Click on the Tab Pilot service in Railway's dashboard and open the **Logs** tab. Logs stream in real time and include both stdout and stderr from the container.
-
----
 
 ## Notes
 

@@ -15,8 +15,6 @@ Tab Pilot runs on port `3000` internally. In production you should put a reverse
 Tab Pilot uses **Socket.io** for all real-time communication. Your proxy **must** forward WebSocket upgrade headers. Missing the `Upgrade` and `Connection` headers will cause participants to fail to connect.
 :::
 
----
-
 ## Nginx
 
 ### Basic Configuration
@@ -70,8 +68,6 @@ sudo certbot --nginx -d tabpilot.example.com
 sudo certbot renew --dry-run
 ```
 
----
-
 ## Caddy
 
 Caddy is the simplest option — it handles TLS automatically via Let's Encrypt with zero extra configuration:
@@ -103,8 +99,6 @@ Edit `/etc/caddy/Caddyfile` with the config above, then:
 sudo systemctl reload caddy
 ```
 
----
-
 ## Traefik (Docker Label-Based)
 
 If you are already running Traefik in your Docker environment, add these labels to the `app` service in your `compose.yml`:
@@ -119,8 +113,6 @@ If you are already running Traefik in your Docker environment, add these labels 
       - "traefik.http.routers.tabpilot.tls.certresolver=letsencrypt"
       - "traefik.http.services.tabpilot.loadbalancer.server.port=3000"
 ```
-
----
 
 ## Setting FRONTEND_URL
 
@@ -140,8 +132,6 @@ Restart the app container after changing this value:
 ```bash
 docker compose up -d --no-deps app
 ```
-
----
 
 ## Port Exposure
 

@@ -7,8 +7,6 @@ title: Creating a Session
 
 The host creates a session and controls the queue. Participants join with a code and their browsers navigate automatically.
 
----
-
 ## Step-by-Step
 
 ### 1. Go to the Create Session Page
@@ -49,8 +47,6 @@ The order of the list is the grooming order. You can reorder or remove tickets f
 
 Click **Create Session**. Tab Pilot creates the session in the database and takes you directly to the **host dashboard**.
 
----
-
 ## The Host Dashboard
 
 After creation you land on the host dashboard. Key elements:
@@ -60,8 +56,6 @@ After creation you land on the host dashboard. Key elements:
 - **Participants panel** — live list of who has joined.
 - **Voting panel** — appears when story point voting is enabled.
 - **Co-host invite link** — share to give a teammate host-level navigation control.
-
----
 
 ## Sharing the Session
 
@@ -74,8 +68,6 @@ https://tabpilot.gkr.pw/join?code=XXXXXX
 :::note No accounts required
 Participants do not need to register or log in. They only need the join code and a name.
 :::
-
----
 
 ## Ending the Session
 

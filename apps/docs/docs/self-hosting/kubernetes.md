@@ -11,16 +11,12 @@ This guide covers a production-grade Kubernetes deployment for Tab Pilot, includ
 Tab Pilot uses Socket.io for real-time communication. Running more than one replica requires sticky sessions or a Redis adapter (not included in this guide). **Keep `replicas: 1` unless you have configured the Redis adapter.**
 :::
 
----
-
 ## Prerequisites
 
 - A running Kubernetes cluster (any distribution: GKE, EKS, AKS, k3s, etc.)
 - `kubectl` configured and pointing at your cluster
 - An nginx-ingress controller installed (`kubectl get ingressclass nginx`)
 - Persistent volume support in your cluster (for MongoDB data)
-
----
 
 ## File Layout
 
@@ -37,8 +33,6 @@ tabpilot/
   ingress.yaml
 ```
 
----
-
 ## Namespace
 
 ```yaml title="tabpilot/namespace.yaml"
@@ -47,8 +41,6 @@ kind: Namespace
 metadata:
   name: tabpilot
 ```
-
----
 
 ## MongoDB
 
@@ -94,7 +86,6 @@ spec:
         resources:
           requests:
             storage: 10Gi
----
 apiVersion: v1
 kind: Service
 metadata:
@@ -109,8 +100,6 @@ spec:
 ```
 
 The headless Service (`clusterIP: None`) gives the StatefulSet pod a stable DNS name: `mongodb.tabpilot.svc.cluster.local`.
-
----
 
 ## Secret
 
@@ -132,8 +121,6 @@ stringData:
 Do not commit this file with real values to version control. Consider [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets), [External Secrets Operator](https://external-secrets.io/), or your cloud provider's secret store integration to manage secrets outside of plain YAML.
 :::
 
----
-
 ## ConfigMap
 
 Non-sensitive configuration lives in a ConfigMap. Update `FRONTEND_URL` to match your public domain.
@@ -154,8 +141,6 @@ data:
 :::warning FRONTEND_URL must match your public domain
 `FRONTEND_URL` is the allowed CORS origin. If it does not exactly match the URL your users navigate to (including `https://`), all WebSocket connections and API calls will be rejected by the browser. Update this before deploying.
 :::
-
----
 
 ## Deployment
 
@@ -213,8 +198,6 @@ spec:
 
 The pod runs as UID `1001` (non-root), matching the user the image was built with. No privilege escalation is needed.
 
----
-
 ## Service
 
 ```yaml title="tabpilot/service.yaml"
@@ -230,8 +213,6 @@ spec:
     - port: 80
       targetPort: 3000
 ```
-
----
 
 ## Ingress
 
@@ -280,8 +261,6 @@ To enable HTTPS, install [cert-manager](https://cert-manager.io/) and add a `tls
 ```
 :::
 
----
-
 ## Scaling Warning
 
 :::warning Socket.io and multiple replicas
@@ -292,8 +271,6 @@ Socket.io maintains persistent WebSocket connections. If you scale the Deploymen
 - Configure nginx-ingress sticky sessions via `nginx.ingress.kubernetes.io/affinity: "cookie"`
 - Add a Redis adapter to the API and share state across pods (requires code changes)
 :::
-
----
 
 ## Deploying
 
@@ -322,8 +299,6 @@ kubectl run -it --rm debug --image=curlimages/curl --restart=Never -n tabpilot -
   curl http://tabpilot/api/health
 ```
 
----
-
 ## Updating Tab Pilot
 
 To deploy a new image version, update the `image` field in `deployment.yaml` and apply:
@@ -340,8 +315,6 @@ kubectl rollout status deployment/tabpilot -n tabpilot
 ```
 
 MongoDB data is stored in the PersistentVolumeClaim (`mongo-data`) and is unaffected by app restarts.
-
----
 
 ## AI Ticket Scoring (GCP Service Account)
 

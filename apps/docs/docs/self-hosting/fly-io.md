@@ -11,8 +11,6 @@ Deploy Tab Pilot to [Fly.io](https://fly.io) using the pre-built container image
 Fly.io's free tier may stop idle machines to conserve resources. If your team experiences slow first loads, set `min_machines_running = 1` in `fly.toml` to keep at least one machine always running. This uses more of your free allowance.
 :::
 
----
-
 ## Prerequisites
 
 - A [Fly.io account](https://fly.io/app/sign-up) (free tier works)
@@ -32,8 +30,6 @@ Fly.io's free tier may stop idle machines to conserve resources. If your team ex
   fly auth login
   ```
 
----
-
 ## Launch the App
 
 Run `fly launch` from any directory — no local source code or Dockerfile needed when deploying from a pre-built image:
@@ -50,8 +46,6 @@ Passing `--no-deploy` lets you configure secrets and `fly.toml` before the first
 :::
 
 Fly will create an app and write a starter `fly.toml`. Replace its contents with the configuration below.
-
----
 
 ## `fly.toml`
 
@@ -89,8 +83,6 @@ Replace `iad` (Ashburn, Virginia) with the region closest to your team. Run `fly
 Fly.io's HTTP service proxy supports WebSocket connections natively — no extra configuration is required. Long-lived connections are handled transparently.
 :::
 
----
-
 ## MongoDB
 
 Tab Pilot requires MongoDB. You have two options:
@@ -123,8 +115,6 @@ fly deploy --app tabpilot-mongo
 
 This is more involved and is not the recommended path for most users.
 
----
-
 ## Set Secrets
 
 Set sensitive values as Fly secrets (they are injected as environment variables and never appear in logs or config files):
@@ -152,8 +142,6 @@ fly secrets set \
 
 For AI ticket scoring, the GCP service account key must be mounted as a file. See [AI Ticket Scoring](../configuration/ai-ticket-scoring.md) for details — Fly supports mounting secrets as files via `[files]` in `fly.toml`.
 
----
-
 ## Deploy
 
 ```bash
@@ -165,8 +153,6 @@ Fly will pull the image, create a machine, run health checks, and promote it whe
 ```
 --> v1 deployed successfully
 ```
-
----
 
 ## Open in Browser
 
@@ -180,8 +166,6 @@ This opens `https://tabpilot.fly.dev` in your default browser. Confirm the healt
 curl https://tabpilot.fly.dev/api/health
 # {"status":"ok"}
 ```
-
----
 
 ## Custom Domain
 
@@ -205,8 +189,6 @@ curl https://tabpilot.fly.dev/api/health
    fly deploy --app tabpilot
    ```
 
----
-
 ## Viewing Logs
 
 ```bash
@@ -216,8 +198,6 @@ fly logs --app tabpilot
 # Historical logs (last 100 lines)
 fly logs --app tabpilot -n 100
 ```
-
----
 
 ## Updating Tab Pilot
 
@@ -239,8 +219,6 @@ For reproducible deploys, update `fly.toml` to reference a tagged release instea
 
 Check [GitHub releases](https://github.com/gautamkrishnar/tabpilot/releases) for available tags.
 :::
-
----
 
 ## Scaling
 

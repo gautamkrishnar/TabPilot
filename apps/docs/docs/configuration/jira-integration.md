@@ -11,8 +11,6 @@ Tab Pilot can connect to your Jira instance to:
 2. **Save story points** — after a voting round, the host can write the agreed estimate back to the Jira ticket with one click
 3. **Per-project field mapping** — story points live in different custom fields depending on your Jira configuration; Tab Pilot maps per project
 
----
-
 ## Prerequisites
 
 - A Jira Cloud account (or Jira Data Center with accessible API)
@@ -24,8 +22,6 @@ Tab Pilot can connect to your Jira instance to:
 2. Click **Create API token**
 3. Give it a label (e.g., `tab-pilot`) and copy the token value
 4. Store it securely — it is only shown once
-
----
 
 ## Basic Configuration
 
@@ -40,8 +36,6 @@ JIRA_API_TOKEN=ATATT3xFfGF0...
 With just these three variables set, Tab Pilot will:
 - Automatically resolve Jira URLs in the queue to display the issue summary
 - Allow the host to see ticket titles without leaving Tab Pilot
-
----
 
 ## Story Point Sync
 
@@ -91,8 +85,6 @@ JIRA_STORY_POINTS_FIELDS=PROJ=customfield_10016,BACKEND=customfield_10028,MOBILE
 If a project key is not in the mapping, Tab Pilot will still fetch the title but the "Save to Jira" button will be disabled for tickets in that project.
 :::
 
----
-
 ## Extra Fields (Advanced)
 
 The `JIRA_EXTRA_FIELDS` variable lets you include additional Jira fields alongside story points when saving — for example, setting the sprint field at the same time.
@@ -108,15 +100,11 @@ Each inner object is merged into the Jira update request body. This is useful fo
 - Updating labels or components alongside the story point save
 - Any other Jira field that should be updated as part of the grooming workflow
 
----
-
 ## Skip Extra Fields Toggle
 
 When `JIRA_EXTRA_FIELDS` is configured, hosts see a **"Skip extra fields"** toggle in the host dashboard. When enabled, the extra fields are omitted from the save request — useful when grooming tickets that aren't yet assigned to a sprint, to avoid overwriting sprint data.
 
 The toggle is off by default (extra fields are always included).
-
----
 
 ## Testing the Integration
 
@@ -133,8 +121,6 @@ Common errors:
 - `401 Unauthorized` — incorrect email or API token
 - `403 Forbidden` — the API token user lacks read permission on the project
 - `Connection refused` — `JIRA_BASE_URL` is incorrect or unreachable from the container
-
----
 
 ## Data Center / Server Notes
 

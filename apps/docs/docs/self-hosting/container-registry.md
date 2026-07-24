@@ -18,8 +18,6 @@ Tab Pilot publishes two image variants built from the same `Containerfile`:
 
 The **default** variant is a minimal production image. The **with-docs** variant bundles the Docusaurus docs site and serves it at `/docs/` from the same NestJS server — the app home page shows a "Docs" link automatically when `/docs/` responds 200.
 
----
-
 ## Image Reference
 
 ```
@@ -43,8 +41,6 @@ ghcr.io/gautamkrishnar/tabpilot:latest
 For critical deployments, pin to a specific version tag rather than `latest` to avoid unexpected updates. Check [GitHub releases](https://github.com/gautamkrishnar/tabpilot/releases) for available versions.
 :::
 
----
-
 ## Pulling the Image
 
 ```bash
@@ -63,8 +59,6 @@ docker pull ghcr.io/gautamkrishnar/tabpilot:v1.2.0
 
 The image is public — no authentication required for pulling.
 
----
-
 ## Multi-Architecture Support
 
 The published image is a **multi-arch manifest** supporting:
@@ -75,8 +69,6 @@ The published image is a **multi-arch manifest** supporting:
 | `linux/arm64` | Apple Silicon (M1/M2), AWS Graviton, Raspberry Pi 4+ |
 
 Docker and Podman automatically select the correct variant for your host. No flags needed.
-
----
 
 ## Building from Source
 
@@ -104,8 +96,6 @@ Then reference the image in your `compose.yml`:
     image: tabpilot:local
 ```
 
----
-
 ## Containerfile Build Stages
 
 The `Containerfile` uses an **8-stage multi-stage build** to produce a minimal, hardened production image:
@@ -129,8 +119,6 @@ The default `podman build .` produces the `runner` (no-docs) variant. Use `--tar
 - **Non-root execution:** The app runs as UID `1001` (non-root) for security hardening
 - **Serves both:** The static frontend assets are served by the NestJS API via a static file middleware, so a single container handles all traffic
 
----
-
 ## Why RHEL UBI9?
 
 The runner stage uses `registry.access.redhat.com/ubi9/nodejs-22` rather than a plain Alpine or Debian Node image. Key reasons:
@@ -141,8 +129,6 @@ The runner stage uses `registry.access.redhat.com/ubi9/nodejs-22` rather than a 
 - **Long-term support:** UBI9 tracks RHEL 9 with a stable, predictable lifecycle
 
 If you need to use a different base image (e.g., Alpine for size), build from source and modify the `Containerfile` runner stage.
-
----
 
 ## Verifying the Image
 

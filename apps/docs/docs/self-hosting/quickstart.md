@@ -16,8 +16,6 @@ Get Tab Pilot running locally in under five minutes.
 All `docker` commands below work identically with `podman`. Podman Compose is available via `pip install podman-compose` or your system package manager.
 :::
 
----
-
 ## Option 1: Docker Compose with Pre-built Image (Fastest)
 
 This is the recommended approach for running Tab Pilot in production or for quick evaluation. It pulls the latest image from the GitHub Container Registry — no build step required.
@@ -63,8 +61,6 @@ Then start it:
 docker compose up -d
 ```
 
----
-
 ## Option 2: Build from Source
 
 Clone the repository and build the container image locally:
@@ -85,8 +81,6 @@ The `compose.yml` in the repository root references the `Containerfile` and buil
 :::note Build targets
 The repository `compose.yml` uses `build.context: .` and `target: runner`, which triggers the full 8-stage Containerfile build and produces the default (no-docs) variant. To bundle the docs site, build with `--target runner-with-docs` instead. The [Container Registry](./container-registry.md) doc explains all build stages and both variants in detail.
 :::
-
----
 
 ## Verify the Installation
 
@@ -114,8 +108,6 @@ Check container logs if something looks wrong:
 docker compose logs -f app
 docker compose logs -f mongodb
 ```
-
----
 
 ## Next Steps
 

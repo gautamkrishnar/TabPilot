@@ -7,8 +7,6 @@ title: Environment Variables
 
 All Tab Pilot configuration is done through environment variables passed to the `app` container (or set in `apps/api/.env` when running locally).
 
----
-
 ## Core Variables
 
 | Variable | Default | Required | Description |
@@ -22,8 +20,6 @@ All Tab Pilot configuration is done through environment variables passed to the 
 This value is the CORS allowed origin for the API and Socket.io. If it does not match the domain in the browser address bar exactly (including `https://`), all real-time connections will fail. In production, set this to your full public URL, e.g. `https://tabpilot.example.com`.
 :::
 
----
-
 ## Jira Integration Variables
 
 | Variable | Default | Required | Description |
@@ -36,8 +32,6 @@ This value is the CORS allowed origin for the API and Socket.io. If it does not 
 
 See [Jira Integration](./jira-integration.md) for the full setup guide.
 
----
-
 ## AI Ticket Scoring Variables
 
 | Variable | Default | Required | Description |
@@ -47,8 +41,6 @@ See [Jira Integration](./jira-integration.md) for the full setup guide.
 | `GEMINI_MODEL` | `gemini-2.5-flash` | No | Gemini model identifier to use for ticket quality scoring |
 
 See [AI Ticket Scoring](./ai-ticket-scoring.md) for setup instructions including service account creation.
-
----
 
 ## Example .env File (Local Development)
 
@@ -69,8 +61,6 @@ GOOGLE_APPLICATION_CREDENTIALS=/Users/me/keys/gcp-sa.json
 VERTEX_AI_LOCATION=us-central1
 ```
 
----
-
 ## Example Environment Block (Production compose.yml)
 
 ```yaml
@@ -88,8 +78,6 @@ VERTEX_AI_LOCATION=us-central1
       - GOOGLE_APPLICATION_CREDENTIALS=/secrets/gcp-sa.json
       - VERTEX_AI_LOCATION=us-central1
 ```
-
----
 
 ## Security Recommendations
 

@@ -11,8 +11,6 @@ Tab Pilot can score the quality of Jira tickets across six dimensions using **Ge
 AI ticket scoring is entirely optional and disabled by default. The UI only shows scoring elements when the backend reports that scoring is configured. There is no impact on sessions if this feature is not set up.
 :::
 
----
-
 ## What Gets Scored
 
 Each Jira ticket is analyzed and given a score from 0–100 on six quality dimensions:
@@ -30,15 +28,11 @@ Scores are displayed:
 - As a **color-coded badge** in the URL queue (green ≥ 75, amber ≥ 50, red < 50)
 - As an **expandable per-dimension breakdown** on the current ticket in the host dashboard and participant view
 
----
-
 ## Prerequisites
 
 1. A **Google Cloud project** with the **Vertex AI API** enabled
 2. A **service account** with the `roles/aiplatform.user` role
 3. A downloaded JSON key file for that service account
-
----
 
 ## Setup Guide
 
@@ -94,8 +88,6 @@ In a Docker Compose deployment, mount the key file as a read-only volume:
       - GEMINI_MODEL=gemini-2.5-flash
 ```
 
----
-
 ## Verifying the Setup
 
 After restarting the app, check the scoring status endpoint:
@@ -112,8 +104,6 @@ docker compose logs app | grep -i vertex
 docker compose logs app | grep -i gemini
 ```
 
----
-
 ## How the UI Works
 
 Once the backend reports `configured: true`, the frontend activates the scoring UI automatically:
@@ -129,21 +119,15 @@ Once the backend reports `configured: true`, the frontend activates the scoring 
 
 3. **Refresh button** — the host can request a fresh score for the current ticket. Scores are cached in MongoDB to avoid redundant API calls.
 
----
-
 ## Caching
 
 Scores are cached in MongoDB keyed by Jira issue key and base URL. The cache is not time-limited — if you update a ticket description in Jira and want a fresh score, use the refresh button in the host dashboard.
-
----
 
 ## Cost Considerations
 
 Gemini Flash is one of Google's most cost-efficient models. A typical ticket description is a few hundred tokens. At current Vertex AI pricing, scoring hundreds of tickets per month costs fractions of a cent.
 
 Refer to the [Vertex AI pricing page](https://cloud.google.com/vertex-ai/generative-ai/pricing) for current rates.
-
----
 
 ## Supported Regions
 

@@ -7,8 +7,6 @@ title: Joining a Session
 
 Joining a Tab Pilot session takes under 30 seconds. No account, no download, no plugin.
 
----
-
 ## Method 1: Enter the Join Code
 
 1. Open Tab Pilot at [https://tabpilot.gkr.pw/](https://tabpilot.gkr.pw/) (or your self-hosted URL)
@@ -18,8 +16,6 @@ Joining a Tab Pilot session takes under 30 seconds. No account, no download, no 
 5. Click **Join Session**
 
 Your browser will immediately navigate to whatever ticket the host is currently presenting. From this point, every time the host clicks Next or Previous, your browser navigates automatically.
-
----
 
 ## Method 2: Direct URL
 
@@ -31,8 +27,6 @@ https://tabpilot.gkr.pw/join?code=XXXXXX
 
 Opening this URL pre-fills the join code. You only need to enter your name and click **Join Session**.
 
----
-
 ## Method 3: Saved Sessions
 
 If you have joined a session before, it appears in the **recent sessions** list on the Tab Pilot home page. Click it to rejoin without re-entering the code.
@@ -40,8 +34,6 @@ If you have joined a session before, it appears in the **recent sessions** list 
 :::tip Returning after a refresh
 If you refresh the participant view or close and reopen the tab, Tab Pilot restores your session from localStorage and reconnects automatically. You do not need to re-enter the join code.
 :::
-
----
 
 ## What Happens After Joining
 
@@ -51,8 +43,6 @@ Once you have joined:
 - The current ticket URL is opened in your browser (via the embedded frame or a link, depending on the ticket type)
 - You appear in the host's participants list
 - If voting is enabled, the vote panel appears when the host is on a ticket
-
----
 
 ## Voting
 
@@ -65,15 +55,11 @@ If the host has enabled story point voting:
 
 See [Story Point Voting](./voting.md) for more detail.
 
----
-
 ## Leaving a Session
 
 Participants can close the browser tab at any time. There is no "leave" button — just close the tab. The host's participants panel will show the participant as disconnected.
 
 If you return to the same URL, you can rejoin by entering your name again.
-
----
 
 ## Troubleshooting
 

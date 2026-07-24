@@ -7,16 +7,12 @@ title: Story Point Voting
 
 Tab Pilot includes built-in story point voting using **Planning Poker** (Fibonacci sequence). All participants vote simultaneously and votes are revealed at once — preventing anchoring bias.
 
----
-
 ## Enabling Voting
 
 Story point voting can be:
 
 - **Enabled at session creation** — check the "Enable story point voting" option when creating the session
 - **Toggled mid-session** — the host can turn voting on or off at any time from the host dashboard, without ending the session
-
----
 
 ## Vote Values
 
@@ -34,8 +30,6 @@ Participants choose from the standard Planning Poker deck:
 | `21` | Epic / needs splitting |
 | `?` | Uncertain — needs more discussion |
 | `☕` | Need a break |
-
----
 
 ## How a Voting Round Works
 
@@ -61,8 +55,6 @@ If there is significant divergence (e.g., a 2 and a 13), the team discusses. The
 
 When the team agrees on a number, the host records it (mentally or saves it to Jira) and clicks **Next** to move to the next ticket. Moving to the next ticket automatically resets votes for the new round.
 
----
-
 ## Saving to Jira
 
 If [Jira integration](../configuration/jira-integration.md) is configured and a story points field is mapped for the current ticket's project, the host sees a **Save to Jira** button after reveal.
@@ -73,13 +65,9 @@ Clicking it writes the average (rounded to the nearest valid Fibonacci number) b
 The average is shown with one decimal place. The host can edit the value before saving if the team agreed on a different number than the average.
 :::
 
----
-
 ## Accumulated Vote History
 
 As the host navigates through the queue, the story points saved for each URL are accumulated. The host dashboard shows a summary of all saved estimates alongside the ticket list, making it easy to review the full session output at the end.
-
----
 
 ## Tips for Running Effective Voting
 

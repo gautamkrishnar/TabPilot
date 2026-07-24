@@ -56,8 +56,6 @@ volumes:
 Replace `https://your-domain.com` with the actual public URL where Tab Pilot is reachable. This value is used for CORS origin validation — mismatches will cause WebSocket connection failures.
 :::
 
----
-
 ## Service Breakdown
 
 ### `mongodb`
@@ -79,8 +77,6 @@ Replace `https://your-domain.com` with the actual public URL where Tab Pilot is 
 | `healthcheck` | HTTP GET `/api/health` | Container orchestrators use this to know when the app is ready |
 | `restart` | `unless-stopped` | Auto-restarts after crashes or reboots |
 
----
-
 ## Starting and Stopping
 
 ```bash
@@ -93,8 +89,6 @@ docker compose down
 # Stop and remove all data (destructive)
 docker compose down -v
 ```
-
----
 
 ## Updating to a New Version
 
@@ -109,8 +103,6 @@ docker compose up -d --no-deps app
 ```
 
 MongoDB data is preserved in the `mongo_data` named volume and is unaffected by app updates.
-
----
 
 ## Data Persistence
 
@@ -138,8 +130,6 @@ docker compose down -v
 docker compose up -d
 ```
 
----
-
 ## Checking Logs
 
 ```bash
@@ -153,8 +143,6 @@ docker compose logs -f mongodb
 docker compose logs --tail=100 app
 ```
 
----
-
 ## Health Check Endpoint
 
 The app exposes a lightweight health endpoint:
@@ -165,8 +153,6 @@ curl http://localhost:3000/api/health
 ```
 
 Orchestrators (Docker Swarm, Kubernetes, Coolify, Portainer) can poll this endpoint to determine readiness.
-
----
 
 ## Adding Jira and AI Scoring
 

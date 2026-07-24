@@ -11,8 +11,6 @@ Co-hosts are trusted session participants who share navigation control with the 
 - Two people are co-facilitating a grooming session
 - The host wants a backup in case of connectivity issues
 
----
-
 ## Inviting a Co-host
 
 After creating a session, the host dashboard displays a **co-host invite link**. This link is unique to the session and contains an invite key.
@@ -27,8 +25,6 @@ Share this link with the person you want to add as a co-host via Slack, email, o
 Anyone with this link can join as a co-host and gain full navigation control. Share it only with trusted teammates.
 :::
 
----
-
 ## Joining as a Co-host
 
 The invited person:
@@ -39,8 +35,6 @@ The invited person:
 4. Clicks **Join as Co-host**
 
 They are taken to the host dashboard view with full controls.
-
----
 
 ## What Co-hosts Can Do
 
@@ -63,21 +57,15 @@ Co-hosts have access to most host controls:
 Only the original host (who created the session) can end the session or invite new co-hosts. Co-hosts have operational control but not administrative control.
 :::
 
----
-
 ## Multiple Co-hosts
 
 A session can have more than one co-host. Each co-host joins independently via the same invite link. All co-hosts and the primary host can navigate concurrently — the last navigation event wins (similar to how Google Docs handles concurrent edits).
 
 In practice, the team typically designates one person as the active facilitator at any given time, even if multiple people have co-host access.
 
----
-
 ## Co-host Persistence
 
 Co-host status is stored in the browser's `localStorage`. If a co-host refreshes the page or closes and reopens the tab, they are automatically reconnected with full co-host privileges — they do not need to re-enter the invite key.
-
----
 
 ## Revoking Co-host Access
 
