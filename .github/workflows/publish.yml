@@ -27,7 +27,7 @@ env:
 
 jobs:
   publish:
-    name: Build & Push (without docs)
+    name: Build & Push
     runs-on: ubuntu-latest
 
     if: >
@@ -46,7 +46,7 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Image metadata
+      - name: Image metadata (without docs)
         id: meta
         uses: docker/metadata-action@v6
         with:
@@ -64,84 +64,7 @@ jobs:
             org.opencontainers.image.description=Real-time grooming and tab synchronization tool
             org.opencontainers.image.vendor=${{ github.repository_owner }}
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push
-        id: push
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: Containerfile
-          target: runner
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-runner
-            type=gha,scope=runner
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-runner,mode=max,image-manifest=true,oci-mediatypes=true
-
-      - name: Install Cosign
-        if: steps.push.outputs.digest != ''
-        uses: sigstore/cosign-installer@v4.1.2
-
-      - name: Sign image
-        if: steps.push.outputs.digest != ''
-        run: |
-          IMAGE_REF=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
-          cosign sign --yes "${IMAGE_REF}@${{ steps.push.outputs.digest }}"
-
-      - name: Summary
-        run: |
-          {
-            echo "## Container Image Published :ship:"
-            echo ""
-            echo "| | |"
-            echo "| --- | --- |"
-            echo "| **Variant** | Without docs |"
-            echo "| **Image** | \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\` |"
-            echo "| **Digest** | \`${{ steps.push.outputs.digest }}\` |"
-            echo "| **Platforms** | \`linux/amd64\`, \`linux/arm64\` |"
-            echo ""
-            echo "**Tags pushed:**"
-            echo '```'
-            echo "${{ steps.meta.outputs.tags }}"
-            echo '```'
-          } >> $GITHUB_STEP_SUMMARY
-
-  publish-with-docs:
-    name: Build & Push (with docs)
-    runs-on: ubuntu-latest
-
-    if: >
-      github.event_name != 'workflow_run' ||
-      github.event.workflow_run.conclusion == 'success'
-
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-      attestations: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-
-      - name: Image metadata (with-docs)
+      - name: Image metadata (with docs)
         id: meta-docs
         uses: docker/metadata-action@v6
         with:
@@ -172,7 +95,32 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      # Build stages 1–7 (runner). Warms from the registry cache written by the
+      # docs step on previous runs (it covers all layers). Writes to GHA cache
+      # so the next step reuses layers without a registry pull.
+      - name: Build and push (without docs)
+        id: push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Containerfile
+          target: runner
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-runner-docs
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-runner
+            type=gha,scope=runner
+          cache-to: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-runner,mode=max,image-manifest=true,oci-mediatypes=true
+            type=gha,scope=runner,mode=max
+
+      # Build stage 8 (runner-with-docs = FROM runner + one COPY). All prior
+      # layers hit the GHA cache from the step above; only the COPY is new work.
+      # Writes the full layer set back to the registry cache for future runs.
+      - name: Build and push (with docs)
         id: push-docs
         uses: docker/build-push-action@v7
         with:
@@ -183,16 +131,20 @@ jobs:
           push: true
           tags: ${{ steps.meta-docs.outputs.tags }}
           labels: ${{ steps.meta-docs.outputs.labels }}
-          cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-runner-docs
-            type=gha,scope=runner-with-docs
+          cache-from: type=gha,scope=runner
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-runner-docs,mode=max,image-manifest=true,oci-mediatypes=true
 
       - name: Install Cosign
-        if: steps.push-docs.outputs.digest != ''
+        if: steps.push.outputs.digest != '' || steps.push-docs.outputs.digest != ''
         uses: sigstore/cosign-installer@v4.1.2
 
-      - name: Sign image
+      - name: Sign image (without docs)
+        if: steps.push.outputs.digest != ''
+        run: |
+          IMAGE_REF=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
+          cosign sign --yes "${IMAGE_REF}@${{ steps.push.outputs.digest }}"
+
+      - name: Sign image (with docs)
         if: steps.push-docs.outputs.digest != ''
         run: |
           IMAGE_REF=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
@@ -201,16 +153,19 @@ jobs:
       - name: Summary
         run: |
           {
-            echo "## Container Image Published :books:"
+            echo "## Container Images Published :ship:"
             echo ""
-            echo "| | |"
-            echo "| --- | --- |"
-            echo "| **Variant** | With docs |"
-            echo "| **Image** | \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\` |"
-            echo "| **Digest** | \`${{ steps.push-docs.outputs.digest }}\` |"
-            echo "| **Platforms** | \`linux/amd64\`, \`linux/arm64\` |"
+            echo "| | Without docs | With docs |"
+            echo "| --- | --- | --- |"
+            echo "| **Digest** | \`${{ steps.push.outputs.digest }}\` | \`${{ steps.push-docs.outputs.digest }}\` |"
+            echo "| **Platforms** | \`linux/amd64\`, \`linux/arm64\` | \`linux/amd64\`, \`linux/arm64\` |"
             echo ""
-            echo "**Tags pushed:**"
+            echo "**Tags (without docs):**"
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}"
+            echo '```'
+            echo ""
+            echo "**Tags (with docs):**"
             echo '```'
             echo "${{ steps.meta-docs.outputs.tags }}"
             echo '```'
@@ -220,8 +175,8 @@ jobs:
   prune:
     name: Prune old images from GHCR
     runs-on: ubuntu-latest
-    needs: [publish, publish-with-docs]
-    if: always() && (needs.publish.result == 'success' || needs.publish-with-docs.result == 'success')
+    needs: [publish]
+    if: always() && needs.publish.result == 'success'
 
     permissions:
       packages: write
