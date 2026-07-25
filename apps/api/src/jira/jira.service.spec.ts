@@ -530,6 +530,121 @@ describe('JiraService', () => {
         const body = JSON.parse(fetchCall[1].body as string);
         expect(body.fields).toEqual({ story_points: 5 });
       });
+
+      it('throws ServiceUnavailableException on 401', async () => {
+        process.env.JIRA_STORY_POINTS_FIELDS = 'PROJ=story_points';
+        global.fetch = jest.fn().mockResolvedValue({ status: 401, ok: false } as Response);
+        await expect(service.setStoryPoints('PROJ-123', 5)).rejects.toThrow(
+          ServiceUnavailableException,
+        );
+      });
+
+      it('throws UnprocessableEntityException on 400', async () => {
+        process.env.JIRA_STORY_POINTS_FIELDS = 'PROJ=story_points';
+        global.fetch = jest.fn().mockResolvedValue({
+          status: 400,
+          ok: false,
+          text: async () => 'Bad field',
+        } as unknown as Response);
+        await expect(service.setStoryPoints('PROJ-123', 5)).rejects.toThrow(
+          UnprocessableEntityException,
+        );
+      });
+
+      it('throws ServiceUnavailableException on non-ok status', async () => {
+        process.env.JIRA_STORY_POINTS_FIELDS = 'PROJ=story_points';
+        global.fetch = jest.fn().mockResolvedValue({ status: 500, ok: false } as Response);
+        await expect(service.setStoryPoints('PROJ-123', 5)).rejects.toThrow(
+          ServiceUnavailableException,
+        );
+      });
+    });
+  });
+
+  describe('configuredStoryPointProjects', () => {
+    afterEach(() => {
+      delete process.env.JIRA_STORY_POINTS_FIELDS;
+    });
+
+    it('returns project keys from JIRA_STORY_POINTS_FIELDS', () => {
+      process.env.JIRA_STORY_POINTS_FIELDS = 'PROJ=story_points,OTHER=customfield_10016';
+      expect(service.configuredStoryPointProjects).toEqual(['PROJ', 'OTHER']);
+    });
+
+    it('returns empty array when not set', () => {
+      delete process.env.JIRA_STORY_POINTS_FIELDS;
+      expect(service.configuredStoryPointProjects).toEqual([]);
+    });
+  });
+
+  describe('hasExtraFieldsConfigured', () => {
+    afterEach(() => {
+      delete process.env.JIRA_EXTRA_FIELDS;
+    });
+
+    it('returns true when JIRA_EXTRA_FIELDS has entries', () => {
+      process.env.JIRA_EXTRA_FIELDS = '{"PROJ":{"f":1}}';
+      expect(service.hasExtraFieldsConfigured).toBe(true);
+    });
+
+    it('returns false when not set', () => {
+      delete process.env.JIRA_EXTRA_FIELDS;
+      expect(service.hasExtraFieldsConfigured).toBe(false);
+    });
+  });
+
+  describe('getIssueWithDescription()', () => {
+    beforeEach(() => {
+      process.env.JIRA_BASE_URL = 'https://example.atlassian.net';
+      process.env.JIRA_USER_EMAIL = 'user@example.com';
+      process.env.JIRA_API_TOKEN = 'token123';
+    });
+    afterEach(() => {
+      delete process.env.JIRA_BASE_URL;
+      delete process.env.JIRA_USER_EMAIL;
+      delete process.env.JIRA_API_TOKEN;
+    });
+
+    it('throws ServiceUnavailableException when not configured', async () => {
+      delete process.env.JIRA_USER_EMAIL;
+      delete process.env.JIRA_API_TOKEN;
+      await expect(service.getIssueWithDescription('PROJ-123')).rejects.toThrow(
+        ServiceUnavailableException,
+      );
+    });
+
+    it('throws BadRequestException for invalid issue key', async () => {
+      await expect(service.getIssueWithDescription('invalid')).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws ServiceUnavailableException on network error', async () => {
+      global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
+      await expect(service.getIssueWithDescription('PROJ-123')).rejects.toThrow(
+        ServiceUnavailableException,
+      );
+    });
+
+    it('throws NotFoundException on 404', async () => {
+      global.fetch = jest.fn().mockResolvedValue({ status: 404, ok: false } as Response);
+      await expect(service.getIssueWithDescription('PROJ-123')).rejects.toThrow(NotFoundException);
+    });
+
+    it('returns issue with description on success', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        status: 200,
+        ok: true,
+        json: async () => ({
+          fields: {
+            summary: 'Test',
+            description: null,
+            status: { name: 'Open' },
+            issuetype: { name: 'Bug' },
+          },
+        }),
+      } as unknown as Response);
+      const result = await service.getIssueWithDescription('PROJ-123');
+      expect(result.key).toBe('PROJ-123');
+      expect(result.description).toBe('');
     });
   });
 });

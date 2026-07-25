@@ -539,4 +539,93 @@ describe('SessionsService', () => {
       await expect(service.clearStoryPoint(session.id, 'nonexistent')).resolves.not.toThrow();
     });
   });
+
+  describe('updateHostProfile()', () => {
+    it('updates hostName and hostEmail', async () => {
+      const { session } = await service.create(defaultDto);
+      const updated = await service.updateHostProfile(session.id, 'New Name', 'new@example.com');
+      expect(updated.hostName).toBe('New Name');
+      expect(updated.hostEmail).toBe('new@example.com');
+    });
+
+    it('sets hostEmail to null when empty string passed', async () => {
+      const { session } = await service.create(defaultDto);
+      const updated = await service.updateHostProfile(session.id, 'New Name', '');
+      expect(updated.hostEmail).toBeNull();
+    });
+
+    it('throws NotFoundException for nonexistent session', async () => {
+      await expect(
+        service.updateHostProfile('00000000-0000-0000-0000-000000000000', 'Name'),
+      ).rejects.toThrow('not found');
+    });
+  });
+
+  describe('setLocked()', () => {
+    it('sets isLocked to true', async () => {
+      const { session } = await service.create(defaultDto);
+      const doc = await service.setLocked(session.id, true);
+      expect(doc?.isLocked).toBe(true);
+    });
+
+    it('returns null for nonexistent session', async () => {
+      const result = await service.setLocked('00000000-0000-0000-0000-000000000000', true);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('setVotingEnabled()', () => {
+    it('enables voting', async () => {
+      const { session } = await service.create(defaultDto);
+      const doc = await service.setVotingEnabled(session.id, true);
+      expect(doc?.votingEnabled).toBe(true);
+    });
+
+    it('returns null for nonexistent session', async () => {
+      const result = await service.setVotingEnabled('00000000-0000-0000-0000-000000000000', true);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('deleteSession()', () => {
+    it('removes the session from the database', async () => {
+      const { session } = await service.create(defaultDto);
+      await service.deleteSession(session.id);
+      expect(await service.findById(session.id)).toBeNull();
+    });
+  });
+
+  describe('removeUrl() edge cases', () => {
+    it('adjusts currentIndex down when a url before it is removed', async () => {
+      const { session } = await service.create({
+        ...defaultDto,
+        urls: ['https://a.com', 'https://b.com', 'https://c.com'],
+      });
+      await service.updateCurrentIndex(session.id, 2);
+      const doc = await service.removeUrl(session.id, 0);
+      expect(doc?.currentIndex).toBe(1);
+    });
+
+    it('clamps currentIndex when the current url is removed', async () => {
+      const { session } = await service.create({
+        ...defaultDto,
+        urls: ['https://a.com', 'https://b.com'],
+      });
+      await service.updateCurrentIndex(session.id, 1);
+      const doc = await service.removeUrl(session.id, 1);
+      expect(doc?.currentIndex).toBe(0);
+    });
+
+    it('resets currentIndex to 0 when all urls removed', async () => {
+      const { session } = await service.create({ ...defaultDto, urls: ['https://a.com'] });
+      const doc = await service.removeUrl(session.id, 0);
+      expect(doc?.currentIndex).toBe(0);
+      expect(doc?.urls).toHaveLength(0);
+    });
+
+    it('returns null for out-of-range index', async () => {
+      const { session } = await service.create(defaultDto);
+      expect(await service.removeUrl(session.id, 99)).toBeNull();
+    });
+  });
 });

@@ -204,5 +204,30 @@ describe('TicketScoreService', () => {
       const result = await service.getCached('PROJ-7');
       expect(result).toEqual(VALID_RESPONSE);
     });
+
+    it('throws ServiceUnavailableException when project_id is missing from SA JSON', async () => {
+      mockReadFileSync.mockReturnValue(
+        JSON.stringify({ client_email: 'svc@proj.iam.gserviceaccount.com' }),
+      );
+      const module = await Test.createTestingModule({
+        providers: [
+          TicketScoreService,
+          { provide: getModelToken(TicketScoreDoc.name), useValue: mockScoreModel },
+        ],
+      }).compile();
+      const freshService = module.get<TicketScoreService>(TicketScoreService);
+      process.env.GOOGLE_APPLICATION_CREDENTIALS = '/valid/sa.json';
+      mockExistsSync.mockReturnValue(true);
+      await expect(freshService.scoreTicket('PROJ-8', 'Summary', 'Desc')).rejects.toThrow(
+        ServiceUnavailableException,
+      );
+    });
+
+    it('strips markdown code fences from Gemini response', async () => {
+      const fenced = `\`\`\`json\n${JSON.stringify(VALID_RESPONSE)}\n\`\`\``;
+      mockGenerateContent.mockResolvedValue({ text: fenced });
+      const result = await service.scoreTicket('PROJ-9', 'Summary', 'Desc');
+      expect(result).toEqual(VALID_RESPONSE);
+    });
   });
 });

@@ -225,4 +225,27 @@ describe('ParticipantsService', () => {
       ).resolves.not.toThrow();
     });
   });
+
+  describe('deleteAllForSession()', () => {
+    it('removes all participants belonging to the session', async () => {
+      await service.create(SESSION_1, 'Alice');
+      await service.create(SESSION_1, 'Bob');
+      await service.deleteAllForSession(SESSION_1);
+      expect(await service.findBySession(SESSION_1)).toHaveLength(0);
+    });
+
+    it('does not remove participants from other sessions', async () => {
+      const SESSION_2 = '00000000-0000-0000-0000-000000000002';
+      await service.create(SESSION_1, 'Alice');
+      await service.create(SESSION_2, 'Bob');
+      await service.deleteAllForSession(SESSION_1);
+      expect(await service.findBySession(SESSION_2)).toHaveLength(1);
+    });
+
+    it('is a no-op when no participants exist for the session', async () => {
+      await expect(
+        service.deleteAllForSession('00000000-0000-0000-0000-000000000099'),
+      ).resolves.not.toThrow();
+    });
+  });
 });

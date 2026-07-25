@@ -1021,6 +1021,24 @@ describe('SessionGateway', () => {
         expect.objectContaining({ session: expect.any(Object) }),
       );
     });
+
+    it('should emit error when reorderUrls returns null', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.reorderUrls.mockResolvedValue(null);
+
+      await gateway.handleReorderUrls(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        fromIndex: 0,
+        toIndex: 1,
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'REORDER_NOT_ALLOWED' }),
+      );
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -1905,6 +1923,58 @@ describe('SessionGateway', () => {
       expect(mockServer.emit).toHaveBeenCalledWith(WS_EVENTS.SAVED_VOTES_UPDATED, {
         savedVotes: {},
       });
+    });
+  });
+
+  describe('handleResetVotes()', () => {
+    it('should emit error if host key is invalid', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(false);
+
+      await gateway.handleResetVotes(client, { sessionId: 'session-1', hostKey: 'wrong' });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'INVALID_HOST_KEY' }),
+      );
+    });
+
+    it('should broadcast empty VOTE_UPDATE after resetting', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.findById.mockResolvedValue(makeSessionDoc({ currentIndex: 0 }));
+
+      await gateway.handleResetVotes(client, { sessionId: 'session-1', hostKey: 'valid' });
+
+      expect(mockServer.emit).toHaveBeenCalledWith(WS_EVENTS.VOTE_UPDATE, { hasVoted: [] });
+    });
+
+    it('should be a no-op when session not found after validation', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      sessionsService.findById.mockResolvedValue(null);
+
+      await gateway.handleResetVotes(client, { sessionId: 'session-1', hostKey: 'valid' });
+
+      expect(mockServer.emit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleNavigate() — session not found', () => {
+    it('should emit error when session is not found', async () => {
+      const client = makeMockSocket();
+      sessionsService.findById.mockResolvedValue(null);
+
+      await gateway.handleNavigate(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        direction: 'next',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'SESSION_NOT_FOUND' }),
+      );
     });
   });
 });

@@ -27,7 +27,7 @@ describe('JoinCodeDisplay', () => {
   it('renders 6 character boxes', () => {
     const { container } = render(<JoinCodeDisplay joinCode="XYZ789" />);
     const boxes = container.querySelectorAll('.font-mono.font-bold');
-    expect(boxes.length).toBe(6);
+    expect(boxes).toHaveLength(6);
   });
 
   it('renders copy code button', () => {
