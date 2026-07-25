@@ -88,8 +88,10 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=runner
-          cache-to: type=gha,scope=runner,mode=max
+          cache-from: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-runner
+            type=gha,scope=runner
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-runner,mode=max,image-manifest=true,oci-mediatypes=true
 
       - name: Install Cosign
         if: steps.push.outputs.digest != ''
@@ -97,8 +99,6 @@ jobs:
 
       - name: Sign image
         if: steps.push.outputs.digest != ''
-        env:
-          COSIGN_EXPERIMENTAL: "1"
         run: |
           IMAGE_REF=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
           cosign sign --yes "${IMAGE_REF}@${{ steps.push.outputs.digest }}"
@@ -183,8 +183,10 @@ jobs:
           push: true
           tags: ${{ steps.meta-docs.outputs.tags }}
           labels: ${{ steps.meta-docs.outputs.labels }}
-          cache-from: type=gha,scope=runner-with-docs
-          cache-to: type=gha,scope=runner-with-docs,mode=max
+          cache-from: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-runner-docs
+            type=gha,scope=runner-with-docs
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-runner-docs,mode=max,image-manifest=true,oci-mediatypes=true
 
       - name: Install Cosign
         if: steps.push-docs.outputs.digest != ''
@@ -192,8 +194,6 @@ jobs:
 
       - name: Sign image
         if: steps.push-docs.outputs.digest != ''
-        env:
-          COSIGN_EXPERIMENTAL: "1"
         run: |
           IMAGE_REF=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
           cosign sign --yes "${IMAGE_REF}@${{ steps.push-docs.outputs.digest }}"
