@@ -166,7 +166,7 @@ spec:
         fsGroup: 0
       containers:
         - name: tabpilot
-          image: ghcr.io/gautamkrishnar/tabpilot:latest
+          image: ghcr.io/tabpilot/tabpilot:latest
           ports:
             - containerPort: 3000
           envFrom:

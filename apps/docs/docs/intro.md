@@ -54,7 +54,7 @@ Run your own instance in under five minutes:
 
 ```bash
 # Clone and start with Docker Compose
-git clone https://github.com/gautamkrishnar/tabpilot.git
+git clone https://github.com/tabpilot/tabpilot.git
 cd TabPilot
 docker compose -f compose.yml up -d
 ```
@@ -101,11 +101,11 @@ yarn workspace @tabpilot/docs build    # production build → apps/docs/build/
 The docs are bundled into the `runner-with-docs` image variant:
 
 ```bash
-docker pull ghcr.io/gautamkrishnar/tabpilot:latest-docs
+docker pull ghcr.io/tabpilot/tabpilot:latest-docs
 docker run -p 3000:3000 \
   -e MONGODB_URI=mongodb://host.docker.internal:27017/tabpilot \
   -e FRONTEND_URL=http://localhost:3000 \
-  ghcr.io/gautamkrishnar/tabpilot:latest-docs
+  ghcr.io/tabpilot/tabpilot:latest-docs
 # Docs available at http://localhost:3000/docs/
 ```
 
@@ -113,6 +113,6 @@ docker run -p 3000:3000 \
 
 Tab Pilot is released under the **GPL-3.0 license**. Source code and issue tracker live at:
 
-[https://github.com/gautamkrishnar/tabpilot](https://github.com/gautamkrishnar/tabpilot)
+[https://github.com/tabpilot/tabpilot](https://github.com/tabpilot/tabpilot)
 
 Contributions are welcome — bug reports, pull requests, and feature ideas.

@@ -21,7 +21,7 @@ The **default** variant is a minimal production image. The **with-docs** variant
 ## Image Reference
 
 ```
-ghcr.io/gautamkrishnar/tabpilot:latest
+ghcr.io/tabpilot/tabpilot:latest
 ```
 
 ### Available Tags
@@ -38,23 +38,23 @@ ghcr.io/gautamkrishnar/tabpilot:latest
 | `vX.Y.Z-docs` | Pinned release tag with bundled docs |
 
 :::tip Pinning versions in production
-For critical deployments, pin to a specific version tag rather than `latest` to avoid unexpected updates. Check [GitHub releases](https://github.com/gautamkrishnar/tabpilot/releases) for available versions.
+For critical deployments, pin to a specific version tag rather than `latest` to avoid unexpected updates. Check [GitHub releases](https://github.com/tabpilot/tabpilot/releases) for available versions.
 :::
 
 ## Pulling the Image
 
 ```bash
 # Without docs (default)
-docker pull ghcr.io/gautamkrishnar/tabpilot:latest
+docker pull ghcr.io/tabpilot/tabpilot:latest
 
 # With docs
-docker pull ghcr.io/gautamkrishnar/tabpilot:latest-docs
+docker pull ghcr.io/tabpilot/tabpilot:latest-docs
 
 # Podman
-podman pull ghcr.io/gautamkrishnar/tabpilot:latest
+podman pull ghcr.io/tabpilot/tabpilot:latest
 
 # Pin to a specific version
-docker pull ghcr.io/gautamkrishnar/tabpilot:v1.2.0
+docker pull ghcr.io/tabpilot/tabpilot:v1.2.0
 ```
 
 The image is public — no authentication required for pulling.
@@ -75,7 +75,7 @@ Docker and Podman automatically select the correct variant for your host. No fla
 If you want to build the image yourself — for local development, custom modifications, or air-gapped environments:
 
 ```bash
-git clone https://github.com/gautamkrishnar/tabpilot.git
+git clone https://github.com/tabpilot/tabpilot.git
 cd TabPilot
 
 # Without docs (default)
@@ -136,8 +136,8 @@ Inspect the image metadata:
 
 ```bash
 # View image labels and entrypoint
-docker inspect ghcr.io/gautamkrishnar/tabpilot:latest
+docker inspect ghcr.io/tabpilot/tabpilot:latest
 
 # Check image size (should be ~300-400 MB)
-docker images ghcr.io/gautamkrishnar/tabpilot:latest
+docker images ghcr.io/tabpilot/tabpilot:latest
 ```

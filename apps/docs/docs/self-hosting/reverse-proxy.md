@@ -105,7 +105,7 @@ If you are already running Traefik in your Docker environment, add these labels 
 
 ```yaml
   app:
-    image: ghcr.io/gautamkrishnar/tabpilot:latest
+    image: ghcr.io/tabpilot/tabpilot:latest
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.tabpilot.rule=Host(`tabpilot.example.com`)"
@@ -139,7 +139,7 @@ When running behind a reverse proxy, you can remove the `ports` mapping from the
 
 ```yaml
   app:
-    image: ghcr.io/gautamkrishnar/tabpilot:latest
+    image: ghcr.io/tabpilot/tabpilot:latest
     # Remove or comment out the ports section
     # ports:
     #   - "3000:3000"

@@ -38,7 +38,7 @@ services:
       retries: 5
 
   app:
-    image: ghcr.io/gautamkrishnar/tabpilot:latest
+    image: ghcr.io/tabpilot/tabpilot:latest
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -66,7 +66,7 @@ docker compose up -d
 Clone the repository and build the container image locally:
 
 ```bash
-git clone https://github.com/gautamkrishnar/tabpilot.git
+git clone https://github.com/tabpilot/tabpilot.git
 cd TabPilot
 
 # Using Podman Compose (builds the image automatically)

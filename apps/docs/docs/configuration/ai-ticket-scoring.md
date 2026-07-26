@@ -79,7 +79,7 @@ In a Docker Compose deployment, mount the key file as a read-only volume:
 
 ```yaml
   app:
-    image: ghcr.io/gautamkrishnar/tabpilot:latest
+    image: ghcr.io/tabpilot/tabpilot:latest
     volumes:
       - /path/to/gcp-sa.json:/secrets/gcp-sa.json:ro
     environment:

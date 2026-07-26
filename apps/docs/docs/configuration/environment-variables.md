@@ -70,7 +70,7 @@ VERTEX_AI_LOCATION=us-central1
 
 ```yaml
   app:
-    image: ghcr.io/gautamkrishnar/tabpilot:latest
+    image: ghcr.io/tabpilot/tabpilot:latest
     environment:
       - NODE_ENV=production
       - PORT=3000

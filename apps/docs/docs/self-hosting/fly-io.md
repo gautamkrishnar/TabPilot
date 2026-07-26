@@ -36,7 +36,7 @@ Run `fly launch` from any directory — no local source code or Dockerfile neede
 
 ```bash
 fly launch \
-  --image ghcr.io/gautamkrishnar/tabpilot:latest \
+  --image ghcr.io/tabpilot/tabpilot:latest \
   --name tabpilot \
   --no-deploy
 ```
@@ -54,7 +54,7 @@ app = "tabpilot"
 primary_region = "iad"
 
 [build]
-  image = "ghcr.io/gautamkrishnar/tabpilot:latest"
+  image = "ghcr.io/tabpilot/tabpilot:latest"
 
 [http_service]
   internal_port = 3000
@@ -207,17 +207,17 @@ To pull and deploy a new version of the image:
 fly deploy --app tabpilot
 ```
 
-Fly pulls the latest `ghcr.io/gautamkrishnar/tabpilot:latest`, performs a rolling replace, and only cuts over when the new machine passes health checks.
+Fly pulls the latest `ghcr.io/tabpilot/tabpilot:latest`, performs a rolling replace, and only cuts over when the new machine passes health checks.
 
 :::tip Pin to a specific version
 For reproducible deploys, update `fly.toml` to reference a tagged release instead of `latest`:
 
 ```toml
 [build]
-  image = "ghcr.io/gautamkrishnar/tabpilot:v1.2.0"
+  image = "ghcr.io/tabpilot/tabpilot:v1.2.0"
 ```
 
-Check [GitHub releases](https://github.com/gautamkrishnar/tabpilot/releases) for available tags.
+Check [GitHub releases](https://github.com/tabpilot/tabpilot/releases) for available tags.
 :::
 
 ## Scaling

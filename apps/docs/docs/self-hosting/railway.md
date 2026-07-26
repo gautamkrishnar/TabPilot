@@ -23,7 +23,7 @@ Railway's free tier includes $5 of usage per month. This is typically enough for
 3. Enter the image reference:
 
    ```
-   ghcr.io/gautamkrishnar/tabpilot:latest
+   ghcr.io/tabpilot/tabpilot:latest
    ```
 
 4. Click **Deploy**. Railway will pull the image and provision a service.
@@ -105,7 +105,7 @@ Railway does not automatically pull new versions of `latest` tags. To deploy a n
    ```
 
 :::tip Pin to a specific version
-For predictable production deployments, use a pinned image tag instead of `latest`. Update the Docker image reference in your service settings to a specific tag (e.g., `ghcr.io/gautamkrishnar/tabpilot:v1.2.0`). Check [GitHub releases](https://github.com/gautamkrishnar/tabpilot/releases) for available versions.
+For predictable production deployments, use a pinned image tag instead of `latest`. Update the Docker image reference in your service settings to a specific tag (e.g., `ghcr.io/tabpilot/tabpilot:v1.2.0`). Check [GitHub releases](https://github.com/tabpilot/tabpilot/releases) for available versions.
 :::
 
 ## Viewing Logs

@@ -29,7 +29,7 @@ services:
       retries: 5
 
   app:
-    image: ghcr.io/gautamkrishnar/tabpilot:latest
+    image: ghcr.io/tabpilot/tabpilot:latest
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -71,7 +71,7 @@ Replace `https://your-domain.com` with the actual public URL where Tab Pilot is 
 
 | Field | Value | Purpose |
 |---|---|---|
-| `image` | `ghcr.io/gautamkrishnar/tabpilot:latest` | Pre-built image from GitHub Container Registry |
+| `image` | `ghcr.io/tabpilot/tabpilot:latest` | Pre-built image from GitHub Container Registry |
 | `ports` | `3000:3000` | Exposes the API/frontend on host port 3000 |
 | `depends_on` | `mongodb: condition: service_healthy` | Startup ordering — app waits for Mongo health check to pass |
 | `healthcheck` | HTTP GET `/api/health` | Container orchestrators use this to know when the app is ready |
@@ -180,7 +180,7 @@ For `GOOGLE_APPLICATION_CREDENTIALS`, mount the key file into the container usin
 
 ```yaml
   app:
-    image: ghcr.io/gautamkrishnar/tabpilot:latest
+    image: ghcr.io/tabpilot/tabpilot:latest
     volumes:
       - /path/to/your/gcp-sa.json:/secrets/gcp-sa.json:ro
     environment:
