@@ -5,6 +5,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function safeUrl(url: string): string {
+  try {
+    const { protocol } = new URL(url);
+    return protocol === 'http:' || protocol === 'https:' ? url : '#';
+  } catch {
+    return '#';
+  }
+}
+
 export function formatUrl(url: string): string {
   try {
     const parsed = new URL(url);

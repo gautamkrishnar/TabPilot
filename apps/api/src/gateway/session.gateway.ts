@@ -45,6 +45,15 @@ import type { Server, Socket } from 'socket.io';
 import { ParticipantsService } from '../participants/participants.service';
 import { SessionsService } from '../sessions/sessions.service';
 
+function isValidHttpUrl(url: string): boolean {
+  try {
+    const { protocol } = new URL(url);
+    return protocol === 'http:' || protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 interface SocketMeta {
   sessionId: string;
   participantId?: string;
@@ -589,10 +598,7 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       return;
     }
 
-    try {
-      const parsed = new URL(url);
-      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Invalid URL protocol');
-    } catch {
+    if (!isValidHttpUrl(url)) {
       client.emit(WS_EVENTS.ERROR, {
         message: 'Invalid URL',
         code: 'INVALID_URL',
@@ -673,6 +679,16 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       return;
     }
 
+    // Verify the participant belongs to this session (prevents cross-session deletion)
+    const participantDoc = await this.participantsService.findById(participantId);
+    if (!participantDoc || participantDoc.sessionId !== sessionId) {
+      client.emit(WS_EVENTS.ERROR, {
+        message: 'Unauthorized',
+        code: 'UNAUTHORIZED',
+      } satisfies WsErrorPayload);
+      return;
+    }
+
     // Hard-delete so they don't reappear on reload
     await this.participantsService.deleteParticipant(participantId);
 
@@ -745,6 +761,14 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
     @MessageBody() payload: SubmitVotePayload,
   ) {
     const { sessionId, participantId, value } = payload;
+
+    if (typeof value !== 'string' || value.length === 0 || value.length > 20) {
+      client.emit(WS_EVENTS.ERROR, {
+        message: 'Invalid vote value',
+        code: 'INVALID_VOTE_VALUE',
+      } satisfies WsErrorPayload);
+      return;
+    }
 
     const socketParticipantId = this.socketMeta.get(client.id)?.participantId;
     if (!socketParticipantId || socketParticipantId !== participantId) {

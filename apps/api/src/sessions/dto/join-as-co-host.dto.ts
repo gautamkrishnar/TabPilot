@@ -5,8 +5,10 @@ export class JoinAsCoHostDto {
   @ApiProperty({
     description: 'Secret host invite key obtained from the invite link',
     example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    maxLength: 128,
   })
   @IsString()
+  @MaxLength(128)
   inviteKey: string;
 
   @ApiProperty({ example: 'Alex Rivera', maxLength: 50 })

@@ -814,6 +814,9 @@ describe('SessionGateway', () => {
     it('should delete the participant and broadcast PARTICIPANT_LEFT to the room', async () => {
       const client = makeMockSocket();
       sessionsService.validateHostKey.mockResolvedValue(true);
+      participantsService.findById.mockResolvedValue(
+        makeParticipantDoc({ participantId: 'p-99', sessionId: 'session-1' }),
+      );
 
       await gateway.handleKickParticipant(client, {
         sessionId: 'session-1',
@@ -831,6 +834,9 @@ describe('SessionGateway', () => {
     it('should emit KICKED to the participant socket and clean up socketMeta', async () => {
       const client = makeMockSocket();
       sessionsService.validateHostKey.mockResolvedValue(true);
+      participantsService.findById.mockResolvedValue(
+        makeParticipantDoc({ participantId: 'p-1', sessionId: 'session-1' }),
+      );
 
       // Seed the socketMeta map as if p-1 is connected on socket "socket-p1"
       (gateway as unknown as { socketMeta: Map<string, object> }).socketMeta.set('socket-p1', {
@@ -852,6 +858,45 @@ describe('SessionGateway', () => {
         'socket-p1',
       );
       expect(meta).toBeUndefined();
+    });
+
+    it('should emit Unauthorized error when participant belongs to a different session', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      // Participant belongs to 'session-2', not 'session-1'
+      participantsService.findById.mockResolvedValue(
+        makeParticipantDoc({ participantId: 'p-1', sessionId: 'session-2' }),
+      );
+
+      await gateway.handleKickParticipant(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        participantId: 'p-1',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'UNAUTHORIZED' }),
+      );
+      expect(participantsService.deleteParticipant).not.toHaveBeenCalled();
+    });
+
+    it('should emit Unauthorized error when participant is not found', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+      participantsService.findById.mockResolvedValue(null);
+
+      await gateway.handleKickParticipant(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        participantId: 'nonexistent-p',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'UNAUTHORIZED' }),
+      );
+      expect(participantsService.deleteParticipant).not.toHaveBeenCalled();
     });
   });
 
@@ -883,6 +928,22 @@ describe('SessionGateway', () => {
         sessionId: 'session-1',
         hostKey: 'valid',
         url: 'not-a-url',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'INVALID_URL' }),
+      );
+    });
+
+    it('should emit error for a non-http/https URL scheme (e.g. javascript:)', async () => {
+      const client = makeMockSocket();
+      sessionsService.validateHostKey.mockResolvedValue(true);
+
+      await gateway.handleAddUrl(client, {
+        sessionId: 'session-1',
+        hostKey: 'valid',
+        url: 'javascript:alert(1)',
       });
 
       expect(client.emit).toHaveBeenCalledWith(
@@ -1052,6 +1113,36 @@ describe('SessionGateway', () => {
         participantId: 'p-1',
         isHost: false,
       });
+    });
+
+    it('should emit error if vote value is an empty string', async () => {
+      const client = makeMockSocket();
+
+      await gateway.handleSubmitVote(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        value: '',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'INVALID_VOTE_VALUE' }),
+      );
+    });
+
+    it('should emit error if vote value exceeds 20 characters', async () => {
+      const client = makeMockSocket();
+
+      await gateway.handleSubmitVote(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        value: 'A'.repeat(21),
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'INVALID_VOTE_VALUE' }),
+      );
     });
 
     it('should emit error if session not found', async () => {

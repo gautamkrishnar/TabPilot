@@ -1,8 +1,13 @@
-import * as fs from 'node:fs';
 import { lookup } from 'node:dns/promises';
+import * as fs from 'node:fs';
 import { isIP } from 'node:net';
 import { GoogleGenAI } from '@google/genai';
-import { Injectable, Logger, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import type { TicketScore } from '@tabpilot/shared';
 import type { Model } from 'mongoose';

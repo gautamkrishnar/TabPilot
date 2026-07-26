@@ -26,8 +26,8 @@ jest.mock('node:dns/promises', () => ({
   lookup: jest.fn(),
 }));
 
-import * as nodeFs from 'node:fs';
 import * as nodeDns from 'node:dns/promises';
+import * as nodeFs from 'node:fs';
 
 const mockExistsSync = nodeFs.existsSync as jest.Mock;
 const mockReadFileSync = nodeFs.readFileSync as jest.Mock;
@@ -323,9 +323,11 @@ describe('TicketScoreService', () => {
     });
 
     it('fetches URL, scores via Gemini, and caches with url: prefix', async () => {
-      jest.spyOn(global, 'fetch').mockResolvedValue(
-        new Response(HTML, { status: 200, headers: { 'content-type': 'text/html' } }),
-      );
+      jest
+        .spyOn(global, 'fetch')
+        .mockResolvedValue(
+          new Response(HTML, { status: 200, headers: { 'content-type': 'text/html' } }),
+        );
       mockGenerateContent.mockResolvedValue({ text: JSON.stringify(VALID_RESPONSE) });
 
       const result = await service.scoreByUrl(TEST_URL);
@@ -346,16 +348,20 @@ describe('TicketScoreService', () => {
     });
 
     it('throws UnprocessableEntityException when content-type is not HTML', async () => {
-      jest.spyOn(global, 'fetch').mockResolvedValue(
-        new Response('binary', { status: 200, headers: { 'content-type': 'application/pdf' } }),
-      );
+      jest
+        .spyOn(global, 'fetch')
+        .mockResolvedValue(
+          new Response('binary', { status: 200, headers: { 'content-type': 'application/pdf' } }),
+        );
       await expect(service.scoreByUrl(TEST_URL)).rejects.toThrow(UnprocessableEntityException);
     });
 
     it('throws ServiceUnavailableException when Gemini fails', async () => {
-      jest.spyOn(global, 'fetch').mockResolvedValue(
-        new Response(HTML, { status: 200, headers: { 'content-type': 'text/html' } }),
-      );
+      jest
+        .spyOn(global, 'fetch')
+        .mockResolvedValue(
+          new Response(HTML, { status: 200, headers: { 'content-type': 'text/html' } }),
+        );
       mockGenerateContent.mockRejectedValue(new Error('Gemini down'));
       await expect(service.scoreByUrl(TEST_URL)).rejects.toThrow(ServiceUnavailableException);
     });

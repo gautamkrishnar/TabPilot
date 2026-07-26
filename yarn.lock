@@ -3707,6 +3707,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@fastify/helmet@npm:^13.1.0":
+  version: 13.1.0
+  resolution: "@fastify/helmet@npm:13.1.0"
+  dependencies:
+    fastify-plugin: "npm:^6.0.0"
+    helmet: "npm:^8.0.0"
+  checksum: 10c0/a92d544a66c922f58d3920cbee2df85a8292a7efb9f76898b818adb0ccacdac4de823f5d1bfbab0e653bc7c054130085af6a17a95a4b68264582e2a56c60fbcf
+  languageName: node
+  linkType: hard
+
 "@fastify/merge-json-schemas@npm:^0.2.0":
   version: 0.2.1
   resolution: "@fastify/merge-json-schemas@npm:0.2.1"
@@ -3739,7 +3749,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@fastify/static@npm:^9.1.2":
+"@fastify/static@npm:^9.3.0":
   version: 9.3.0
   resolution: "@fastify/static@npm:9.3.0"
   dependencies:
@@ -6599,7 +6609,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@tabpilot/api@workspace:apps/api"
   dependencies:
-    "@fastify/static": "npm:^9.1.2"
+    "@fastify/helmet": "npm:^13.1.0"
+    "@fastify/static": "npm:^9.3.0"
     "@google/genai": "npm:^2.7.0"
     "@nestjs/cli": "npm:^11.0.0"
     "@nestjs/common": "npm:^11.0.0"
@@ -6716,7 +6727,7 @@ __metadata:
     react: "npm:^19.0.0"
     react-dom: "npm:^19.0.0"
     react-hot-toast: "npm:^2.4.1"
-    react-router-dom: "npm:^7.1.5"
+    react-router-dom: "npm:^7.9.6"
     socket.io-client: "npm:^4.8.1"
     tailwind-merge: "npm:^2.6.0"
     tailwindcss: "npm:^3.4.17"
@@ -13994,6 +14005,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"helmet@npm:^8.0.0":
+  version: 8.3.0
+  resolution: "helmet@npm:8.3.0"
+  checksum: 10c0/69f33ca716ed3ce34f1f2f48ce8618846dfa9c89e3a15d6bccefc882541e8b028517448c6b0e7450792fd23e5580bfe6d410d4f22bedc2a94f6b1188817a059a
+  languageName: node
+  linkType: hard
+
 "history@npm:^4.9.0":
   version: 4.10.1
   resolution: "history@npm:4.10.1"
@@ -20240,7 +20258,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-router-dom@npm:^7.1.5":
+"react-router-dom@npm:^7.9.6":
   version: 7.18.1
   resolution: "react-router-dom@npm:7.18.1"
   dependencies:

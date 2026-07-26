@@ -71,7 +71,7 @@ jobs:
         run: yarn workspace @tabpilot/web preview --port 5173 &
 
       - name: Wait for servers
-        run: npx wait-on http://localhost:3000/api-docs http://localhost:5173 --timeout 60000
+        run: npx wait-on http://localhost:3000/health http://localhost:5173 --timeout 60000
 
       - name: Run E2E tests
         run: yarn test:e2e:github

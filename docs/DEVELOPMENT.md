@@ -177,7 +177,7 @@ VITE_API_URL=http://localhost:3000
 
 ## 6. API Reference
 
-The API is documented with Swagger/OpenAPI. Start the dev server and visit:
+The API is documented with Swagger/OpenAPI. Swagger is only available when `NODE_ENV` is not `production`. Start the dev server and visit:
 
 ```
 http://localhost:3000/api-docs
@@ -291,8 +291,8 @@ Red Hat Universal Base Images are freely redistributable, enterprise-hardened, a
 
 ```bash
 # Run all tests
-yarn test:api                   # Jest (NestJS/API) — 230 tests
-yarn test:web                   # Vitest (React/web) — 273 tests
+yarn test:api                   # Jest (NestJS/API)
+yarn test:web                   # Vitest (React/web)
 
 # Single file
 yarn workspace @tabpilot/api test -- session.gateway.spec.ts

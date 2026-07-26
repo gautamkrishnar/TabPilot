@@ -7,6 +7,7 @@ import {
   getDiceBearUrl,
   getFaviconUrl,
   getJoinUrl,
+  safeUrl,
   truncateUrl,
 } from './utils';
 
@@ -186,6 +187,43 @@ describe('formatTimeAgo()', () => {
   it('returns days ago', () => {
     const date = new Date('2026-03-29T12:00:00Z').toISOString();
     expect(formatTimeAgo(date)).toBe('3d ago');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// safeUrl()
+// ---------------------------------------------------------------------------
+describe('safeUrl()', () => {
+  it('passes through https:// URLs unchanged', () => {
+    expect(safeUrl('https://example.com/path')).toBe('https://example.com/path');
+  });
+
+  it('passes through http:// URLs unchanged', () => {
+    expect(safeUrl('http://localhost:3000')).toBe('http://localhost:3000');
+  });
+
+  it('returns "#" for javascript: URLs', () => {
+    expect(safeUrl('javascript:alert(1)')).toBe('#');
+  });
+
+  it('returns "#" for javascript: URLs with mixed case', () => {
+    expect(safeUrl('JavaScript:alert(1)')).toBe('#');
+  });
+
+  it('returns "#" for data: URLs', () => {
+    expect(safeUrl('data:text/html,<h1>hi</h1>')).toBe('#');
+  });
+
+  it('returns "#" for vbscript: URLs', () => {
+    expect(safeUrl('vbscript:msgbox(1)')).toBe('#');
+  });
+
+  it('returns "#" for malformed / non-URL strings', () => {
+    expect(safeUrl('not a url at all')).toBe('#');
+  });
+
+  it('returns "#" for an empty string', () => {
+    expect(safeUrl('')).toBe('#');
   });
 });
 

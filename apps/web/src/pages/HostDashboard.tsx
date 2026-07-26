@@ -37,7 +37,7 @@ import { useStoryPointOverride } from '@/hooks/useStoryPointOverride';
 import { usePrefetchTicketScores } from '@/hooks/useTicketScore';
 import { useTicketScoreStatus } from '@/hooks/useTicketScoreStatus';
 import { isStoryPointConfigured, parseJiraUrl, updateJiraStoryPoints } from '@/lib/jira';
-import { cn, getFaviconUrl, truncateUrl } from '@/lib/utils';
+import { cn, getFaviconUrl, safeUrl, truncateUrl } from '@/lib/utils';
 import { useSessionStore } from '@/store/sessionStore';
 
 function computeVoteAverage(votes: Record<string, string>): number | null {
@@ -534,7 +534,7 @@ export function HostDashboard() {
                   </p>
                 </div>
                 <a
-                  href={currentUrl}
+                  href={safeUrl(currentUrl)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-shrink-0"

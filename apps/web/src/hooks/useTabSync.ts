@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
+import { safeUrl } from '@/lib/utils';
 import { useSessionStore } from '@/store/sessionStore';
 
 export function useTabSync() {
@@ -28,8 +29,11 @@ export function useTabSync() {
     (url: string) => {
       if (!tabSyncEnabled) return;
 
+      const safe = safeUrl(url);
+      if (safe === '#') return;
+
       if (!syncedWindowRef.current || syncedWindowRef.current.closed) {
-        const win = window.open(url, 'tabpilot_sync');
+        const win = window.open(safe, 'tabpilot_sync');
         if (!win) {
           toast.error('Pop-up blocked. Please allow pop-ups to use tab sync.', {
             duration: 5000,
@@ -42,9 +46,9 @@ export function useTabSync() {
         setSyncedWindow(win);
       } else {
         try {
-          syncedWindowRef.current.location.href = url;
+          syncedWindowRef.current.location.href = safe;
         } catch {
-          const win = window.open(url, 'tabpilot_sync');
+          const win = window.open(safe, 'tabpilot_sync');
           syncedWindowRef.current = win;
           setSyncedWindow(win);
         }

@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, sep } from 'node:path';
+import helmet from '@fastify/helmet';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
@@ -29,6 +30,23 @@ async function bootstrap() {
     new FastifyAdapter(fastifyOptions),
   );
 
+  const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
+  await app.register(helmet, {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: ["'self'", frontendUrl, 'wss:', 'ws:'],
+        fontSrc: ["'self'", 'https:', 'data:'],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  });
+
   app.enableCors({
     origin: process.env.FRONTEND_URL ?? 'http://localhost:5173',
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -40,31 +58,33 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   // ── Swagger / OpenAPI ──────────────────────────────────────────────────────
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Tab Pilot API')
-    .setDescription(
-      'REST API for Tab Pilot — real-time grooming and tab synchronization. ' +
-        'Real-time collaboration is handled over WebSocket (Socket.IO) using the events defined in @tabpilot/shared.',
-    )
-    .setVersion('1.0')
-    .addTag(
-      'sessions',
-      'Session lifecycle — create, query, join as participant, and join as co-host',
-    )
-    .addTag('health', 'Health check endpoint')
-    .build();
+  if (process.env.NODE_ENV !== 'production') {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Tab Pilot API')
+      .setDescription(
+        'REST API for Tab Pilot — real-time grooming and tab synchronization. ' +
+          'Real-time collaboration is handled over WebSocket (Socket.IO) using the events defined in @tabpilot/shared.',
+      )
+      .setVersion('1.0')
+      .addTag(
+        'sessions',
+        'Session lifecycle — create, query, join as participant, and join as co-host',
+      )
+      .addTag('health', 'Health check endpoint')
+      .build();
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  // Available at /api-docs (excluded from /api prefix)
-  SwaggerModule.setup('api-docs', app, document, {
-    customSiteTitle: 'Tab Pilot API Docs',
-    swaggerOptions: {
-      persistAuthorization: true,
-      displayRequestDuration: true,
-      docExpansion: 'list',
-      filter: true,
-    },
-  });
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    // Available at /api-docs (excluded from /api prefix)
+    SwaggerModule.setup('api-docs', app, document, {
+      customSiteTitle: 'Tab Pilot API Docs',
+      swaggerOptions: {
+        persistAuthorization: true,
+        displayRequestDuration: true,
+        docExpansion: 'list',
+        filter: true,
+      },
+    });
+  }
 
   // Serve the React SPA in production (web/dist is placed alongside api/dist)
   const webDistPath = join(__dirname, '..', '..', 'web', 'dist');

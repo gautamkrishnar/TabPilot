@@ -27,7 +27,7 @@ import { TicketScoreBadge } from '@/components/TicketScoreBadge';
 import { useJiraIssue } from '@/hooks/useJiraIssue';
 import { useUrlTitle } from '@/hooks/useUrlTitle';
 import { formatJiraTitle, isStoryPointConfigured, parseJiraUrl } from '@/lib/jira';
-import { cn, formatUrl, getFaviconUrl, truncateUrl } from '@/lib/utils';
+import { cn, formatUrl, getFaviconUrl, safeUrl, truncateUrl } from '@/lib/utils';
 
 // ─── Story point validation ───────────────────────────────────────────────────
 
@@ -423,7 +423,7 @@ function UrlRow({
         >
           {isFuture && (
             <a
-              href={url}
+              href={safeUrl(url)}
               target="_blank"
               rel="noopener noreferrer"
               className="p-1 rounded text-zinc-500 dark:text-zinc-600 hover:text-zinc-700 dark:hover:text-zinc-300 opacity-0 group-hover:opacity-100 transition-all"

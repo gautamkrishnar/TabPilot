@@ -18,7 +18,7 @@ import { useTabSync } from '@/hooks/useTabSync';
 import { usePrefetchTicketScores } from '@/hooks/useTicketScore';
 import { useTicketScoreStatus } from '@/hooks/useTicketScoreStatus';
 import { getSocket } from '@/lib/socket';
-import { cn, formatUrl, getFaviconUrl, truncateUrl } from '@/lib/utils';
+import { cn, formatUrl, getFaviconUrl, safeUrl, truncateUrl } from '@/lib/utils';
 import { useSessionStore } from '@/store/sessionStore';
 
 const VOTING_VALUES = ['1', '2', '3', '5', '8', '13', '21', '?', '☕'];
@@ -305,7 +305,12 @@ export function ParticipantView() {
                     </span>
                   </div>
 
-                  <a href={currentUrl} target="_blank" rel="noopener noreferrer" className="w-full">
+                  <a
+                    href={safeUrl(currentUrl)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full"
+                  >
                     <Button
                       variant="outline"
                       className="w-full border-zinc-300 dark:border-zinc-700 gap-2"
