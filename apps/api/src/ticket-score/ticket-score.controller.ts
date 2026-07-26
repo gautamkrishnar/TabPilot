@@ -1,4 +1,4 @@
-import { Controller, Delete, Get, HttpCode, Param, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Delete, Get, HttpCode, Param, Query } from '@nestjs/common';
 import {
   ApiNoContentResponse,
   ApiOperation,
@@ -22,8 +22,27 @@ export class TicketScoreController {
   @ApiResponse({ status: 200, schema: { example: { configured: true } } })
   status() {
     return {
-      configured: this.ticketScoreService.isConfigured && this.jiraService.isConfigured,
+      configured: this.ticketScoreService.isConfigured,
     };
+  }
+
+  @Get('url')
+  @ApiOperation({ summary: 'Score any public URL for content quality' })
+  @ApiResponse({ status: 200, description: 'URL score returned.' })
+  @ApiResponse({ status: 422, description: 'URL is not crawlable.' })
+  @ApiResponse({ status: 503, description: 'Scoring not configured.' })
+  async scoreByUrl(@Query('url') url: string) {
+    if (!url) throw new BadRequestException('url query param is required');
+    return this.ticketScoreService.scoreByUrl(url);
+  }
+
+  @Delete('url')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Clear cached score for a URL (triggers re-score on next GET)' })
+  @ApiNoContentResponse({ description: 'Cache cleared.' })
+  async clearScoreByUrl(@Query('url') url: string) {
+    if (!url) throw new BadRequestException('url query param is required');
+    await this.ticketScoreService.clearCacheByUrl(url);
   }
 
   @Get(':key')

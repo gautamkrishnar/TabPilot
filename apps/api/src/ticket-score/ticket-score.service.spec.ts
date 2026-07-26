@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { ServiceUnavailableException } from '@nestjs/common';
+import { ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { TicketScoreDoc } from './ticket-score.schema';
@@ -22,10 +22,16 @@ jest.mock('node:fs', () => {
   };
 });
 
+jest.mock('node:dns/promises', () => ({
+  lookup: jest.fn(),
+}));
+
 import * as nodeFs from 'node:fs';
+import * as nodeDns from 'node:dns/promises';
 
 const mockExistsSync = nodeFs.existsSync as jest.Mock;
 const mockReadFileSync = nodeFs.readFileSync as jest.Mock;
+const mockLookup = nodeDns.lookup as jest.Mock;
 
 const VALID_RESPONSE = {
   overall: 72,
@@ -228,6 +234,136 @@ describe('TicketScoreService', () => {
       mockGenerateContent.mockResolvedValue({ text: fenced });
       const result = await service.scoreTicket('PROJ-9', 'Summary', 'Desc');
       expect(result).toEqual(VALID_RESPONSE);
+    });
+  });
+
+  describe('scoreByUrl()', () => {
+    const TEST_URL = 'https://github.com/expressjs/express/issues/7350';
+    const HTML = `<html><head><title>Fix bug</title></head><body><p>This is the issue body.</p></body></html>`;
+    const PUBLIC_IP = [{ address: '140.82.114.4', family: 4 }];
+
+    beforeEach(() => {
+      process.env.GOOGLE_APPLICATION_CREDENTIALS = '/valid/sa.json';
+      mockExistsSync.mockReturnValue(true);
+      mockReadFileSync.mockReturnValue(JSON.stringify({ project_id: 'test-project' }));
+      chainableFindOne(null);
+      mockScoreModel.create.mockResolvedValue({});
+      mockLookup.mockResolvedValue(PUBLIC_IP);
+    });
+
+    afterEach(() => {
+      delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
+      jest.restoreAllMocks();
+    });
+
+    // ── URL validation (assertSafeUrl) ──────────────────────────────────────
+
+    it('throws UnprocessableEntityException for non-https scheme (http)', async () => {
+      await expect(
+        service.scoreByUrl('http://github.com/expressjs/express/issues/7350'),
+      ).rejects.toThrow(UnprocessableEntityException);
+    });
+
+    it('throws UnprocessableEntityException for file:// scheme', async () => {
+      await expect(service.scoreByUrl('file:///etc/passwd')).rejects.toThrow(
+        UnprocessableEntityException,
+      );
+    });
+
+    it('throws UnprocessableEntityException when hostname resolves to private IPv4', async () => {
+      mockLookup.mockResolvedValue([{ address: '192.168.1.1', family: 4 }]);
+      await expect(service.scoreByUrl('https://internal.example.com/')).rejects.toThrow(
+        UnprocessableEntityException,
+      );
+    });
+
+    it('throws UnprocessableEntityException when hostname resolves to loopback', async () => {
+      mockLookup.mockResolvedValue([{ address: '127.0.0.1', family: 4 }]);
+      await expect(service.scoreByUrl('https://localhost/')).rejects.toThrow(
+        UnprocessableEntityException,
+      );
+    });
+
+    it('throws UnprocessableEntityException when hostname resolves to link-local (cloud metadata)', async () => {
+      mockLookup.mockResolvedValue([{ address: '169.254.169.254', family: 4 }]);
+      await expect(service.scoreByUrl('https://metadata.aws.internal/')).rejects.toThrow(
+        UnprocessableEntityException,
+      );
+    });
+
+    it('throws UnprocessableEntityException for direct private IP in URL', async () => {
+      await expect(service.scoreByUrl('https://192.168.1.1/')).rejects.toThrow(
+        UnprocessableEntityException,
+      );
+    });
+
+    it('throws UnprocessableEntityException for direct loopback IP in URL', async () => {
+      await expect(service.scoreByUrl('https://127.0.0.1/')).rejects.toThrow(
+        UnprocessableEntityException,
+      );
+    });
+
+    it('throws UnprocessableEntityException when DNS lookup fails', async () => {
+      mockLookup.mockRejectedValue(new Error('ENOTFOUND'));
+      await expect(service.scoreByUrl('https://notareal.domain/')).rejects.toThrow(
+        UnprocessableEntityException,
+      );
+    });
+
+    // ── Fetch / Gemini happy path ────────────────────────────────────────────
+
+    it('returns cached result without calling fetch or Gemini', async () => {
+      chainableFindOne({ issueKey: `url:${TEST_URL}`, ...VALID_RESPONSE, scoredAt: new Date() });
+      const fetchSpy = jest.spyOn(global, 'fetch');
+
+      const result = await service.scoreByUrl(TEST_URL);
+      expect(result).toEqual(VALID_RESPONSE);
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(mockGenerateContent).not.toHaveBeenCalled();
+    });
+
+    it('fetches URL, scores via Gemini, and caches with url: prefix', async () => {
+      jest.spyOn(global, 'fetch').mockResolvedValue(
+        new Response(HTML, { status: 200, headers: { 'content-type': 'text/html' } }),
+      );
+      mockGenerateContent.mockResolvedValue({ text: JSON.stringify(VALID_RESPONSE) });
+
+      const result = await service.scoreByUrl(TEST_URL);
+      expect(result).toEqual(VALID_RESPONSE);
+      expect(mockScoreModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({ issueKey: `url:${TEST_URL}`, overall: 72 }),
+      );
+    });
+
+    it('throws UnprocessableEntityException when fetch fails (network error)', async () => {
+      jest.spyOn(global, 'fetch').mockRejectedValue(new Error('Network error'));
+      await expect(service.scoreByUrl(TEST_URL)).rejects.toThrow(UnprocessableEntityException);
+    });
+
+    it('throws UnprocessableEntityException when URL returns non-2xx', async () => {
+      jest.spyOn(global, 'fetch').mockResolvedValue(new Response('Not Found', { status: 404 }));
+      await expect(service.scoreByUrl(TEST_URL)).rejects.toThrow(UnprocessableEntityException);
+    });
+
+    it('throws UnprocessableEntityException when content-type is not HTML', async () => {
+      jest.spyOn(global, 'fetch').mockResolvedValue(
+        new Response('binary', { status: 200, headers: { 'content-type': 'application/pdf' } }),
+      );
+      await expect(service.scoreByUrl(TEST_URL)).rejects.toThrow(UnprocessableEntityException);
+    });
+
+    it('throws ServiceUnavailableException when Gemini fails', async () => {
+      jest.spyOn(global, 'fetch').mockResolvedValue(
+        new Response(HTML, { status: 200, headers: { 'content-type': 'text/html' } }),
+      );
+      mockGenerateContent.mockRejectedValue(new Error('Gemini down'));
+      await expect(service.scoreByUrl(TEST_URL)).rejects.toThrow(ServiceUnavailableException);
+    });
+
+    it('clearCacheByUrl deletes with url: prefix key', async () => {
+      chainableDeleteOne();
+      await service.clearCacheByUrl(TEST_URL);
+      expect(mockScoreModel.deleteOne).toHaveBeenCalledWith({ issueKey: `url:${TEST_URL}` });
     });
   });
 });

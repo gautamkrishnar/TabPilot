@@ -251,13 +251,16 @@ export function TicketScoreBreakdown({ url, canRegenerate }: TicketScoreBreakdow
 
   async function handleRegenerate() {
     const { parseJiraUrl } = await import('@/lib/jira');
+    const { default: apiClient } = await import('@/lib/api');
     const info = parseJiraUrl(url);
-    if (!info) return;
 
     setRegenerating(true);
     try {
-      const { default: apiClient } = await import('@/lib/api');
-      await apiClient.delete(`/ticket-score/${info.key}`);
+      if (info) {
+        await apiClient.delete(`/ticket-score/${info.key}`);
+      } else {
+        await apiClient.delete('/ticket-score/url', { params: { url } });
+      }
       await refetch();
     } finally {
       setRegenerating(false);
