@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import type { Participant } from '@tabpilot/shared';
@@ -12,7 +13,12 @@ export class ParticipantsService {
     private readonly participantModel: Model<ParticipantDocument>,
   ) {}
 
-  async create(sessionId: string, name: string, email?: string): Promise<Participant> {
+  async create(
+    sessionId: string,
+    name: string,
+    email?: string,
+    participantSecretHash?: string,
+  ): Promise<Participant> {
     const participantId = uuidv4();
     const avatarUrl = `https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${participantId}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
 
@@ -23,9 +29,17 @@ export class ParticipantsService {
       email,
       avatarUrl,
       isOnline: false,
+      participantSecretHash,
     });
 
     return this.toParticipantDto(doc);
+  }
+
+  async verifyParticipantSecret(participantId: string, secret: string): Promise<boolean> {
+    const participant = await this.findById(participantId);
+    if (!participant?.participantSecretHash) return false;
+    const hash = createHash('sha256').update(secret).digest('hex');
+    return hash === participant.participantSecretHash;
   }
 
   async findById(participantId: string): Promise<ParticipantDocument | null> {

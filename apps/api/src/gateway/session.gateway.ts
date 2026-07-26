@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { ValidationPipe } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -9,22 +10,14 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import {
-  type HostAddUrlPayload,
-  type HostEndSessionPayload,
-  type HostGroomingCompletePayload,
-  type HostKickParticipantPayload,
   type HostNavigatePayload,
   type HostOpenUrlPayload,
   type HostRemoveUrlPayload,
   type HostReorderUrlsPayload,
   type HostResetSavedVotePayload,
-  type HostResetVotesPayload,
-  type HostRevealVotesPayload,
   type HostSetSavedVotePayload,
-  type HostStartSessionPayload,
   type HostToggleLockPayload,
   type HostToggleVotingPayload,
-  type JoinSessionPayload,
   type NavigateToPayload,
   type OpenTabPayload,
   type ParticipantJoinedPayload,
@@ -33,9 +26,7 @@ import {
   type SavedVotesUpdatedPayload,
   type SessionStartedPayload,
   type SessionStatePayload,
-  type SubmitVotePayload,
   type UpdateHostProfilePayload,
-  type UpdateParticipantProfilePayload,
   type VotesRevealedPayload,
   type VoteUpdatePayload,
   WS_EVENTS,
@@ -44,7 +35,16 @@ import {
 import type { Server, Socket } from 'socket.io';
 import { ParticipantsService } from '../participants/participants.service';
 import { SessionsService } from '../sessions/sessions.service';
+import {
+  HostActionDto,
+  HostAddUrlDto,
+  JoinSessionDto,
+  KickParticipantDto,
+  SubmitVoteDto,
+  UpdateParticipantProfileDto,
+} from './ws.dto';
 
+// biome-ignore lint/correctness/noUnusedVariables: utility kept for future use
 function isValidHttpUrl(url: string): boolean {
   try {
     const { protocol } = new URL(url);
@@ -320,9 +320,9 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage(WS_EVENTS.JOIN_SESSION)
   async handleJoinSession(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: JoinSessionPayload,
+    @MessageBody(new ValidationPipe({ whitelist: true, transform: true })) payload: JoinSessionDto,
   ) {
-    const { sessionId, participantId, hostKey } = payload;
+    const { sessionId, participantId, hostKey, participantSecret } = payload;
 
     const sessionDoc = await this.sessionsService.findById(sessionId);
     if (!sessionDoc) {
@@ -341,6 +341,28 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       sessionDoc.isLocked,
     );
     if (isHost === null) return;
+
+    // Participants reconnecting with a participantId must prove ownership via the secret
+    if (participantId && !isHost) {
+      if (!participantSecret) {
+        client.emit(WS_EVENTS.ERROR, {
+          message: 'Invalid participant credentials',
+          code: 'UNAUTHORIZED',
+        } satisfies WsErrorPayload);
+        return;
+      }
+      const valid = await this.participantsService.verifyParticipantSecret(
+        participantId,
+        participantSecret,
+      );
+      if (!valid) {
+        client.emit(WS_EVENTS.ERROR, {
+          message: 'Invalid participant credentials',
+          code: 'UNAUTHORIZED',
+        } satisfies WsErrorPayload);
+        return;
+      }
+    }
 
     this.socketMeta.set(client.id, {
       sessionId,
@@ -390,7 +412,7 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage(WS_EVENTS.HOST_START_SESSION)
   async handleStartSession(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: HostStartSessionPayload,
+    @MessageBody(new ValidationPipe({ whitelist: true, transform: true })) payload: HostActionDto,
   ) {
     const { sessionId, hostKey } = payload;
 
@@ -545,7 +567,7 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage(WS_EVENTS.HOST_END_SESSION)
   async handleEndSession(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: HostEndSessionPayload,
+    @MessageBody(new ValidationPipe({ whitelist: true, transform: true })) payload: HostActionDto,
   ) {
     const { sessionId, hostKey } = payload;
 
@@ -568,7 +590,7 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage(WS_EVENTS.GROOMING_COMPLETE)
   async handleGroomingComplete(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: HostGroomingCompletePayload,
+    @MessageBody(new ValidationPipe({ whitelist: true, transform: true })) payload: HostActionDto,
   ) {
     const { sessionId, hostKey } = payload;
 
@@ -586,7 +608,10 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
   }
 
   @SubscribeMessage(WS_EVENTS.HOST_ADD_URL)
-  async handleAddUrl(@ConnectedSocket() client: Socket, @MessageBody() payload: HostAddUrlPayload) {
+  async handleAddUrl(
+    @ConnectedSocket() client: Socket,
+    @MessageBody(new ValidationPipe({ whitelist: true, transform: true })) payload: HostAddUrlDto,
+  ) {
     const { sessionId, hostKey, url } = payload;
 
     const isValid = await this.sessionsService.validateHostKey(sessionId, hostKey);
@@ -594,14 +619,6 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       client.emit(WS_EVENTS.ERROR, {
         message: 'Unauthorized',
         code: 'UNAUTHORIZED',
-      } satisfies WsErrorPayload);
-      return;
-    }
-
-    if (!isValidHttpUrl(url)) {
-      client.emit(WS_EVENTS.ERROR, {
-        message: 'Invalid URL',
-        code: 'INVALID_URL',
       } satisfies WsErrorPayload);
       return;
     }
@@ -666,7 +683,8 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage(WS_EVENTS.HOST_KICK_PARTICIPANT)
   async handleKickParticipant(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: HostKickParticipantPayload,
+    @MessageBody(new ValidationPipe({ whitelist: true, transform: true }))
+    payload: KickParticipantDto,
   ) {
     const { sessionId, hostKey, participantId } = payload;
 
@@ -758,17 +776,9 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage(WS_EVENTS.SUBMIT_VOTE)
   async handleSubmitVote(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: SubmitVotePayload,
+    @MessageBody(new ValidationPipe({ whitelist: true, transform: true })) payload: SubmitVoteDto,
   ) {
     const { sessionId, participantId, value } = payload;
-
-    if (typeof value !== 'string' || value.length === 0 || value.length > 20) {
-      client.emit(WS_EVENTS.ERROR, {
-        message: 'Invalid vote value',
-        code: 'INVALID_VOTE_VALUE',
-      } satisfies WsErrorPayload);
-      return;
-    }
 
     const socketParticipantId = this.socketMeta.get(client.id)?.participantId;
     if (!socketParticipantId || socketParticipantId !== participantId) {
@@ -837,7 +847,7 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage(WS_EVENTS.HOST_REVEAL_VOTES)
   async handleRevealVotes(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: HostRevealVotesPayload,
+    @MessageBody(new ValidationPipe({ whitelist: true, transform: true })) payload: HostActionDto,
   ) {
     const { sessionId, hostKey } = payload;
 
@@ -884,7 +894,8 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage(WS_EVENTS.UPDATE_PARTICIPANT_PROFILE)
   async handleUpdateParticipantProfile(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: UpdateParticipantProfilePayload,
+    @MessageBody(new ValidationPipe({ whitelist: true, transform: true }))
+    payload: UpdateParticipantProfileDto,
   ) {
     const { sessionId, participantId, name, email } = payload;
 
@@ -955,7 +966,7 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage(WS_EVENTS.HOST_RESET_VOTES)
   async handleResetVotes(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: HostResetVotesPayload,
+    @MessageBody(new ValidationPipe({ whitelist: true, transform: true })) payload: HostActionDto,
   ) {
     const { sessionId, hostKey } = payload;
 

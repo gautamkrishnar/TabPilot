@@ -62,6 +62,7 @@ export function useSocket({
     setRevealedVotes,
     setSavedVotesMap,
     reset,
+    participantSecret,
   } = useSessionStore();
 
   useEffect(() => {
@@ -81,6 +82,7 @@ export function useSocket({
           sessionId,
           ...(hostKey ? { hostKey } : {}),
           ...(participantId ? { participantId } : {}),
+          ...(participantId && participantSecret ? { participantSecret } : {}),
         });
       }
     };
@@ -233,6 +235,7 @@ export function useSocket({
   }, [
     sessionId,
     participantId,
+    participantSecret,
     hostKey,
     setSession,
     setParticipants,

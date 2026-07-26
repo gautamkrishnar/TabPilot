@@ -215,6 +215,64 @@ describe('saveParticipantId() / loadParticipantId()', () => {
   });
 });
 
+describe('saveParticipantSecret() / loadParticipantSecret()', () => {
+  it('persists secret under the correct localStorage key', () => {
+    useSessionStore.getState().saveParticipantSecret('session-abc', 'my-secret');
+    expect(localStorage.getItem('tabpilot_participant_secret_session-abc')).toBe('my-secret');
+  });
+
+  it('loadParticipantSecret returns the stored secret', () => {
+    useSessionStore.getState().saveParticipantSecret('session-abc', 'my-secret');
+    const loaded = useSessionStore.getState().loadParticipantSecret('session-abc');
+    expect(loaded).toBe('my-secret');
+  });
+
+  it('loadParticipantSecret returns null for unknown session', () => {
+    const loaded = useSessionStore.getState().loadParticipantSecret('unknown-session');
+    expect(loaded).toBeNull();
+  });
+});
+
+describe('participantSecret state', () => {
+  it('starts as null', () => {
+    expect(useSessionStore.getState().participantSecret).toBeNull();
+  });
+
+  it('setParticipantSecret updates the store', () => {
+    useSessionStore.getState().setParticipantSecret('my-secret');
+    expect(useSessionStore.getState().participantSecret).toBe('my-secret');
+  });
+
+  it('reset() clears participantSecret', () => {
+    useSessionStore.getState().setParticipantSecret('my-secret');
+    useSessionStore.getState().reset();
+    expect(useSessionStore.getState().participantSecret).toBeNull();
+  });
+});
+
+describe('removeSavedSession() clears participant secret', () => {
+  it('removes the secret key from localStorage', () => {
+    const session = {
+      id: 'sess-1',
+      name: 'Test',
+      joinCode: 'ABC123',
+      hostName: 'Host',
+      coHosts: [],
+      urls: ['https://example.com'],
+      currentIndex: 0,
+      state: 'active' as const,
+      votingEnabled: false,
+      isLocked: false,
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+    };
+    useSessionStore.getState().saveParticipantSession(session, 'p-1');
+    useSessionStore.getState().saveParticipantSecret('sess-1', 'the-secret');
+    useSessionStore.getState().removeSavedSession('sess-1');
+    expect(useSessionStore.getState().loadParticipantSecret('sess-1')).toBeNull();
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Voting state — setVotedParticipantIds / setRevealedVotes / setSavedVotesMap
 // ---------------------------------------------------------------------------

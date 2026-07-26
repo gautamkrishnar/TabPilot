@@ -58,6 +58,8 @@ interface RevealedVotesPanelProps {
   readonly hasExtraFields: boolean;
   readonly sendExtraFields: boolean;
   readonly onSendExtraFieldsChange: (v: boolean) => void;
+  readonly hostKey: string | null;
+  readonly sessionId: string | undefined;
 }
 
 function RevealedVotesPanel({
@@ -71,6 +73,8 @@ function RevealedVotesPanel({
   hasExtraFields,
   sendExtraFields,
   onSendExtraFieldsChange,
+  hostKey,
+  sessionId,
 }: RevealedVotesPanelProps) {
   const avg = Object.keys(revealedVotes).length > 0 ? computeVoteAverage(revealedVotes) : null;
   const spError = validateStoryPoint(storyPointOverride.trim());
@@ -83,9 +87,20 @@ function RevealedVotesPanel({
 
   async function saveToJira(val: string) {
     if (!jiraInfo) return;
+    if (!hostKey || !sessionId) {
+      toast.error('No host credentials available.');
+      return;
+    }
     onSaveVote(val);
     try {
-      await updateJiraStoryPoints(jiraInfo.key, Number(val), jiraInfo.baseUrl, !sendExtraFields);
+      await updateJiraStoryPoints(
+        jiraInfo.key,
+        Number(val),
+        hostKey,
+        sessionId,
+        jiraInfo.baseUrl,
+        !sendExtraFields,
+      );
       toast.success(`Story point ${val} saved to ${jiraInfo.key}`);
     } catch {
       toast.error('Failed to update Jira story point. Check Jira integration settings.');
@@ -563,6 +578,8 @@ export function HostDashboard() {
                   hasExtraFields={hasExtraFields}
                   sendExtraFields={sendExtraFields}
                   onSendExtraFieldsChange={setSendExtraFields}
+                  hostKey={hostKey}
+                  sessionId={sessionId}
                 />
               )}
 

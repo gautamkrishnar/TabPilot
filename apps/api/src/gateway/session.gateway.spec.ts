@@ -136,6 +136,7 @@ function makeMockParticipantsService(): jest.Mocked<ParticipantsService> {
     toParticipantDto: jest.fn(),
     deleteParticipant: jest.fn().mockResolvedValue(undefined),
     updateProfile: jest.fn(),
+    verifyParticipantSecret: jest.fn().mockResolvedValue(true),
   } as unknown as jest.Mocked<ParticipantsService>;
 }
 
@@ -193,6 +194,11 @@ describe('SessionGateway', () => {
       sessionsService.validateHostKey.mockResolvedValue(false);
       sessionsService.toSessionDto.mockReturnValue(makeSessionDto({ state: 'ended' }));
       participantsService.findBySession.mockResolvedValue([]);
+      participantsService.findById.mockResolvedValue(
+        makeParticipantDoc({ sessionId: 'session-1' }),
+      );
+      participantsService.updateSocketId.mockResolvedValue(makeParticipantDoc());
+      participantsService.updateOnlineStatus.mockResolvedValue(makeParticipantDoc());
 
       // A participant trying to join an ended session still receives session_state
       // with ended state; the gateway does not emit an explicit "ended" error.
@@ -200,12 +206,48 @@ describe('SessionGateway', () => {
       await gateway.handleJoinSession(client, {
         sessionId: 'session-1',
         participantId: 'p-1',
+        participantSecret: 'test-secret',
       });
 
       const calls = (client.emit as jest.Mock).mock.calls;
       const sessionStateCall = calls.find(([event]: [string]) => event === WS_EVENTS.SESSION_STATE);
       expect(sessionStateCall).toBeDefined();
       expect(sessionStateCall[1].session.state).toBe('ended');
+    });
+
+    it('should emit UNAUTHORIZED error when participantId is provided without participantSecret', async () => {
+      const client = makeMockSocket();
+      sessionsService.findById.mockResolvedValue(makeSessionDoc());
+      sessionsService.validateHostKey.mockResolvedValue(false);
+
+      await gateway.handleJoinSession(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        // no participantSecret
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'UNAUTHORIZED' }),
+      );
+    });
+
+    it('should emit UNAUTHORIZED error when participantSecret is invalid', async () => {
+      const client = makeMockSocket();
+      sessionsService.findById.mockResolvedValue(makeSessionDoc());
+      sessionsService.validateHostKey.mockResolvedValue(false);
+      participantsService.verifyParticipantSecret.mockResolvedValue(false);
+
+      await gateway.handleJoinSession(client, {
+        sessionId: 'session-1',
+        participantId: 'p-1',
+        participantSecret: 'wrong-secret',
+      });
+
+      expect(client.emit).toHaveBeenCalledWith(
+        WS_EVENTS.ERROR,
+        expect.objectContaining({ code: 'UNAUTHORIZED' }),
+      );
     });
 
     it('should emit error if host key is invalid', async () => {
@@ -259,6 +301,7 @@ describe('SessionGateway', () => {
       await gateway.handleJoinSession(client, {
         sessionId: 'session-1',
         participantId: 'p-1',
+        participantSecret: 'test-secret',
       });
 
       // server.to(sessionId).emit should have been called with PARTICIPANT_ONLINE
@@ -666,6 +709,7 @@ describe('SessionGateway', () => {
       await gateway.handleJoinSession(client, {
         sessionId: 'session-1',
         participantId: 'p-1',
+        participantSecret: 'test-secret',
       });
 
       expect(client.emit).toHaveBeenCalledWith(
@@ -920,38 +964,6 @@ describe('SessionGateway', () => {
       );
     });
 
-    it('should emit error for an invalid URL', async () => {
-      const client = makeMockSocket();
-      sessionsService.validateHostKey.mockResolvedValue(true);
-
-      await gateway.handleAddUrl(client, {
-        sessionId: 'session-1',
-        hostKey: 'valid',
-        url: 'not-a-url',
-      });
-
-      expect(client.emit).toHaveBeenCalledWith(
-        WS_EVENTS.ERROR,
-        expect.objectContaining({ code: 'INVALID_URL' }),
-      );
-    });
-
-    it('should emit error for a non-http/https URL scheme (e.g. javascript:)', async () => {
-      const client = makeMockSocket();
-      sessionsService.validateHostKey.mockResolvedValue(true);
-
-      await gateway.handleAddUrl(client, {
-        sessionId: 'session-1',
-        hostKey: 'valid',
-        url: 'javascript:alert(1)',
-      });
-
-      expect(client.emit).toHaveBeenCalledWith(
-        WS_EVENTS.ERROR,
-        expect.objectContaining({ code: 'INVALID_URL' }),
-      );
-    });
-
     it('should broadcast updated session_state after adding a URL', async () => {
       const client = makeMockSocket();
       const updatedDoc = makeSessionDoc({
@@ -1113,36 +1125,6 @@ describe('SessionGateway', () => {
         participantId: 'p-1',
         isHost: false,
       });
-    });
-
-    it('should emit error if vote value is an empty string', async () => {
-      const client = makeMockSocket();
-
-      await gateway.handleSubmitVote(client, {
-        sessionId: 'session-1',
-        participantId: 'p-1',
-        value: '',
-      });
-
-      expect(client.emit).toHaveBeenCalledWith(
-        WS_EVENTS.ERROR,
-        expect.objectContaining({ code: 'INVALID_VOTE_VALUE' }),
-      );
-    });
-
-    it('should emit error if vote value exceeds 20 characters', async () => {
-      const client = makeMockSocket();
-
-      await gateway.handleSubmitVote(client, {
-        sessionId: 'session-1',
-        participantId: 'p-1',
-        value: 'A'.repeat(21),
-      });
-
-      expect(client.emit).toHaveBeenCalledWith(
-        WS_EVENTS.ERROR,
-        expect.objectContaining({ code: 'INVALID_VOTE_VALUE' }),
-      );
     });
 
     it('should emit error if session not found', async () => {

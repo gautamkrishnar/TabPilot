@@ -198,10 +198,16 @@ export function useHostActions({
         toast.error('No numeric story point to copy, or not a Jira URL.');
         return;
       }
+      if (!hostKey || !sessionId) {
+        toast.error('No host credentials available.');
+        return;
+      }
       try {
         await updateJiraStoryPoints(
           jiraInfo.key,
           Number(points),
+          hostKey,
+          sessionId,
           jiraInfo.baseUrl,
           !sendExtraFields,
         );
@@ -210,7 +216,7 @@ export function useHostActions({
         toast.error('Failed to update Jira story point. Check Jira integration settings.');
       }
     },
-    [session, savedVotesMap, storyPointProjects, sendExtraFields],
+    [session, savedVotesMap, storyPointProjects, sendExtraFields, hostKey, sessionId],
   );
 
   return {

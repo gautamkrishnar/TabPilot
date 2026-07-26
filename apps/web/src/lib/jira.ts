@@ -80,8 +80,16 @@ export function formatJiraTitle(issue: JiraIssue): string {
 export async function updateJiraStoryPoints(
   key: string,
   points: number,
+  hostKey: string,
+  sessionId: string,
   baseUrl?: string,
   skipExtraFields = true,
 ): Promise<void> {
-  await apiClient.patch(`/jira/issue/${key}/story-points`, { points, baseUrl, skipExtraFields });
+  await apiClient.patch(`/jira/issue/${key}/story-points`, {
+    points,
+    hostKey,
+    sessionId,
+    baseUrl,
+    skipExtraFields,
+  });
 }

@@ -1,3 +1,4 @@
+import { createHash, randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   Body,
@@ -136,11 +137,14 @@ export class SessionsController {
       }
     }
 
-    const participant = await this.participantsService.create(id, dto.name, dto.email);
+    const secret = randomUUID();
+    const hash = createHash('sha256').update(secret).digest('hex');
+    const participant = await this.participantsService.create(id, dto.name, dto.email, hash);
 
     return {
       session: this.sessionsService.toSessionDto(sessionDoc),
       participant,
+      participantSecret: secret,
     };
   }
 

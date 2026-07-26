@@ -43,6 +43,7 @@ interface SessionStore {
   session: Session | null;
   participants: Participant[];
   participantId: string | null;
+  participantSecret: string | null;
   isHost: boolean;
   hostKey: string | null;
   tabSyncEnabled: boolean;
@@ -62,6 +63,7 @@ interface SessionStore {
   removeParticipant: (participantId: string) => void;
   updateParticipant: (participantId: string, updates: Partial<Participant>) => void;
   setParticipantId: (id: string | null) => void;
+  setParticipantSecret: (secret: string | null) => void;
   setIsHost: (isHost: boolean) => void;
   setHostKey: (hostKey: string | null) => void;
   setTabSyncEnabled: (enabled: boolean) => void;
@@ -78,6 +80,8 @@ interface SessionStore {
   loadHostInviteKey: (sessionId: string) => string | null;
   saveParticipantId: (sessionId: string, participantId: string) => void;
   loadParticipantId: (sessionId: string) => string | null;
+  saveParticipantSecret: (sessionId: string, secret: string) => void;
+  loadParticipantSecret: (sessionId: string) => string | null;
 
   getSavedSessions: () => SavedSession[];
   saveHostSession: (session: Session, hostKey: string, hostInviteKey?: string) => void;
@@ -92,6 +96,7 @@ const initialState = {
   session: null,
   participants: [],
   participantId: null,
+  participantSecret: null,
   isHost: false,
   hostKey: null,
   tabSyncEnabled: false,
@@ -135,6 +140,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     })),
 
   setParticipantId: (id) => set({ participantId: id }),
+  setParticipantSecret: (secret) => set({ participantSecret: secret }),
   setIsHost: (isHost) => set({ isHost }),
   setHostKey: (hostKey) => set({ hostKey }),
   setTabSyncEnabled: (enabled) => set({ tabSyncEnabled: enabled }),
@@ -195,6 +201,22 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     }
   },
 
+  saveParticipantSecret: (sessionId, secret) => {
+    try {
+      localStorage.setItem(`tabpilot_participant_secret_${sessionId}`, secret);
+    } catch {
+      // ignore
+    }
+  },
+
+  loadParticipantSecret: (sessionId) => {
+    try {
+      return localStorage.getItem(`tabpilot_participant_secret_${sessionId}`);
+    } catch {
+      return null;
+    }
+  },
+
   // ── Saved sessions list ───────────────────────────────────────────────────
 
   getSavedSessions: () => readSavedSessions(),
@@ -240,6 +262,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       localStorage.removeItem(`tabpilot_host_${sessionId}`);
       localStorage.removeItem(`tabpilot_host_invite_${sessionId}`);
       localStorage.removeItem(`tabpilot_participant_${sessionId}`);
+      localStorage.removeItem(`tabpilot_participant_secret_${sessionId}`);
     } catch {
       // ignore
     }

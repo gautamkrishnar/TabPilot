@@ -22,6 +22,7 @@
     "@nestjs/platform-fastify": "^11.1.19",
     "@nestjs/platform-socket.io": "^11.0.0",
     "@nestjs/swagger": "^11.2.6",
+    "@nestjs/throttler": "^6.5.0",
     "@nestjs/websockets": "^11.0.0",
     "@tabpilot/shared": "workspace:*",
     "class-transformer": "^0.5.1",

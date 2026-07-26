@@ -56,6 +56,8 @@ export interface JoinAsCoHostResponse {
 export interface JoinSessionResponse {
   session: Session;
   participant: Participant;
+  /** One-time secret issued on first join; must be stored and sent on WS reconnect */
+  participantSecret?: string;
 }
 
 // ─── Ticket scoring ──────────────────────────────────────────────────────────

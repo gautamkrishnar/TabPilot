@@ -672,6 +672,8 @@ describe('HostDashboard — story point management', () => {
       expect(mockUpdateJiraStoryPoints).toHaveBeenCalledWith(
         'FAKE-123',
         8,
+        'host-key-123',
+        'session-1',
         'https://example.atlassian.net',
         true,
       );

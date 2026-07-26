@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query, UnauthorizedException } from '@nestjs/common';
 import {
   ApiBody,
   ApiNoContentResponse,
@@ -8,12 +8,17 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { SessionsService } from '../sessions/sessions.service';
+import { SetStoryPointsDto } from './dto/set-story-points.dto';
 import { JiraService } from './jira.service';
 
 @ApiTags('jira')
 @Controller('jira')
 export class JiraController {
-  constructor(private readonly jiraService: JiraService) {}
+  constructor(
+    private readonly jiraService: JiraService,
+    private readonly sessionsService: SessionsService,
+  ) {}
 
   @Get('status')
   @ApiOperation({ summary: 'Check if Jira integration is configured' })
@@ -67,10 +72,11 @@ export class JiraController {
   @ApiNotFoundResponse({ description: 'Issue not found in Jira.' })
   @ApiResponse({ status: 400, description: 'Invalid key or project not configured.' })
   @ApiResponse({ status: 503, description: 'Jira not configured or unreachable.' })
-  setStoryPoints(
-    @Param('key') key: string,
-    @Body() body: { points: number; baseUrl?: string; skipExtraFields?: boolean },
-  ) {
+  async setStoryPoints(@Param('key') key: string, @Body() body: SetStoryPointsDto) {
+    const isValid = await this.sessionsService.validateHostKey(body.sessionId, body.hostKey);
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid host credentials');
+    }
     return this.jiraService.setStoryPoints(
       key.toUpperCase(),
       body.points,

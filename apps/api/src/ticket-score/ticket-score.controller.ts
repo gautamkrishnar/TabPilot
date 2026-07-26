@@ -14,10 +14,12 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { JiraService } from '../jira/jira.service';
 import { TicketScoreService } from './ticket-score.service';
 
 @ApiTags('ticket-score')
+@Throttle({ default: { limit: 10, ttl: 60000 } })
 @Controller('ticket-score')
 export class TicketScoreController {
   constructor(

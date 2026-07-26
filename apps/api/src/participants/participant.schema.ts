@@ -25,6 +25,9 @@ export class ParticipantDoc {
 
   @Prop({ default: false })
   isOnline: boolean;
+
+  @Prop()
+  participantSecretHash?: string;
 }
 
 export const ParticipantSchema = SchemaFactory.createForClass(ParticipantDoc);

@@ -57,6 +57,8 @@ export function ParticipantView() {
     participantId,
     setParticipantId,
     loadParticipantId,
+    setParticipantSecret,
+    loadParticipantSecret,
     currentNavigateUrl,
     votedParticipantIds,
     revealedVotes,
@@ -66,7 +68,7 @@ export function ParticipantView() {
 
   const checkedRef = useRef(false);
 
-  // Load participant ID from localStorage — ref guard prevents StrictMode double-toast
+  // Load participant ID and secret from localStorage — ref guard prevents StrictMode double-toast
   useEffect(() => {
     if (!sessionId || checkedRef.current) return;
     checkedRef.current = true;
@@ -74,11 +76,20 @@ export function ParticipantView() {
     const stored = loadParticipantId(sessionId);
     if (stored) {
       setParticipantId(stored);
+      const storedSecret = loadParticipantSecret(sessionId);
+      if (storedSecret) setParticipantSecret(storedSecret);
     } else {
       toast.error('Participant ID not found. Please join the session again.');
       navigate(`/join?code=`);
     }
-  }, [sessionId, navigate, loadParticipantId, setParticipantId]);
+  }, [
+    sessionId,
+    navigate,
+    loadParticipantId,
+    setParticipantId,
+    loadParticipantSecret,
+    setParticipantSecret,
+  ]);
 
   // Navigate synced tab when URL changes
   const handleNavigate = useCallback(

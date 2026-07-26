@@ -35,8 +35,14 @@ const LAST_NAME_KEY = 'tabpilot_last_name';
 export function JoinSession() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { saveParticipantId, setParticipantId, saveParticipantSession, getSavedSessions } =
-    useSessionStore();
+  const {
+    saveParticipantId,
+    saveParticipantSecret,
+    setParticipantId,
+    setParticipantSecret,
+    saveParticipantSession,
+    getSavedSessions,
+  } = useSessionStore();
 
   const initialCode = searchParams.get('code')?.toUpperCase() ?? '';
 
@@ -95,6 +101,10 @@ export function JoinSession() {
       saveParticipantId(res.session.id, res.participant.id);
       saveParticipantSession(res.session, res.participant.id);
       setParticipantId(res.participant.id);
+      if (res.participantSecret) {
+        saveParticipantSecret(res.session.id, res.participantSecret);
+        setParticipantSecret(res.participantSecret);
+      }
       toast.success(`Welcome, ${res.participant.name}!`, { icon: '🎉' });
       navigate(`/session/${res.session.id}`);
     },

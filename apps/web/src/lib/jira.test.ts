@@ -136,9 +136,11 @@ describe('updateJiraStoryPoints', () => {
 
   it('calls PATCH with the correct endpoint and body', async () => {
     mockPatch.mockResolvedValue({ data: null });
-    await updateJiraStoryPoints('CONNCERT-123', 5);
+    await updateJiraStoryPoints('CONNCERT-123', 5, 'host-key-abc', 'session-id-xyz');
     expect(mockPatch).toHaveBeenCalledWith('/jira/issue/CONNCERT-123/story-points', {
       points: 5,
+      hostKey: 'host-key-abc',
+      sessionId: 'session-id-xyz',
       baseUrl: undefined,
       skipExtraFields: true,
     });
@@ -146,9 +148,11 @@ describe('updateJiraStoryPoints', () => {
 
   it('passes the correct body to the API', async () => {
     mockPatch.mockResolvedValue({ data: null });
-    await updateJiraStoryPoints('CONNCERT-1', 3);
+    await updateJiraStoryPoints('CONNCERT-1', 3, 'host-key-abc', 'session-id-xyz');
     expect(mockPatch).toHaveBeenCalledWith('/jira/issue/CONNCERT-1/story-points', {
       points: 3,
+      hostKey: 'host-key-abc',
+      sessionId: 'session-id-xyz',
       baseUrl: undefined,
       skipExtraFields: true,
     });
@@ -156,9 +160,17 @@ describe('updateJiraStoryPoints', () => {
 
   it('includes baseUrl in body when provided', async () => {
     mockPatch.mockResolvedValue({ data: null });
-    await updateJiraStoryPoints('CONNCERT-1', 3, 'https://myorg.atlassian.net');
+    await updateJiraStoryPoints(
+      'CONNCERT-1',
+      3,
+      'host-key-abc',
+      'session-id-xyz',
+      'https://myorg.atlassian.net',
+    );
     expect(mockPatch).toHaveBeenCalledWith('/jira/issue/CONNCERT-1/story-points', {
       points: 3,
+      hostKey: 'host-key-abc',
+      sessionId: 'session-id-xyz',
       baseUrl: 'https://myorg.atlassian.net',
       skipExtraFields: true,
     });
@@ -166,9 +178,18 @@ describe('updateJiraStoryPoints', () => {
 
   it('sends skipExtraFields: false when explicitly passed', async () => {
     mockPatch.mockResolvedValue({ data: null });
-    await updateJiraStoryPoints('CONNCERT-1', 3, undefined, false);
+    await updateJiraStoryPoints(
+      'CONNCERT-1',
+      3,
+      'host-key-abc',
+      'session-id-xyz',
+      undefined,
+      false,
+    );
     expect(mockPatch).toHaveBeenCalledWith('/jira/issue/CONNCERT-1/story-points', {
       points: 3,
+      hostKey: 'host-key-abc',
+      sessionId: 'session-id-xyz',
       baseUrl: undefined,
       skipExtraFields: false,
     });

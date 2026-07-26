@@ -6,6 +6,8 @@ export interface JoinSessionPayload {
   sessionId: string;
   participantId?: string;
   hostKey?: string;
+  /** One-time secret issued on HTTP join; required when reconnecting with participantId */
+  participantSecret?: string;
 }
 
 export interface HostStartSessionPayload {
