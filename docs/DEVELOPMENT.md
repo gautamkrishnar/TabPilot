@@ -138,6 +138,7 @@ podman compose -f compose.dev.yml down -v
 | `MONGODB_URI` | `mongodb://localhost:27017/tabpilot` | Yes | Full MongoDB connection URI |
 | `FRONTEND_URL` | `http://localhost:5173` | Yes | Allowed CORS origin for HTTP requests. Set to your production frontend domain in deployment. |
 | `NODE_ENV` | `development` | No | `development` or `production`. Affects logging and optimizations. |
+| `ALLOW_PROXY` | `false` | No | Set to `true` when running behind a trusted reverse proxy. Reads the real client IP from `X-Forwarded-For`/`X-Real-IP` for accurate per-IP rate limiting. Only enable when the proxy is controlled by you. |
 | `JIRA_BASE_URL` | | No | Base URL of your Jira instance (e.g. `https://myteam.atlassian.net`). Enables Jira title enrichment and story point sync. |
 | `JIRA_USER_EMAIL` | | No | Email address for Jira API authentication (Basic Auth). |
 | `JIRA_API_TOKEN` | | No | Jira API token for authentication. |

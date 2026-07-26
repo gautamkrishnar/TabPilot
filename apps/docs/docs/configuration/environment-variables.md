@@ -15,6 +15,11 @@ All Tab Pilot configuration is done through environment variables passed to the 
 | `MONGODB_URI` | `mongodb://localhost:27017/tabpilot` | Yes | MongoDB connection string |
 | `FRONTEND_URL` | `http://localhost:5173` | Yes | Allowed CORS origin — **must match the public URL** your users access |
 | `NODE_ENV` | `development` | No | Set to `production` in deployed environments |
+| `ALLOW_PROXY` | `false` | No | Set to `true` when the API runs behind a trusted reverse proxy. Reads the real client IP from `X-Forwarded-For`/`X-Real-IP` for accurate per-IP rate limiting |
+
+:::warning ALLOW_PROXY security note
+Only set `ALLOW_PROXY=true` when the API is behind a reverse proxy you control (nginx, HAProxy, OpenShift route). If the API is directly internet-facing, clients can spoof `X-Forwarded-For` to bypass rate limiting.
+:::
 
 :::warning FRONTEND_URL is critical
 This value is the CORS allowed origin for the API and Socket.io. If it does not match the domain in the browser address bar exactly (including `https://`), all real-time connections will fail. In production, set this to your full public URL, e.g. `https://tabpilot.example.com`.
@@ -77,6 +82,7 @@ VERTEX_AI_LOCATION=us-central1
       - JIRA_STORY_POINTS_FIELDS=PROJ=customfield_10016
       - GOOGLE_APPLICATION_CREDENTIALS=/secrets/gcp-sa.json
       - VERTEX_AI_LOCATION=us-central1
+      - ALLOW_PROXY=true
 ```
 
 ## Security Recommendations
