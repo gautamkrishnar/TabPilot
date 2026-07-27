@@ -1,0 +1,49 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels: ["dependencies", "github-actions"]
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels: ["dependencies", "npm"]
+    groups:
+      root:
+        patterns: ["*"]
+
+  - package-ecosystem: "npm"
+    directory: "/apps/api"
+    schedule:
+      interval: "monthly"
+    labels: ["dependencies", "npm", "api"]
+    groups:
+      api:
+        patterns: ["*"]
+
+  - package-ecosystem: "npm"
+    directory: "/apps/web"
+    schedule:
+      interval: "monthly"
+    labels: ["dependencies", "npm", "web"]
+    groups:
+      web:
+        patterns: ["*"]
+
+  - package-ecosystem: "npm"
+    directory: "/packages/shared"
+    schedule:
+      interval: "monthly"
+    labels: ["dependencies", "npm", "shared"]
+    groups:
+      shared:
+        patterns: ["*"]
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels: ["dependencies", "docker"]
