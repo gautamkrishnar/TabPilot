@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: '22'
+  NODE_VERSION: '26'
 
 # Cancel in-progress runs on the same branch when a new push arrives
 concurrency:
@@ -369,13 +369,23 @@ jobs:
             shaVersions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
             const toDelete = shaVersions.slice(SHA_KEEP);
 
+            let pruned = 0;
             for (const v of toDelete) {
               const tags = v.metadata?.container?.tags ?? [];
-              console.log(`Deleting version ${v.id} (tags: ${tags.join(', ') || 'untagged'})`);
-              await github.rest.packages.deletePackageVersionForAuthenticatedUser({
-                package_type: 'container',
-                package_name: packageName,
-                package_version_id: v.id,
-              });
+              try {
+                await github.rest.packages.deletePackageVersionForAuthenticatedUser({
+                  package_type: 'container',
+                  package_name: packageName,
+                  package_version_id: v.id,
+                });
+                console.log(`Deleted version ${v.id} (tags: ${tags.join(', ') || 'untagged'})`);
+                pruned++;
+              } catch (err) {
+                if (err.status === 404) {
+                  console.log(`Skipping version ${v.id} — already deleted`);
+                } else {
+                  throw err;
+                }
+              }
             }
-            console.log(`Pruned ${toDelete.length} version(s).`);
+            console.log(`Pruned ${pruned} version(s).`);

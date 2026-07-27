@@ -40,6 +40,8 @@ jobs:
 
       - uses: actions/setup-node@v7.0.0
         with:
+          # wdio 9.x uses tsx module.register() which silently fails on Node 26.
+          # Keep E2E on Node 22 LTS until wdio ships Node 26 support.
           node-version: '22'
 
       - name: Enable corepack

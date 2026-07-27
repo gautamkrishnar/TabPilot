@@ -1,4 +1,4 @@
-import { createHash, randomInt } from 'node:crypto';
+import { createHash, randomInt, randomUUID } from 'node:crypto';
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import type {
@@ -8,7 +8,6 @@ import type {
   SessionState,
 } from '@tabpilot/shared';
 import type { Model } from 'mongoose';
-import { v4 as uuidv4 } from 'uuid';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { SessionDoc, type SessionDocument } from './session.schema';
 
@@ -29,11 +28,11 @@ export class SessionsService {
   ) {}
 
   async create(dto: CreateSessionDto): Promise<CreateSessionResponse> {
-    const sessionId = uuidv4();
+    const sessionId = randomUUID();
     const joinCode = generateJoinCode();
-    const hostKey = uuidv4();
+    const hostKey = randomUUID();
     const hostKeyHash = hashKey(hostKey);
-    const hostInviteKey = uuidv4();
+    const hostInviteKey = randomUUID();
     const hostInviteKeyHash = hashKey(hostInviteKey);
 
     const expiresAt = new Date();
@@ -97,7 +96,7 @@ export class SessionsService {
     const valid = await this.validateHostInviteKey(sessionId, inviteKey);
     if (!valid) throw new UnauthorizedException('Invalid host invite key.');
 
-    const coHostKey = uuidv4();
+    const coHostKey = randomUUID();
     const coHostKeyHash = hashKey(coHostKey);
 
     const doc = await this.sessionModel
@@ -113,7 +112,7 @@ export class SessionsService {
             },
           },
         },
-        { new: true },
+        { returnDocument: 'after' },
       )
       .exec();
 
@@ -127,7 +126,7 @@ export class SessionsService {
 
   async updateState(sessionId: string, state: SessionState): Promise<SessionDocument> {
     const doc = await this.sessionModel
-      .findOneAndUpdate({ sessionId }, { state }, { new: true })
+      .findOneAndUpdate({ sessionId }, { state }, { returnDocument: 'after' })
       .exec();
     if (!doc) throw new NotFoundException(`Session ${sessionId} not found`);
     return doc;
@@ -135,7 +134,7 @@ export class SessionsService {
 
   async updateCurrentIndex(sessionId: string, index: number): Promise<SessionDocument> {
     const doc = await this.sessionModel
-      .findOneAndUpdate({ sessionId }, { currentIndex: index }, { new: true })
+      .findOneAndUpdate({ sessionId }, { currentIndex: index }, { returnDocument: 'after' })
       .exec();
     if (!doc) throw new NotFoundException(`Session ${sessionId} not found`);
     return doc;
@@ -170,14 +169,16 @@ export class SessionsService {
   async updateHostProfile(sessionId: string, name: string, email = ''): Promise<SessionDocument> {
     const update: Record<string, unknown> = { hostName: name, hostEmail: email || null };
     const doc = await this.sessionModel
-      .findOneAndUpdate({ sessionId }, update, { new: true })
+      .findOneAndUpdate({ sessionId }, update, { returnDocument: 'after' })
       .exec();
     if (!doc) throw new NotFoundException(`Session ${sessionId} not found`);
     return doc;
   }
 
   async setLocked(sessionId: string, isLocked: boolean): Promise<SessionDocument | null> {
-    return this.sessionModel.findOneAndUpdate({ sessionId }, { isLocked }, { new: true }).exec();
+    return this.sessionModel
+      .findOneAndUpdate({ sessionId }, { isLocked }, { returnDocument: 'after' })
+      .exec();
   }
 
   async setVotingEnabled(
@@ -185,7 +186,7 @@ export class SessionsService {
     votingEnabled: boolean,
   ): Promise<SessionDocument | null> {
     return this.sessionModel
-      .findOneAndUpdate({ sessionId }, { votingEnabled }, { new: true })
+      .findOneAndUpdate({ sessionId }, { votingEnabled }, { returnDocument: 'after' })
       .exec();
   }
 
@@ -195,7 +196,7 @@ export class SessionsService {
 
   async addUrl(sessionId: string, url: string): Promise<SessionDocument | null> {
     return this.sessionModel
-      .findOneAndUpdate({ sessionId }, { $push: { urls: url } }, { new: true })
+      .findOneAndUpdate({ sessionId }, { $push: { urls: url } }, { returnDocument: 'after' })
       .exec();
   }
 
@@ -216,7 +217,7 @@ export class SessionsService {
     }
 
     return this.sessionModel
-      .findOneAndUpdate({ sessionId }, { urls, currentIndex }, { new: true })
+      .findOneAndUpdate({ sessionId }, { urls, currentIndex }, { returnDocument: 'after' })
       .exec();
   }
 
@@ -246,7 +247,9 @@ export class SessionsService {
     const [moved] = urls.splice(fromIndex, 1);
     urls.splice(toIndex, 0, moved);
 
-    return this.sessionModel.findOneAndUpdate({ sessionId }, { urls }, { new: true }).exec();
+    return this.sessionModel
+      .findOneAndUpdate({ sessionId }, { urls }, { returnDocument: 'after' })
+      .exec();
   }
 
   // ── Per-ticket vote persistence ───────────────────────────────────────────
@@ -266,7 +269,7 @@ export class SessionsService {
       .findOneAndUpdate(
         { sessionId },
         { $push: { votes: { urlIndex, participantId, value } } },
-        { new: true },
+        { returnDocument: 'after' },
       )
       .exec();
   }
@@ -284,7 +287,7 @@ export class SessionsService {
       .findOneAndUpdate(
         { sessionId },
         { $set: { [`storyPoints.${urlKey}`]: value } },
-        { new: true },
+        { returnDocument: 'after' },
       )
       .exec();
   }

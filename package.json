@@ -25,9 +25,9 @@
     "clean": "yarn workspaces foreach --exclude '@tabpilot/docs' run clean"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.10",
-    "concurrently": "^9.1.0",
-    "typescript": "^5.7.3"
+    "@biomejs/biome": "^2.5.5",
+    "concurrently": "^10.0.4",
+    "typescript": "^5.9.3"
   },
   "resolutions": {
     "fastify": "^5.8.5",
@@ -59,7 +59,7 @@
     "react-router/path-to-regexp": "1.9.0"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=26.0.0"
   },
   "packageManager": "yarn@4.13.0"
 }

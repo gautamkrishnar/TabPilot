@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, ChevronUp, Loader2, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { useTicketScore } from '@/hooks/useTicketScore';
+import apiClient from '@/lib/api';
+import { parseJiraUrl } from '@/lib/jira';
 import { cn } from '@/lib/utils';
 
 const DIMENSIONS = [
@@ -250,8 +252,6 @@ export function TicketScoreBreakdown({ url, canRegenerate }: TicketScoreBreakdow
   const [regenerating, setRegenerating] = useState(false);
 
   async function handleRegenerate() {
-    const { parseJiraUrl } = await import('@/lib/jira');
-    const { default: apiClient } = await import('@/lib/api');
     const info = parseJiraUrl(url);
 
     setRegenerating(true);

@@ -1,9 +1,8 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import type { Participant } from '@tabpilot/shared';
 import type { Model } from 'mongoose';
-import { v4 as uuidv4 } from 'uuid';
 import { ParticipantDoc, type ParticipantDocument } from './participant.schema';
 
 @Injectable()
@@ -19,7 +18,7 @@ export class ParticipantsService {
     email?: string,
     participantSecretHash?: string,
   ): Promise<Participant> {
-    const participantId = uuidv4();
+    const participantId = randomUUID();
     const avatarUrl = `https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${participantId}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
 
     const doc = await this.participantModel.create({
@@ -62,7 +61,7 @@ export class ParticipantsService {
 
   async updateSocketId(participantId: string, socketId: string): Promise<ParticipantDocument> {
     const doc = await this.participantModel
-      .findOneAndUpdate({ participantId }, { socketId }, { new: true })
+      .findOneAndUpdate({ participantId }, { socketId }, { returnDocument: 'after' })
       .exec();
     if (!doc) throw new NotFoundException(`Participant ${participantId} not found`);
     return doc;
@@ -75,7 +74,7 @@ export class ParticipantsService {
   ): Promise<ParticipantDocument> {
     const update: Record<string, unknown> = { name, email: email || null };
     const doc = await this.participantModel
-      .findOneAndUpdate({ participantId }, update, { new: true })
+      .findOneAndUpdate({ participantId }, update, { returnDocument: 'after' })
       .exec();
     if (!doc) throw new NotFoundException(`Participant ${participantId} not found`);
     return doc;
@@ -83,7 +82,7 @@ export class ParticipantsService {
 
   async updateOnlineStatus(participantId: string, isOnline: boolean): Promise<ParticipantDocument> {
     const doc = await this.participantModel
-      .findOneAndUpdate({ participantId }, { isOnline }, { new: true })
+      .findOneAndUpdate({ participantId }, { isOnline }, { returnDocument: 'after' })
       .exec();
     if (!doc) throw new NotFoundException(`Participant ${participantId} not found`);
     return doc;

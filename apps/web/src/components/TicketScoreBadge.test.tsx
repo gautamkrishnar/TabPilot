@@ -35,16 +35,16 @@ describe('TicketScoreBadge', () => {
     { score: 75, expectedColor: 'emerald', label: '>= 70' },
     { score: 55, expectedColor: 'amber', label: '40–69' },
     { score: 25, expectedColor: 'red', label: '< 40' },
-  ])('applies $expectedColor color for scores $label (score=$score)', ({
-    score,
-    expectedColor,
-  }) => {
-    mockUseTicketScore.mockReturnValue({
-      data: { overall: score, dimensions: {} },
-      isLoading: false,
-    });
-    render(<TicketScoreBadge url="https://example.atlassian.net/browse/PROJ-1" />);
-    const badge = screen.getByText(String(score));
-    expect(badge.className).toContain(expectedColor);
-  });
+  ])(
+    'applies $expectedColor color for scores $label (score=$score)',
+    ({ score, expectedColor }) => {
+      mockUseTicketScore.mockReturnValue({
+        data: { overall: score, dimensions: {} },
+        isLoading: false,
+      });
+      render(<TicketScoreBadge url="https://example.atlassian.net/browse/PROJ-1" />);
+      const badge = screen.getByText(String(score));
+      expect(badge.className).toContain(expectedColor);
+    },
+  );
 });
