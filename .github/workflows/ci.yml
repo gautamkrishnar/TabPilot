@@ -26,20 +26,20 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
 
       - name: Enable Corepack first
         run: |
           corepack enable
           corepack prepare yarn@4.13.0 --activate
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Yarn cache
         id: yarn-cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6.1.0
         with:
           path: .yarn/cache
           key: yarn-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
@@ -57,19 +57,19 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
 
       - name: Enable Corepack first
         run: |
           corepack enable
           corepack prepare yarn@4.13.0 --activate
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Yarn cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6.1.0
         with:
           path: .yarn/cache
           key: yarn-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
@@ -113,7 +113,7 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0  # SonarCloud needs full history for blame/new-code analysis
 
@@ -122,12 +122,12 @@ jobs:
           corepack enable
           corepack prepare yarn@4.13.0 --activate
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Yarn cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6.1.0
         with:
           path: .yarn/cache
           key: yarn-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
@@ -135,7 +135,7 @@ jobs:
 
       # Cache the mongodb-memory-server binary so it's only downloaded once
       - name: mongodb-memory-server binary cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6.1.0
         with:
           path: ~/.cache/mongodb-binaries
           key: mongodb-binaries-7
@@ -166,7 +166,7 @@ jobs:
         run: exit 1
 
       - name: Upload coverage reports
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: coverage
           path: |
@@ -192,18 +192,21 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
       - name: Download coverage reports
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.1
         with:
           name: coverage
           path: apps  # upload-artifact strips the common 'apps/' prefix; restoring it here
 
+      - name: Install dirmngr
+        run: sudo apt-get install -y dirmngr
+
       - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v7
+        uses: SonarSource/sonarqube-scan-action@v8.2.1
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
@@ -214,19 +217,19 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
 
       - name: Enable Corepack first
         run: |
           corepack enable
           corepack prepare yarn@4.13.0 --activate
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Yarn cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6.1.0
         with:
           path: .yarn/cache
           key: yarn-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
@@ -260,11 +263,11 @@ jobs:
       IMAGE_NAME: ${{ github.repository }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
 
       - name: Image metadata (without docs)
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@v6.2.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
@@ -273,7 +276,7 @@ jobs:
 
       - name: Image metadata (with docs)
         id: meta-docs
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@v6.2.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
@@ -281,13 +284,13 @@ jobs:
             type=raw,value=master-docs,enable={{is_default_branch}}
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+        uses: docker/setup-qemu-action@v4.2.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@v4.2.0
 
       - name: Log in to GHCR
-        uses: docker/login-action@v4
+        uses: docker/login-action@v4.5.1
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -295,7 +298,7 @@ jobs:
 
       - name: Build and push (without docs)
         id: push
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v7.3.0
         with:
           context: .
           file: Containerfile
@@ -314,7 +317,7 @@ jobs:
 
       - name: Build and push (with docs)
         id: push-docs
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v7.3.0
         with:
           context: .
           file: Containerfile
@@ -340,7 +343,7 @@ jobs:
           cosign sign --yes "${IMAGE_REF}@${{ steps.push-docs.outputs.digest }}"
 
       - name: Prune old SHA-tagged versions
-        uses: actions/github-script@v9
+        uses: actions/github-script@v9.0.0
         with:
           script: |
             const owner = context.repo.owner.toLowerCase();
