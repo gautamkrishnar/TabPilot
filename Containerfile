@@ -1,5 +1,5 @@
 # ─── Stage 1: Dependencies ────────────────────────────────────────────────────
-FROM registry.access.redhat.com/hi/nodejs:22-builder AS deps
+FROM registry.access.redhat.com/hi/nodejs:26-builder AS deps
 WORKDIR /opt/app-root/src
 USER 0
 
@@ -36,7 +36,7 @@ COPY --from=web-builder /opt/app-root/src/apps/web/dist apps/web/dist
 RUN node .yarn/releases/yarn-4.13.0.cjs workspace @tabpilot/api build
 
 # ─── Stage 6: Production dependencies ────────────────────────────────────────
-FROM registry.access.redhat.com/hi/nodejs:22-builder AS prod-deps
+FROM registry.access.redhat.com/hi/nodejs:26-builder AS prod-deps
 WORKDIR /opt/app-root/src
 USER 0
 
@@ -48,7 +48,7 @@ COPY --from=deps /opt/app-root/src/apps/api/package.json apps/api/
 RUN node .yarn/releases/yarn-4.13.0.cjs workspaces focus @tabpilot/api --production
 
 # ─── Stage 7: Production runner (no docs) ────────────────────────────────────
-FROM registry.access.redhat.com/hi/nodejs:22 AS runner
+FROM registry.access.redhat.com/hi/nodejs:26 AS runner
 WORKDIR /opt/app-root/src
 USER 0
 
