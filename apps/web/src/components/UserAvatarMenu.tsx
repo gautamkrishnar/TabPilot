@@ -1,15 +1,17 @@
 import { WS_EVENTS } from '@tabpilot/shared';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, Pencil, User, X } from 'lucide-react';
+import { Check, Pencil, ToggleLeft, ToggleRight, User, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { useNotificationPrefs } from '@/hooks/useJoinNotifications';
 import { getSocketInstance } from '@/lib/socket';
 import { getDiceBearUrl } from '@/lib/utils';
 import { useSessionStore } from '@/store/sessionStore';
 
 export function UserAvatarMenu() {
   const { session, participants, participantId, isHost, hostKey } = useSessionStore();
+  const { joinEnabled, toggleJoin, voteEnabled, toggleVote } = useNotificationPrefs();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [nameValue, setNameValue] = useState('');
@@ -203,15 +205,53 @@ export function UserAvatarMenu() {
                   </div>
                 </div>
               ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start gap-2"
-                  onClick={startEditing}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                  Edit profile
-                </Button>
+                <div className="space-y-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start gap-2"
+                    onClick={startEditing}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Edit profile
+                  </Button>
+
+                  <div className="border-t border-zinc-100 dark:border-zinc-800 pt-3">
+                    <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">
+                      Notifications
+                    </p>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs text-zinc-600 dark:text-zinc-400">Join alerts</p>
+                      <button
+                        type="button"
+                        onClick={toggleJoin}
+                        aria-label="Toggle join notifications"
+                      >
+                        {joinEnabled ? (
+                          <ToggleRight className="h-6 w-6 text-indigo-400" />
+                        ) : (
+                          <ToggleLeft className="h-6 w-6 text-zinc-500" />
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 mt-1.5">
+                      <p className="text-xs text-zinc-600 dark:text-zinc-400">Vote alerts</p>
+                      <button
+                        type="button"
+                        onClick={toggleVote}
+                        aria-label="Toggle vote notifications"
+                      >
+                        {voteEnabled ? (
+                          <ToggleRight className="h-6 w-6 text-indigo-400" />
+                        ) : (
+                          <ToggleLeft className="h-6 w-6 text-zinc-500" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </motion.div>

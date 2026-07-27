@@ -32,6 +32,7 @@ import { Button } from '@/components/ui/button';
 import { useCurrentTitle } from '@/hooks/useCurrentTitle';
 import { useHostActions } from '@/hooks/useHostActions';
 import { useJiraStatus } from '@/hooks/useJiraStatus';
+import { useNotificationPrefs } from '@/hooks/useJoinNotifications';
 import { useSocket } from '@/hooks/useSocket';
 import { useStoryPointOverride } from '@/hooks/useStoryPointOverride';
 import { usePrefetchTicketScores } from '@/hooks/useTicketScore';
@@ -283,6 +284,8 @@ export function HostDashboard() {
     sessionId,
     hostKey: hostKey || undefined,
   });
+
+  const { joinEnabled, toggleJoin, voteEnabled, toggleVote } = useNotificationPrefs();
 
   const { data: jiraStatus } = useJiraStatus();
   const storyPointProjects = jiraStatus?.storyPointProjects ?? [];
@@ -912,6 +915,54 @@ export function HostDashboard() {
                       <ToggleLeft className="h-8 w-8 text-zinc-600" />
                     )}
                   </button>
+                </div>
+
+                <div className="border-t border-zinc-100 dark:border-zinc-800 pt-3 mt-1">
+                  <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-3">
+                    Notifications
+                  </p>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                        Join notifications
+                      </p>
+                      <p className="text-xs text-zinc-500">Show toast when a participant joins</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={toggleJoin}
+                      className="flex-shrink-0"
+                      aria-label="Toggle join notifications"
+                    >
+                      {joinEnabled ? (
+                        <ToggleRight className="h-8 w-8 text-indigo-400" />
+                      ) : (
+                        <ToggleLeft className="h-8 w-8 text-zinc-600" />
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4 mt-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                        Vote notifications
+                      </p>
+                      <p className="text-xs text-zinc-500">Show toast when a vote is submitted</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={toggleVote}
+                      className="flex-shrink-0"
+                      aria-label="Toggle vote notifications"
+                    >
+                      {voteEnabled ? (
+                        <ToggleRight className="h-8 w-8 text-indigo-400" />
+                      ) : (
+                        <ToggleLeft className="h-8 w-8 text-zinc-600" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>

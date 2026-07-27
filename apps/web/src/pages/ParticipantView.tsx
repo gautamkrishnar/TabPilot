@@ -13,6 +13,7 @@ import { TicketScoreBreakdown } from '@/components/TicketScoreBreakdown';
 import { UserAvatarMenu } from '@/components/UserAvatarMenu';
 import { Button } from '@/components/ui/button';
 import { useCurrentTitle } from '@/hooks/useCurrentTitle';
+import { voteNotificationsEnabled } from '@/hooks/useJoinNotifications';
 import { useSocket } from '@/hooks/useSocket';
 import { useTabSync } from '@/hooks/useTabSync';
 import { usePrefetchTicketScores } from '@/hooks/useTicketScore';
@@ -137,7 +138,7 @@ export function ParticipantView() {
       participantId,
       value,
     });
-    toast.success(`Vote submitted: ${value}`, { duration: 2000 });
+    if (voteNotificationsEnabled()) toast.success(`Vote submitted: ${value}`, { duration: 2000 });
   };
 
   // Update page title

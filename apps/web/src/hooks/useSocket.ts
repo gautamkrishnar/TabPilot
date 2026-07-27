@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import type { Socket } from 'socket.io-client';
+import { joinNotificationsEnabled } from '@/hooks/useJoinNotifications';
 import { disconnectSocket, getSocket } from '@/lib/socket';
 import { useSessionStore } from '@/store/sessionStore';
 
@@ -101,7 +102,7 @@ export function useSocket({
 
     const handleParticipantJoined = (payload: ParticipantJoinedPayload) => {
       addParticipant(payload.participant);
-      if (payload.participant.id !== participantId) {
+      if (payload.participant.id !== participantId && joinNotificationsEnabled()) {
         toast.success(`${payload.participant.name} joined`, {
           icon: '👋',
           duration: 3000,
