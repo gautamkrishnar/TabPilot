@@ -291,8 +291,8 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
     const wasOffline = !found.isOnline;
     await this.participantsService.updateSocketId(participantId, clientId);
-    await this.participantsService.updateOnlineStatus(participantId, true);
-    return { doc: found, wasOffline };
+    const updated = await this.participantsService.updateOnlineStatus(participantId, true);
+    return { doc: updated, wasOffline };
   }
 
   /** Emit the current navigation URL to a newly joined client if the session is active.

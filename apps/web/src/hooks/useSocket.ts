@@ -101,7 +101,7 @@ export function useSocket({
 
     const handleParticipantJoined = (payload: ParticipantJoinedPayload) => {
       addParticipant(payload.participant);
-      if (payload.participant._id !== participantId) {
+      if (payload.participant.id !== participantId) {
         toast.success(`${payload.participant.name} joined`, {
           icon: '👋',
           duration: 3000,
