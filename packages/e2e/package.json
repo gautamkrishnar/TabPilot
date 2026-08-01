@@ -8,8 +8,8 @@
     "test": "node --env-file=.env ../../node_modules/.bin/wdio run wdio.conf.ts"
   },
   "devDependencies": {
-    "@types/node": "^26.1.1",
-    "@wdio/browserstack-service": "^9.0.0",
+    "@types/node": "^26.1.2",
+    "@wdio/browserstack-service": "^9.33.0",
     "@wdio/cli": "^9.30.0",
     "@wdio/globals": "^9.29.1",
     "@wdio/junit-reporter": "^9.29.1",

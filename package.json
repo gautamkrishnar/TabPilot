@@ -25,7 +25,7 @@
     "clean": "yarn workspaces foreach --exclude '@tabpilot/docs' run clean"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.5",
+    "@biomejs/biome": "^2.5.6",
     "concurrently": "^10.0.4",
     "typescript": "^5.9.3"
   },
