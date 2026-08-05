@@ -6,6 +6,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import type { FastifyReply } from 'fastify';
 import { SocketIoAdapter } from './adapters/socket-io.adapter';
 import { AppModule } from './app.module';
 
@@ -95,19 +96,13 @@ async function bootstrap() {
       root: webDistPath,
       prefix: '/',
       wildcard: false,
-      setHeaders(res: { setHeader: (k: string, v: string) => void }, filePath: string) {
+      setHeaders(res: FastifyReply, filePath: string) {
         if (filePath.includes(`${sep}assets${sep}`)) {
-          // Vite content-hashes every file under /assets/ — safe to cache forever.
-          // Changing a file produces a new hash → new URL → no stale-cache risk.
-          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          res.header('Cache-Control', 'public, max-age=31536000, immutable');
         } else if (filePath.endsWith('.html')) {
-          // HTML must revalidate on every visit so the browser picks up the
-          // latest asset URLs after a deploy.
-          res.setHeader('Cache-Control', 'no-cache');
+          res.header('Cache-Control', 'no-cache');
         } else {
-          // Root-level static files (logo.svg, favicons, manifests, robots.txt …)
-          // have no content hash, so use a short-lived cache + revalidation.
-          res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
+          res.header('Cache-Control', 'public, max-age=3600, must-revalidate');
         }
       },
     });
